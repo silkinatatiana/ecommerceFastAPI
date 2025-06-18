@@ -1,0 +1,27 @@
+# IDE
+.idea/
+.idea/shelf/
+.idea/workspace.xml
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Virtual environment
+.venv/
+venv/
+
+# Environment variables
+.env
+*.env
+
+# Database
+*.db
+*.sqlite
+
+# Alembic
+alembic.ini
+alembic/versions/*
+!alembic/versions/.keep
