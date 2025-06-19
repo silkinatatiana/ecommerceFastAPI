@@ -2,11 +2,11 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.routers import category, products
 from app.backend.db import Base, engine, async_session_maker
-from app.routers import auth
+from app.routers import auth, permission
 
 app = FastAPI()
 app.include_router(auth.router)
-
+app.include_router(permission.router)
 
 @app.on_event("startup")
 async def startup():
