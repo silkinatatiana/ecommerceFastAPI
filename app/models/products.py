@@ -21,5 +21,9 @@ class Product(Base):
     category = relationship("Category", back_populates="products")
     supplier_id = Column(Integer, ForeignKey(User.id))
     supplier = relationship("User", back_populates="products")
-from sqlalchemy.schema import CreateTable
+    reviews = relationship("Review", back_populates="product")
+
+
+
+# from sqlalchemy.schema import CreateTable
 # print(CreateTable(Product.__table__))

@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.routers import category, products
+from app.routers import category, products, reviews
 from app.backend.db import Base, engine, async_session_maker
 from app.routers import auth, permission
 
@@ -30,5 +30,9 @@ app.include_router(
 )
 app.include_router(
     products.router,
+    dependencies=[Depends(get_db)]
+)
+app.include_router(
+    reviews.router,
     dependencies=[Depends(get_db)]
 )
