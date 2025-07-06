@@ -1,5 +1,5 @@
 from app.backend.db import Base
-from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from .users import User
 
@@ -23,7 +23,17 @@ class Product(Base):
     supplier = relationship("User", back_populates="products")
     reviews = relationship("Review", back_populates="product")
 
-
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": Column(Integer, primary_key=True, autoincrement=True),
+                "name": "Смартфон",
+                "description": "Мощный смартфон",
+                "price": 999.99,
+                "image_url": "https://example.com/phone.jpg",
+                "category_id": 1
+            }
+        }
 
 # from sqlalchemy.schema import CreateTable
 # print(CreateTable(Product.__table__))

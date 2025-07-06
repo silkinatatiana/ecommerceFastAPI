@@ -10,9 +10,11 @@ class CreateProduct(BaseModel):
     stock: int
     category: int
 
+
 class CreateCategory(BaseModel):
     name: str
     parent_id: int | None = None
+
 
 class CreateUser(BaseModel):
     first_name: str
@@ -21,9 +23,9 @@ class CreateUser(BaseModel):
     email: str
     password: str
 
+
 class CreateReviews(BaseModel):
     grade: int = Field(..., ge=1, le=5)
     comment: str = None
     comment_date: datetime = Field(default_factory=datetime.now)
     is_active: bool = True
-

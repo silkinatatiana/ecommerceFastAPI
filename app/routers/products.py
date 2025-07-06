@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Request, Form
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse, RedirectResponse
 from typing import Annotated
 from slugify import slugify
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,19 +9,19 @@ from sqlalchemy import select, insert
 from app.schemas import CreateProduct
 from app.models import *
 from app.routers.auth import get_current_user
+from sqlalchemy.orm import Session
+import httpx
+from app.config import Config
+import asyncio
 
 router = APIRouter(prefix='/products', tags=['products'])
+templates = Jinja2Templates(directory='templates')
 
 
 @router.get('/')
 async def all_products(db: Annotated[AsyncSession, Depends(get_db)]):
-    products = await db.scalars(select(Product).where(Product.is_active == True, Product.stock > 0))
+    products = await db.scalars(select(Product).where(Product.stock > 0))
     all_products = products.all()
-    if not all_products:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='There are no product'
-        )
     return all_products
 
 
@@ -151,4 +153,38 @@ async def delete_product(db: Annotated[AsyncSession, Depends(get_db)], product_s
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail='You have not enough permission for this action'
+        )
+
+
+@router.get("/create", response_class=HTMLResponse)
+async def create_product_form(
+        request: Request,
+        current_user: dict = Depends(get_current_user)
+):
+    # if not (current_user.get('is_supplier') or current_user.get('is_admin')):
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Недостаточно прав для добавления товара"
+    #     )
+    print(1)
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{Config.url}/categories/")
+            response.raise_for_status()
+            categories = response.json()
+
+        return templates.TemplateResponse(
+            "products/create_product.html",  # Убедитесь в правильности пути
+            {
+                "request": request,
+                "categories": categories,
+                "user": current_user,
+                "config": {"url": Config.url}  # Для использования в JS
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось загрузить данные категорий"
         )

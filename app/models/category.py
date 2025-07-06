@@ -12,9 +12,16 @@ class Category(Base):
     name = Column(String)
     slug = Column(String, unique=True, index=True)
     is_active = Column(Boolean, default=True)
-    parent_id = Column(Integer, ForeignKey('categories.id'), nullable=True)
 
     products = relationship("Product", back_populates="category", uselist=True)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "name": "Электроника"
+            }
+        }
 
 
 from sqlalchemy.schema import CreateTable
