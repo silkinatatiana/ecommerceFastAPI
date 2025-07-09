@@ -8,12 +8,14 @@ class CreateProduct(BaseModel):
     price: int
     image_url: str
     stock: int
-    category: int
+    category_id: int
 
 
 class CreateCategory(BaseModel):
     name: str
-    parent_id: int | None = None
+
+    class Config:
+        orm_mode = True
 
 
 class CreateUser(BaseModel):

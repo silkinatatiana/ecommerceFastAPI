@@ -4,9 +4,8 @@ from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.routers import category, products, reviews
+from app.routers import category, products, reviews, auth, permission
 from app.backend.db import Base, engine, async_session_maker
-from app.routers import auth, permission
 from loguru import logger
 from uuid import uuid4
 from contextlib import asynccontextmanager
@@ -18,23 +17,21 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.routers.category import Category
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
 
-
 app = FastAPI(lifespan=lifespan)
 
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+app.include_router(products.router, prefix="/products")
 app.include_router(auth.router)
 app.include_router(permission.router)
 app.include_router(category.router)
-app.include_router(products.router)
 
 logger.add('info.log', format='Log: [{extra[log_id]}:{time} - {level} - {message}]', level='INFO', enqueue=True)
 
@@ -42,7 +39,6 @@ shop_info = {
     'shop_name': 'PEAR',
     'descr': 'магазин электроники'
 }
-
 
 @app.middleware('http')
 async def log_middleware(request: Request, call_next):
@@ -63,7 +59,6 @@ async def log_middleware(request: Request, call_next):
 async def get_db() -> AsyncSession:
     async with async_session_maker() as session:
         yield session
-
 
 @app.get('/', response_class=HTMLResponse)
 async def get_main_page(request: Request, db: AsyncSession = Depends(get_db)):

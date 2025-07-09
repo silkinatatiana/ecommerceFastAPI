@@ -15,8 +15,7 @@ from app.config import Config
 import asyncio
 
 router = APIRouter(prefix='/products', tags=['products'])
-templates = Jinja2Templates(directory='templates')
-
+templates = Jinja2Templates(directory='app/templates')
 
 @router.get('/')
 async def all_products(db: Annotated[AsyncSession, Depends(get_db)]):
@@ -54,21 +53,54 @@ async def create_product(db: Annotated[AsyncSession, Depends(get_db)], create_pr
             status_code=status.HTTP_403_FORBIDDEN,
             detail='You have not enough permission for this action'
         )
+    
 
+@router.get("/create", response_class=HTMLResponse, name="create_product_form")
+async def create_product_form(
+        request: Request,
+        current_user: dict = Depends(get_current_user)
+):
+    if not (current_user.get('is_supplier') or current_user.get('is_admin')):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Недостаточно прав для добавления товара"
+        )
+    try:
+        async with httpx.AsyncClient() as client:
+            # response = await client.get(f"{Config.url}/categories/")
+            response = await client.get(f"http://127.0.0.1:8000/categories/")
+            response.raise_for_status()
+            # categories = response.json()
+            data = response.json()
+            categories = data.get('categories', [])
 
-@router.get('/{category_slug}')
-async def product_by_category(db: Annotated[AsyncSession, Depends(get_db)], category_slug: str):
-    category = await db.scalar(select(Category).where(Category.slug == category_slug))
+        return templates.TemplateResponse(
+            "products/create_product.html",  # Убедитесь в правильности пути
+            {
+                "request": request,
+                "categories": categories,
+                "user": current_user,
+                "config": {"url": Config.url}  # Для использования в JS
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось загрузить данные категорий"
+        )
+
+@router.get('/{category_id}')
+async def product_by_category(db: Annotated[AsyncSession, Depends(get_db)], category_id: int):
+    category = await db.scalar(select(Category).where(Category.id == category_id))
     if category is None:
+        print("Тут ошибка -> router.get('/{category_id}')")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail='Category not found'
         )
-    subcategories = await db.scalars(select(Category).where(Category.parent_id == category.id))
-    categories_and_subcategories = [category.id] + [i.id for i in subcategories.all()]
     products_category = await db.scalars(
-        select(Product).where(Product.category_id.in_(categories_and_subcategories), Product.is_active == True,
-                              Product.stock > 0))
+        select(Product).where(Product.category_id == category.id, Product.stock > 0))
     return products_category.all()
 
 
@@ -154,37 +186,4 @@ async def delete_product(db: Annotated[AsyncSession, Depends(get_db)], product_s
             status_code=status.HTTP_403_FORBIDDEN,
             detail='You have not enough permission for this action'
         )
-
-
-@router.get("/create", response_class=HTMLResponse)
-async def create_product_form(
-        request: Request,
-        current_user: dict = Depends(get_current_user)
-):
-    # if not (current_user.get('is_supplier') or current_user.get('is_admin')):
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Недостаточно прав для добавления товара"
-    #     )
-    print(1)
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{Config.url}/categories/")
-            response.raise_for_status()
-            categories = response.json()
-
-        return templates.TemplateResponse(
-            "products/create_product.html",  # Убедитесь в правильности пути
-            {
-                "request": request,
-                "categories": categories,
-                "user": current_user,
-                "config": {"url": Config.url}  # Для использования в JS
-            }
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Не удалось загрузить данные категорий"
-        )
+    

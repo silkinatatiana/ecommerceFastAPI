@@ -12,35 +12,39 @@ from app.backend.db_depends import get_db
 from app.schemas import CreateCategory
 from app.models.category import Category
 
-router = APIRouter(prefix='/categories', tags=['category'])
+router = APIRouter(prefix='/categories', tags=['categories'])
 templates = Jinja2Templates(directory="app/templates")
 
-
+@router.get("/debug/categories")
+async def debug_categories(db: AsyncSession = Depends(get_db)):
+    categories = await db.execute(select(Category))
+    return {"categories": categories.scalars().all()}
 
 @router.get('/')
 async def get_all_categories(db: Annotated[AsyncSession, Depends(get_db)]):
-    categories = await db.scalars(select(Category))
-    print(categories)
-    return categories.all()
-
+    result = await db.execute(select(Category))
+    categories = result.scalars().all()
+    return {"categories": categories}
 
 @router.post('/')
-async def create_category(db: Annotated[AsyncSession, Depends(get_db)], create_category: CreateCategory,
-                          get_user: Annotated[dict, Depends(get_current_user)]):
-    if get_user.get('is_admin'):
-        await db.execute(insert(Category).values(name=create_category.name,
-                                                 parent_id=create_category.parent_id,
-                                                 slug=slugify(create_category.name)))
-        await db.commit()
-        return {
-            'status_code': status.HTTP_201_CREATED,
-            'transaction': 'Successful'
-        }
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='You must be admin user for this'
-        )
+async def create_category(
+    create_data: CreateCategory,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    if not current_user.get('is_admin'):
+        raise HTTPException(status_code=403, detail="Требуются права администратора")
+
+    new_category = Category(
+        name=create_data.name,
+        slug=slugify(create_data.name),
+        is_active=True
+    )
+    
+    db.add(new_category)
+    await db.commit()
+    await db.refresh(new_category)
+    return new_category
 
 
 @router.put('/')
@@ -55,8 +59,6 @@ async def update_category(db: Annotated[AsyncSession, Depends(get_db)], category
             )
 
         category.name = update_category.name
-        category.slug = slugify(update_category.name)
-        category.parent_id = update_category.parent_id
         await db.commit()
         return {
             'status_code': status.HTTP_200_OK,
