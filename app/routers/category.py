@@ -24,7 +24,7 @@ async def debug_categories(db: AsyncSession = Depends(get_db)):
 async def get_all_categories(db: Annotated[AsyncSession, Depends(get_db)]):
     result = await db.execute(select(Category))
     categories = result.scalars().all()
-    return {"categories": categories}
+    return categories
 
 @router.post('/')
 async def create_category(

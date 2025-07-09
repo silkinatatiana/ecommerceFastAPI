@@ -25,64 +25,58 @@ async def all_products(db: Annotated[AsyncSession, Depends(get_db)]):
 
 
 @router.post('/')
-async def create_product(db: Annotated[AsyncSession, Depends(get_db)], create_product: CreateProduct,
-                         get_user: Annotated[dict, Depends(get_current_user)]):
-    if get_user.get('is_supplier') or get_user.get('is_admin'):
-        category = await db.scalar(select(Category).where(Category.id == create_product.category))
-        if category is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='There is no category found'
-            )
-        await db.execute(insert(Product).values(name=create_product.name,
-                                                description=create_product.description,
-                                                price=create_product.price,
-                                                image_url=create_product.image_url,
-                                                stock=create_product.stock,
-                                                category_id=create_product.category,
-                                                rating=0.0,
-                                                slug=slugify(create_product.name),
-                                                supplier_id=get_user.get('id')))
-        await db.commit()
-        return {
-            'status_code': status.HTTP_201_CREATED,
-            'transaction': 'Successful'
-        }
-    else:
+async def create_product(db: Annotated[AsyncSession, Depends(get_db)], create_product: CreateProduct):
+    # if get_user.get('is_supplier') or get_user.get('is_admin'):
+    category = await db.scalar(select(Category).where(Category.id == create_product.category))
+    if category is None:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='You have not enough permission for this action'
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='There is no category found'
         )
+    await db.execute(insert(Product).values(name=create_product.name,
+                                            description=create_product.description,
+                                            price=create_product.price,
+                                            image_url=create_product.image_url,
+                                            stock=create_product.stock,
+                                            category_id=create_product.category,
+                                            rating=0.0,
+                                            slug=slugify(create_product.name)))
+    await db.commit()
+    return {
+        'status_code': status.HTTP_201_CREATED,
+        'transaction': 'Successful'
+    }
+    # else:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail='You have not enough permission for this action'
+    #     )
     
 
-@router.get("/create", response_class=HTMLResponse, name="create_product_form")
+@router.get("/create", response_class=HTMLResponse)
 async def create_product_form(
         request: Request,
-        current_user: dict = Depends(get_current_user)
 ):
-    if not (current_user.get('is_supplier') or current_user.get('is_admin')):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Недостаточно прав для добавления товара"
-        )
+    # if not (current_user.get('is_supplier') or current_user.get('is_admin')):
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Недостаточно прав для добавления товара"
+    #     )
     try:
         async with httpx.AsyncClient() as client:
-            # response = await client.get(f"{Config.url}/categories/")
-            response = await client.get(f"http://127.0.0.1:8000/categories/")
+            response = await client.get(f"{Config.url}/categories/")
             response.raise_for_status()
-            # categories = response.json()
-            data = response.json()
-            categories = data.get('categories', [])
-
-        return templates.TemplateResponse(
-            "products/create_product.html",  # Убедитесь в правильности пути
-            {
-                "request": request,
-                "categories": categories,
-                "user": current_user,
-                "config": {"url": Config.url}  # Для использования в JS
-            }
-        )
+            categories = response.json()
+            print(categories)
+            print(type(categories))
+            return templates.TemplateResponse(
+                "products/create_product.html",  # Убедитесь в правильности пути
+                {
+                    "request": request,
+                    "categories": list(categories),
+                    "config": {"url": Config.url}  # Для использования в JS
+                }
+            )
 
     except Exception as e:
         raise HTTPException(

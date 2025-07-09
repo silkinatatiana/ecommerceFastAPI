@@ -28,7 +28,7 @@ app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-app.include_router(products.router, prefix="/products")
+app.include_router(products.router)
 app.include_router(auth.router)
 app.include_router(permission.router)
 app.include_router(category.router)
@@ -51,10 +51,9 @@ async def log_middleware(request: Request, call_next):
             else:
                 logger.info('Successfully accessed ' + request.url.path)
         except Exception as ex:
-            logger.error(f'Request to {request.url.path} failed: {ex}')
+            logger.error(f'Request to {request.url.path} failed: {str(ex)}')
             response = JSONResponse(content={'success': False}, status_code=500)
         return response
-
 
 async def get_db() -> AsyncSession:
     async with async_session_maker() as session:
@@ -71,10 +70,12 @@ async def get_main_page(request: Request, db: AsyncSession = Depends(get_db)):
         products.raise_for_status()
 
     categories_products = {}
+    print(categories.json())
+    print()
     for category in categories.json():
+        print(category)
         categories_products[category['name']] = [product for product in products.json() if
                                                  product['category_id'] == category['id']]
-
     return templates.TemplateResponse(
         'index.html', {
             "request": request,
