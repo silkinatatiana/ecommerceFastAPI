@@ -13,28 +13,49 @@
     </header>
 
     <nav>
-        <a href="#">Категории</a> |
+        <a href="{{ url }}">Главная</a> |
         <a href="{{ url }}/products/create">Добавить товар</a>
     </nav>
 
     <main>
         <h2>Товары по категориям</h2>
 
-        {% for category_name, products in categories_products.items() %}
-            <div class="category">
-                <h3>{{ category_name | title }}</h3>
+        {% if categories_products %}
+            {% for category_name, products in categories_products.items() %}
+                <div class="category">
+                    <h3>{{ category_name | title }}</h3>
 
-                {% for product in products %}
-                <div class="product">
-                    <h4>{{ product.name }}</h4>
-                    <p>{{ product.description or "Нет описания" }}</p>
-                    <p>Цена: {{ product.price if product.price else "Не указана" }} ₽</p>
-                    <p>В наличии: {{ product.stock }} шт.</p>
-                    <a href="/product/{{ product.id }}">Подробнее</a>
+                    <div class="products-grid">
+                        {% for product in products %}
+                        <div class="product-card">
+                            {% if product.image_url %}
+                            <img src="{{ product.image_url }}" 
+                                 alt="{{ product.name }}"
+                                 class="product-image"
+                                 loading="lazy"
+                                 referrerpolicy="no-referrer"
+                                 onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+                            {% else %}
+                            <img src="{{ url_for('static', path='/images/default_image.png') }}" 
+                                 alt="Нет изображения" 
+                                 class="product-image">
+                            {% endif %}
+                            
+                            <h4>{{ product.name }}</h4>
+                            <p class="product-description">{{ product.description or "Нет описания" }}</p>
+                            <p class="product-price">Цена: {{ product.price if product.price else "Не указана" }} ₽</p>
+                            <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
+                                В наличии: {{ product.stock }} шт.
+                            </p>
+                            <a href="{{ url }}/products/detail/{{ product.slug }}/page" class="details-link">Подробнее</a>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
-                {% endfor %}
-            </div>
-        {% endfor %}
+            {% endfor %}
+        {% else %}
+            <p>Товары не найдены</p>
+        {% endif %}
     </main>
 
     <footer>

@@ -15,10 +15,6 @@ from app.models.category import Category
 router = APIRouter(prefix='/categories', tags=['categories'])
 templates = Jinja2Templates(directory="app/templates")
 
-@router.get("/debug/categories")
-async def debug_categories(db: AsyncSession = Depends(get_db)):
-    categories = await db.execute(select(Category))
-    return {"categories": categories.scalars().all()}
 
 @router.get('/')
 async def get_all_categories(db: Annotated[AsyncSession, Depends(get_db)]):

@@ -70,10 +70,8 @@ async def get_main_page(request: Request, db: AsyncSession = Depends(get_db)):
         products.raise_for_status()
 
     categories_products = {}
-    print(categories.json())
-    print()
+
     for category in categories.json():
-        print(category)
         categories_products[category['name']] = [product for product in products.json() if
                                                  product['category_id'] == category['id']]
     return templates.TemplateResponse(
