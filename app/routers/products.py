@@ -1,94 +1,24 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Form
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from typing import Annotated
 from slugify import slugify
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.backend.db_depends import get_db
 from sqlalchemy import select, insert
+from urllib.parse import unquote
+import httpx
+from loguru import logger
+
+from app.backend.db_depends import get_db
 from app.schemas import CreateProduct
 from app.models import *
 from app.routers.auth import get_current_user
-from sqlalchemy.orm import Session
-import httpx
 from app.config import Config
-import asyncio
-from urllib.parse import unquote
 
 
 router = APIRouter(prefix='/products', tags=['products'])
-templates = Jinja2Templates(directory='app/templates')
+templates = Jinja2Templates(directory='app/templates/')
 
-@router.get('/')
-async def all_products(db: Annotated[AsyncSession, Depends(get_db)]):
-    products = await db.scalars(select(Product).where(Product.stock > 0))
-    all_products = products.all()
-    return all_products
-
-@router.post('/')
-async def create_product(
-    db: Annotated[AsyncSession, Depends(get_db)], 
-    create_product: CreateProduct
-):
-    category = await db.scalar(
-        select(Category).where(Category.id == create_product.category_id)
-    )
-    if category is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Category not found'
-        )
-
-    decoded_image_url = unquote(create_product.image_url) if create_product.image_url else None
-
-    await db.execute(
-        insert(Product).values(
-            name=create_product.name,
-            description=create_product.description,
-            price=create_product.price,
-            image_url=decoded_image_url,
-            stock=create_product.stock,
-            category_id=create_product.category_id,
-            rating=0.0,
-            slug=slugify(create_product.name)
-        )
-    )
-    await db.commit()
-
-    return {
-        'status_code': status.HTTP_201_CREATED,
-        'transaction': 'Successful',
-        'image_url': decoded_image_url
-    }
-
-# @router.post('/')
-# async def create_product(db: Annotated[AsyncSession, Depends(get_db)], create_product: CreateProduct):
-#     # if get_user.get('is_supplier') or get_user.get('is_admin'):
-#     category = await db.scalar(select(Category).where(Category.id == create_product.category_id))
-#     if category is None:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail='There is no category found'
-#         )
-#     await db.execute(insert(Product).values(name=create_product.name,
-#                                             description=create_product.description,
-#                                             price=create_product.price,
-#                                             image_url=create_product.image_url,
-#                                             stock=create_product.stock,
-#                                             category_id=create_product.category_id,
-#                                             rating=0.0,
-#                                             slug=slugify(create_product.name)))
-#     await db.commit()
-#     return {
-#         'status_code': status.HTTP_201_CREATED,
-#         'transaction': 'Successful'
-#     }
-#     # else:
-#     #     raise HTTPException(
-#     #         status_code=status.HTTP_403_FORBIDDEN,
-#     #         detail='You have not enough permission for this action'
-#     #     )
-    
 
 @router.get("/create", response_class=HTMLResponse)
 async def create_product_form(
@@ -104,14 +34,13 @@ async def create_product_form(
             response = await client.get(f"{Config.url}/categories/")
             response.raise_for_status()
             categories = response.json()
-            print(categories)
-            print(type(categories))
+            
             return templates.TemplateResponse(
-                "products/create_product.html",  # Убедитесь в правильности пути
+                "products/create_product.html",
                 {
                     "request": request,
                     "categories": list(categories),
-                    "config": {"url": Config.url}  # Для использования в JS
+                    "config": {"url": Config.url}
                 }
             )
 
@@ -120,6 +49,47 @@ async def create_product_form(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Не удалось загрузить данные категорий"
         )
+    
+
+    
+@router.post('/create')
+async def create_product(
+    db: Annotated[AsyncSession, Depends(get_db)], 
+    create_product: CreateProduct
+):
+    category = await db.scalar(
+        select(Category).where(Category.id == create_product.category_id)
+    )
+    if category is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Category not found'
+        )
+
+    decoded_image_url = unquote(create_product.image_url) if create_product.image_url else None
+
+    new_product = Product(
+        name=create_product.name,
+        description=create_product.description,
+        price=create_product.price,
+        image_url=decoded_image_url,
+        stock=create_product.stock,
+        category_id=create_product.category_id,
+        rating=0.0,
+        slug=slugify(create_product.name)
+    )
+
+    db.add(new_product)
+    await db.commit()
+    await db.refresh(new_product)
+    return new_product
+
+@router.get('/')
+async def all_products(db: Annotated[AsyncSession, Depends(get_db)]):
+    products = await db.scalars(select(Product).where(Product.stock > 0))
+    all_products = products.all()
+    return all_products
+
 
 @router.get('/{category_id}')
 async def product_by_category(db: Annotated[AsyncSession, Depends(get_db)], category_id: int):
@@ -150,7 +120,8 @@ async def product_detail_page(
             detail="Товар не найден"
         )
     category = await db.scalar(select(Category).where(Category.id == product.category_id))
-
+    print(1)
+    print(category)
     return templates.TemplateResponse(
         "products/product.html",
         {

@@ -22,8 +22,3 @@ class Category(Base):
                 "name": "Электроника"
             }
         }
-
-
-# from sqlalchemy.schema import CreateTable
-# print(CreateTable(Product.__table__))
-# print(CreateTable(Category.__table__))

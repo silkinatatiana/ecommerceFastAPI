@@ -34,6 +34,3 @@ class Product(Base):
                 "category_id": 1
             }
         }
-
-# from sqlalchemy.schema import CreateTable
-# print(CreateTable(Product.__table__))

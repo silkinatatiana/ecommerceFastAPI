@@ -14,7 +14,7 @@
 
     <nav>
         <a href="{{ url }}">Главная</a> |
-        <a href="{{ url }}/products/create">Добавить товар</a>
+        <a href="{{ url_for('create_product_form') }}">Добавить товар</a>
     </nav>
 
     <main>
@@ -31,14 +31,16 @@
                             {% if product.image_url %}
                             <img src="{{ product.image_url }}" 
                                  alt="{{ product.name }}"
-                                 class="product-image"
                                  loading="lazy"
                                  referrerpolicy="no-referrer"
-                                 onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+                                 onerror=this.onerror=null;this.src="{{ url_for('static', path='/images/default_image.png') }}"
+                                 width="200" 
+                                 height="150">
                             {% else %}
-                            <img src="{{ url_for('static', path='/images/default_image.png') }}" 
+                            <img src="{{ url_for('static', path='/images/default_image.png') }}?v=1.0" 
                                  alt="Нет изображения" 
-                                 class="product-image">
+                                 width="200" 
+                                 height="150">
                             {% endif %}
                             
                             <h4>{{ product.name }}</h4>
@@ -47,7 +49,7 @@
                             <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
                                 В наличии: {{ product.stock }} шт.
                             </p>
-                            <a href="{{ url }}/products/detail/{{ product.slug }}/page" class="details-link">Подробнее</a>
+                            <a href="{{ url_for('product_detail_page', product_slug=product.slug) }}">Подробнее</a>
                         </div>
                         {% endfor %}
                     </div>

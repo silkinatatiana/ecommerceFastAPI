@@ -17,6 +17,3 @@ class Review(Base):
 
     user = relationship("User", back_populates="reviews")
     product = relationship('Product', back_populates='reviews')
-
-# from sqlalchemy.schema import CreateTable
-# print(CreateTable(Review.__table__))

@@ -1,6 +1,6 @@
 import httpx
-from fastapi import FastAPI, Depends, Request, Form
-from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Depends, Request, HTTPException
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +16,20 @@ from app.config import Config
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.routers.category import Category
+from urllib.parse import unquote
+import logging
+
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('info.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -29,45 +43,69 @@ templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 app.include_router(products.router)
+print(">>> Роутер products подключен")
 app.include_router(auth.router)
 app.include_router(permission.router)
 app.include_router(category.router)
 
-logger.add('info.log', format='Log: [{extra[log_id]}:{time} - {level} - {message}]', level='INFO', enqueue=True)
-
+print(">>> Приложение FastAPI инициализировано")
 shop_info = {
     'shop_name': 'PEAR',
     'descr': 'магазин электроники'
 }
 
-@app.middleware('http')
-async def log_middleware(request: Request, call_next):
-    log_id = str(uuid4())
-    with logger.contextualize(log_id=log_id):
-        try:
-            response = await call_next(request)
-            if response.status_code in [401, 402, 403, 404]:
-                logger.warning(f'Request to {request.url.path} failed')
-            else:
-                logger.info('Successfully accessed ' + request.url.path)
-        except Exception as ex:
-            logger.error(f'Request to {request.url.path} failed: {str(ex)}')
-            response = JSONResponse(content={'success': False}, status_code=500)
-        return response
+@app.on_event("startup")
+async def startup():
+    logger.info("Приложение запущено")
+    for route in app.routes:
+        print(f"{route.path} -> {route.name}")
 
-async def get_db() -> AsyncSession:
-    async with async_session_maker() as session:
-        yield session
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.debug(f"Запрос: {request.method} {request.url}")
+    try:
+        response = await call_next(request)
+        logger.debug(f"Ответ: {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"Ошибка: {str(e)}", exc_info=True)
+        raise
+
+# @app.middleware('http')
+# async def log_middleware(request: Request, call_next):
+#     log_id = str(uuid4())
+#     with logger.contextualize(log_id=log_id):
+#         try:
+#             response = await call_next(request)
+#             if response.status_code in [401, 402, 403, 404]:
+#                 logger.warning(f'Request to {request.url.path} failed')
+#             else:
+#                 logger.info('Successfully accessed ' + request.url.path)
+#         except Exception as ex:
+#             logger.error(f'Request to {request.url.path} failed: {str(ex)}')
+#             response = JSONResponse(content={'success': False}, status_code=500)
+#         return response
+
+# async def get_db() -> AsyncSession:  # TODO удалить этот фрагмент кода, поскольку то же самое есть в backend/db_depends.py
+#     async with async_session_maker() as session:
+#         try:
+#             yield session
+#         finally:
+#             session.close()
 
 @app.get('/', response_class=HTMLResponse)
-async def get_main_page(request: Request, db: AsyncSession = Depends(get_db)):
+async def get_main_page(request: Request):
     async with httpx.AsyncClient() as client:
-        categories, products = await asyncio.gather(
-            client.get(f"{Config.url}/categories/"),
-            client.get(f"{Config.url}/products/")
-        )
-        categories.raise_for_status()
-        products.raise_for_status()
+        try:
+            categories, products = await asyncio.gather(
+                client.get(f"{Config.url}/categories/"),
+                client.get(f"{Config.url}/products/")
+            )
+            categories.raise_for_status()
+            products.raise_for_status()
+        except httpx.HTTPException as e:
+            raise HTTPException(502, "Сервис каталога недоступен")
+
 
     categories_products = {}
 
@@ -84,6 +122,7 @@ async def get_main_page(request: Request, db: AsyncSession = Depends(get_db)):
             "url": Config.url
         }
     )
+
 
 # TODO на главной странице оставить вывод товаров у первой категории, а для остальных просто названия категорий
 #  при нажатии на которые показываются первые 10 товаров из этой категории отсортированные по убыванию количества.

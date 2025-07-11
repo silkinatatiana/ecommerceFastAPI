@@ -37,7 +37,7 @@ async def create_category(
         is_active=True
     )
     
-    db.add(new_category)
+    await db.add(new_category)
     await db.commit()
     await db.refresh(new_category)
     return new_category
