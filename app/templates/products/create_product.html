@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Добавить товар</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/styles/create_product.css') }}?v=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles/create_product.css') }}">
 
 </head>
 <body>
@@ -51,7 +51,11 @@
                 <input type="url" id="image_url" name="image_url" placeholder="https://example.com/image.jpg" required>
             </div>
             
-            <button type="submit" id="submit-btn">Добавить товар</button>
+            <div class="button-wrapper">
+                <button type="submit" id="submit-btn" class="btn-add">
+                    ДОБАВИТЬ ТОВАР
+                </button>
+            </div>
         </form>
     </div>
 

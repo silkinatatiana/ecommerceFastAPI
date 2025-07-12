@@ -91,8 +91,8 @@ async def all_products(db: Annotated[AsyncSession, Depends(get_db)]):
     return all_products
 
 
-@router.get('/{category_id}')
-async def product_by_category(db: Annotated[AsyncSession, Depends(get_db)], category_id: int):
+@router.get('/by_category/{category_id}')
+async def products_by_category(db: Annotated[AsyncSession, Depends(get_db)], category_id: int):
     category = await db.scalar(select(Category).where(Category.id == category_id))
     if category is None:
         raise HTTPException(
@@ -104,14 +104,14 @@ async def product_by_category(db: Annotated[AsyncSession, Depends(get_db)], cate
     return products_category.all()
 
 
-@router.get('/detail/{product_slug}/page', response_class=HTMLResponse)
+@router.get('/{product_id}', response_class=HTMLResponse, name="product_detail_page")
 async def product_detail_page(
     request: Request,
-    product_slug: str,
+    product_id: int,
     db: AsyncSession = Depends(get_db)
 ):
     product = await db.scalar(
-        select(Product).where(Product.slug == product_slug, Product.is_active == True)
+        select(Product).where(Product.id == product_id)
     )
 
     if not product:
@@ -120,8 +120,7 @@ async def product_detail_page(
             detail="Товар не найден"
         )
     category = await db.scalar(select(Category).where(Category.id == product.category_id))
-    print(1)
-    print(category)
+
     return templates.TemplateResponse(
         "products/product.html",
         {

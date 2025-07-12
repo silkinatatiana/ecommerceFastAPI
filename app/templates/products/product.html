@@ -7,13 +7,18 @@
 
 </head>
 <body>
-    <!-- {% include "components/navbar.html" %} -->
+    <header>
+        <h1>{{ shop_name }}</h1>
+        <p>{{ descr }}</p>
+    </header>
+
+    <nav>
+        <a href="{{ url }}">Главная</a> |
+        <a href="{{ url_for('create_product_form') }}">Добавить товар</a>
+    </nav>
+
 
     <div class="container">
-        <!-- Кнопка для открытия формы (может быть в navbar) -->
-        <button class="btn-add-product" onclick="openModal()">
-            ➕ Добавить товар
-        </button>
 
         <!-- Контент страницы товара -->
         <div class="product-card">
@@ -23,25 +28,5 @@
             <!-- Другие данные товара -->
         </div>
     </div>
-
-    <!-- Модальное окно (включает create_product.html) -->
-    <div id="product-modal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            {% include "create_product.html" %}
-        </div>
-    </div>
-
-    <script>
-        function openModal() {
-            document.getElementById('product-modal').style.display = 'block';
-        }
-
-        function closeModal() {
-            document.getElementById('product-modal').style.display = 'none';
-        }
-    </script>
-
-    {% include "components/footer.html" %}
 </body>
 </html>

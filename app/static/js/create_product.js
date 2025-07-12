@@ -1,15 +1,23 @@
-// Отправка формы
 document.getElementById('product-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     
+    // Собираем данные формы с проверкой
     const formData = {
-        name: document.getElementById('name').value,
-        description: document.getElementById('description').value,
-        price: parseInt(document.getElementById('price').value),
-        image_url: document.getElementById('image_url').value,
+        name: document.getElementById('name').value.trim(),
+        description: document.getElementById('description').value.trim(),
+        price: parseFloat(document.getElementById('price').value),
+        image_url: document.getElementById('image_url').value.trim(),
         stock: parseInt(document.getElementById('stock').value),
         category_id: parseInt(document.getElementById('category_id').value)
     };
+
+    // Валидация данных перед отправкой
+    if (!formData.name || !formData.price || !formData.image_url || !formData.category_id) {
+        showAlert('Пожалуйста, заполните все обязательные поля', 'error');
+        return;
+    }
+
+    console.log('Отправляемые данные:', formData); // Логируем данные перед отправкой
     
     const submitBtn = document.getElementById('submit-btn');
     submitBtn.disabled = true;
@@ -24,19 +32,41 @@ document.getElementById('product-form').addEventListener('submit', async functio
             body: JSON.stringify(formData)
         });
 
-        const result = await response.json();
+        console.log('Статус ответа:', response.status); // Логируем статус ответа
         
+        // Сначала получаем текст ответа
+        const responseText = await response.text();
+        console.log('Полный ответ сервера:', responseText); // Логируем сырой ответ
+        
+        let result;
+        try {
+            // Пытаемся распарсить JSON
+            result = JSON.parse(responseText);
+        } catch (e) {
+            // Если не удалось распарсить - значит сервер вернул не JSON
+            console.error('Ошибка парсинга JSON:', e);
+            throw new Error(`Сервер вернул невалидный JSON: ${responseText.slice(0, 100)}...`);
+        }
+
         if (response.ok) {
             showAlert('Товар успешно добавлен!', 'success');
-            setTimeout(() => {
-                window.location.href = '/';
-            }, 2000);
+            console.log('Успешный ответ:', result);
+            const productId = result.id
+
+            if (productId) {
+                // Перенаправляем на страницу товара через 1.5 секунды
+                setTimeout(() => {
+                    window.location.href = `/products/${productId}`;
+                }, 1500);
         } else {
-            showAlert(result.detail || 'Ошибка при добавлении товара', 'error');
+            const errorMsg = result.detail || result.message || 'Неизвестная ошибка сервера';
+            showAlert(`Ошибка: ${errorMsg}`, 'error');
+            console.error('Ошибка сервера:', result);
         }
+    }
     } catch (error) {
-        showAlert('Ошибка: ' + error.message, 'error');
-        console.error('Ошибка:', error);
+        console.error('Ошибка запроса:', error);
+        showAlert(`Ошибка: ${error.message}`, 'error');
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Добавить товар';
