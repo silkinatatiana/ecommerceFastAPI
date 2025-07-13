@@ -1,14 +1,18 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Body
-from typing import Annotated
+from fastapi import APIRouter, Depends, status, HTTPException, Body, File, Form, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from typing import Annotated, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.backend.db_depends import get_db
 from sqlalchemy import select, update, func
+from sqlalchemy.orm import joinedload
 from app.models import *
+from app.models import Review
 from app.routers.auth import get_current_user
 from app.schemas import CreateReviews
 
 router = APIRouter(prefix='/reviews', tags=['reviews'])
-
+templates = Jinja2Templates(directory='app/templates/')
 
 @router.get('/', response_model=list[CreateReviews])
 async def all_reviews(db: Annotated[AsyncSession, Depends(get_db)]):
@@ -36,40 +40,36 @@ async def product_reviews(
     return reviews.all()
 
 
-@router.post('/{product_name}', status_code=status.HTTP_201_CREATED)
-async def add_review(
-        product_name: str,
-        db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[dict, Depends(get_current_user)],
-        review_data: CreateReviews = Body(...)
+@router.post("/products/{product_id}/reviews")
+async def create_review(
+    product_id: int,
+    comment: str = Form(...),
+    grade: int = Form(..., ge=1, le=5),
+    photo_urls: Optional[List[str]] = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    if not current_user.get('is_customer'):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Only customers can leave reviews'
-        )
+    # Проверка количества ссылок (не более 5)
+    if photo_urls and len(photo_urls) > 5:
+        raise HTTPException(400, "Можно прикрепить не более 5 фото")
 
-    product = await db.scalar(select(Product).where(Product.name == product_name))
-    if not product:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Product not found'
-        )
+    # Валидация URL (опционально)
+    for url in photo_urls or []:
+        if not url.startswith(('http://', 'https://')):
+            raise HTTPException(400, "Некорректный URL фото")
 
-    new_review = Review(
-        user_id=current_user['id'],
-        product_id=product.id,
-        comment=review_data.comment,
-        grade=review_data.grade
+    # Создание отзыва
+    review = Review(
+        user_id=current_user.id,
+        product_id=product_id,
+        comment=comment,
+        grade=grade,
+        photo_urls=photo_urls or None  # Сохраняем список URL или NULL
     )
-
-    db.add(new_review)
+    
+    db.add(review)
     await db.commit()
-    await db.refresh(new_review)
-
-    await update_product_rating(db, product.id)
-
-    return {'review_id': new_review.id}
+    return {"message": "Отзыв сохранен"}
 
 
 async def update_product_rating(db: AsyncSession, product_id: int):
@@ -107,3 +107,26 @@ async def delete_review(
     await update_product_rating(db, review.product_id)
 
     return {'message': 'Review deleted successfully'}
+
+@router.get('/product/{product_id}/reviews', response_class=HTMLResponse)
+async def product_reviews(request: Request, product_id: int, db: AsyncSession = Depends(get_db)):
+    product = await db.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    
+    reviews = await db.execute(
+        select(Review)
+        .where(Review.product_id == product_id)
+        .options(joinedload(Review.user))
+    )
+    
+    return templates.TemplateResponse("products/reviews.html", {
+        "request": request,
+        "reviews": [{
+            "author": r.user.username if r.user else "Аноним",
+            "date": r.comment_date.strftime("%d.%m.%Y"),
+            "rating": r.grade,
+            "text": r.comment,
+            "photo_urls": r.photo_urls.split(',') if r.photo_urls else []
+        } for r in reviews.scalars()]
+    })

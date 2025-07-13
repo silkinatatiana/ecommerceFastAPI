@@ -28,7 +28,7 @@
 
                     <div class="products-grid">
                 {% for product in products %}
-                <div class="product-card" onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', '_blank')">
+                <div class="product-card" onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', target='_blank')">
                     {% if product.image_url %}
                     <img src="{{ product.image_url }}" 
                         alt="{{ product.name }}"
@@ -40,7 +40,6 @@
                     {% endif %}
                     
                     <h3>{{ product.name }}</h3>
-                    <p class="product-description">{{ product.description|default("Нет описания", true) }}</p>
                     <p class="product-price">{{ product.price|default("Цена не указана", true) }} ₽</p>
                     <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
                         {{ product.stock }} шт. в наличии

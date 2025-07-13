@@ -81,38 +81,35 @@ main h2 {
   margin-bottom: 2rem;
 }
 
-.products-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  margin-bottom: 20px;
-  padding: 0 8px; /* Минимальные отступы слева и справа у контейнера */
-  box-sizing: border-box; /* Чтобы padding не влиял на общую ширину */
+.category {
+  margin-bottom: 3rem;
+  width: 100%;
 }
 
-/* Базовый стиль для карточек */
-.products-grid > * {
-  flex: 1 1 calc(25% - 20px);
-  min-width: 200px;
-  max-width: 100%;
-  box-sizing: border-box; /* Важно для корректного расчета размеров */
+.category-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--secondary-color);
+  margin-bottom: 1.5rem;
+  padding-left: 0.5rem;
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 25px;
+  margin-bottom: 20px;
 }
 
 .product-card {
-  aspect-ratio: 1/1;
-  flex: 0 0 calc(33.333% - 20px);
-  min-width: 300px;
-  height: auto;
   background: white;
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
-  padding: 1rem;
+  padding: 1.5rem;
   transition: var(--transition);
-  max-width: 220px;
-  position: relative;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .product-card:hover {
@@ -122,47 +119,36 @@ main h2 {
 
 .product-card img {
   width: 100%;
-  height: 120px;
+  height: 180px;
   object-fit: cover;
-  border-radius: var(--border-radius) var(--border-radius) 0 0;
-  margin-bottom: 1rem;
+  border-radius: var(--border-radius);
+  margin-bottom: 1.5rem;
 }
 
 .product-content {
-    padding: 12px;
-    height: 40%;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
 }
 
 .product-card h4 {
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
 }
 
 .product-price {
-  color: var(--success-color);
+  color: var(--primary-color);
   font-weight: bold;
-  margin: 0.5rem 0;
+  margin: 1rem 0;
+  font-size: 1.1rem;
 }
 
 .product-stock {
-  margin-bottom: 1rem;
+  margin-bottom: 1.2rem;
 }
 
 .product-stock.out-of-stock {
   color: var(--error-color);
-}
-
-.product-description {
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-height: 2.8em; /* line-height 1.4 * 2 строки */
-}
-
-.category {
-  margin-bottom: 2rem;
 }
 
 .view-all {
@@ -187,31 +173,15 @@ footer {
   padding: 1.5rem;
   margin-top: auto;
 }
-/* Адаптация для разных экранов с отступами */
+
+@media (max-width: 900px) {
+  .products-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 600px) {
   .products-grid {
-    padding: 0 4px; /* Уменьшаем отступы на мобильных */
-  }
-  .products-grid > * {
-    flex: 1 1 calc(100% - 8px); /* Учитываем уменьшенные отступы */
-    margin: 0 4px; /* Дополнительные отступы для карточек */
-  }
-}
-
-@media (min-width: 601px) and (max-width: 900px) {
-  .products-grid > * {
-    flex: 1 1 calc(50% - 20px - 16px); /* Учитываем padding контейнера */
-  }
-}
-
-@media (min-width: 901px) and (max-width: 1200px) {
-  .products-grid > * {
-    flex: 1 1 calc(33.333% - 20px - 16px);
-  }
-}
-
-@media (min-width: 1201px) {
-  .products-grid {
-    padding: 0 12px; /* Чуть больше отступы на широких экранах */
+    grid-template-columns: 1fr;
   }
 }

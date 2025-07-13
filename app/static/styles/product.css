@@ -1,70 +1,402 @@
-/* Основные стили формы */
-.form-container {
-    max-width: 800px;
-    margin: 2rem auto;
-    padding: 2rem;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+/* Общие стили */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    margin: 0;
+    padding: 0;
+    background-color: #f9f9f9;
 }
 
-.form-header {
+header {
+    background-color: #2c3e50;
+    color: white;
+    padding: 1rem 2rem;
     text-align: center;
-    margin-bottom: 2rem;
 }
 
-/* Стили для инпутов */
-.form-control, .form-select {
-    padding: 0.75rem 1rem;
-    border-radius: 6px;
-    border: 1px solid #ddd;
-    transition: all 0.3s ease;
+header h1 {
+    margin: 0;
+    font-size: 2rem;
 }
 
-.form-control:focus, .form-select:focus {
-    border-color: #4a6fa5;
-    box-shadow: 0 0 0 0.25rem rgba(74, 111, 165, 0.25);
+header p {
+    margin: 0.5rem 0 0;
+    font-size: 1rem;
+    opacity: 0.9;
 }
 
-/* Кнопка */
+nav {
+    background-color: #34495e;
+    padding: 0.8rem 2rem;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    margin: 0 0.5rem;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+main {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+/* Хлебные крошки */
+.breadcrumbs {
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.breadcrumbs a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.breadcrumbs a:hover {
+    text-decoration: underline;
+}
+
+/* Контейнер товара */
+.product-container {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 3rem;
+    flex-wrap: wrap;
+}
+
+.product-gallery {
+    flex: 1;
+    min-width: 300px;
+    max-width: 500px;
+}
+
+.product-main-image {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s;
+}
+
+.product-main-image:hover {
+    transform: scale(1.02);
+}
+
+.product-info {
+    flex: 2;
+    min-width: 300px;
+}
+
+.product-info h1 {
+    margin-top: 0;
+    font-size: 1.8rem;
+    color: #2c3e50;
+}
+
+/* Рейтинг */
+.product-rating {
+    margin: 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rating-stars {
+    color: #FFA41C;
+    font-size: 1.2rem;
+}
+
+/* Цена и наличие */
+.product-price {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #1e1f3a;
+    margin: 1.5rem 0;
+}
+
+.product-stock {
+    font-size: 1.1rem;
+    margin: 1rem 0;
+}
+
+.in-stock {
+    color: #4CAF50;
+}
+
+.out-of-stock {
+    color: #e53935;
+}
+
+/* Кнопки */
+.product-actions {
+    margin: 2rem 0;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.3s;
+}
+
 .btn-primary {
-    background-color: #4a6fa5;
-    border-color: #4a6fa5;
-    padding: 0.75rem 1.5rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
+    background-color: #4CAF50;
+    color: white;
 }
 
 .btn-primary:hover {
-    background-color: #3a5a8c;
-    border-color: #3a5a8c;
+    background-color: #3d8b40;
 }
 
-.btn-primary:disabled {
-    opacity: 0.7;
+.btn-secondary {
+    background-color: #f0f0f0;
+    color: #333;
+    border: 1px solid #ddd;
 }
 
-/* Анимации */
-@keyframes spin {
-    to { transform: rotate(360deg); }
+.btn-secondary:hover {
+    background-color: #e0e0e0;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+/* Описание товара */
+.product-description {
+    margin: 2rem 0;
 }
 
-.spinner {
-    display: inline-block;
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-radius: 50%;
-    border-top-color: #fff;
-    animation: spin 1s ease-in-out infinite;
-    margin-right: 0.5rem;
+.product-description h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    font-size: 1.3rem;
 }
 
-.alert {
-    animation: fadeIn 0.3s ease-out;
+/* Отзывы */
+.reviews-section {
+    margin: 3rem 0;
+    padding: 1.5rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.reviews-section h2 {
+    margin-top: 0;
+    color: #2c3e50;
+}
+
+.rating-summary {
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.review {
+    border-bottom: 1px solid #eee;
+    padding: 1.5rem 0;
+}
+
+.review:last-child {
+    border-bottom: none;
+}
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.review-author {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.review-date {
+    color: #777;
+    font-size: 0.9rem;
+}
+
+.review-text {
+    margin: 1rem 0;
+    line-height: 1.6;
+}
+
+.review-photos {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.review-photo {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.review-photo:hover {
+    transform: scale(1.05);
+}
+
+/* Рекомендуемые товары */
+.recommended-products {
+    margin: 3rem 0;
+}
+
+.recommended-title {
+    margin: 0 0 1.5rem;
+    font-size: 1.5rem;
+    color: #2c3e50;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #eee;
+}
+
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.product-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.product-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: contain;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.product-card h3 {
+    margin: 0.5rem 0;
+    font-size: 1.1rem;
+    color: #2c3e50;
+}
+
+/* Футер */
+footer {
+    background-color: #2c3e50;
+    color: white;
+    text-align: center;
+    padding: 1.5rem;
+    margin-top: 3rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .product-container {
+        flex-direction: column;
+    }
+    
+    .product-gallery {
+        max-width: 100%;
+    }
+    
+    .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    header, nav {
+        padding: 1rem;
+    }
+    
+    .product-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+    }
+}
+/* Новые элементы интерфейса */
+.header-icons {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 15px;
+}
+
+.header-icon {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.header-icon:hover {
+    transform: scale(1.1);
+}
+
+/* Прокрутка рекомендуемых товаров */
+.products-grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    gap: 1.5rem;
+    padding-bottom: 10px;
+    cursor: grab;
+    user-select: none;
+}
+
+.products-grid::-webkit-scrollbar {
+    height: 6px;
+}
+
+.products-grid::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.products-grid::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+.products-grid::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Кнопка отзывов */
+.reviews-toggle {
+    background: none;
+    border: none;
+    color: #3498db;
+    cursor: pointer;
+    font-size: inherit;
+    padding: 0;
+    margin-left: 10px;
+}
+
+.reviews-toggle:hover {
+    text-decoration: underline;
 }

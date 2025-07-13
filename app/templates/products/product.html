@@ -2,14 +2,24 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>{{ product.name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/styles/main.css') }}?v=1.0">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ product.name }} | {{ shop_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles/product.css') }}?v=1.0">
 </head>
 <body>
     <header>
         <h1>{{ shop_name }}</h1>
         <p>{{ descr }}</p>
+        <div class="header-icons">
+            <img src="{{ url_for('static', path='/images/cart-icon.png') }}" 
+                alt="Корзина" 
+                class="header-icon"
+                onclick="window.location.href='/cart'">
+            <img src="{{ url_for('static', path='/images/user-icon.png') }}" 
+                alt="Личный кабинет" 
+                class="header-icon"
+                onclick="window.location.href='/profile'">
+        </div>
     </header>
 
     <nav>
@@ -17,16 +27,239 @@
         <a href="{{ url_for('create_product_form') }}">Добавить товар</a>
     </nav>
 
-
-    <div class="container">
-
-        <!-- Контент страницы товара -->
-        <div class="product-card">
-            <h1>{{ product.name }}</h1>
-            <p class="price">{{ product.price }} ₽</p>
-            <p class="description">{{ product.description }}</p>
-            <!-- Другие данные товара -->
+    <main>
+        <div class="breadcrumbs">
+            <a href="{{ url }}">Главная</a> > 
+            <a href="{{ url_for('products_by_category', category_id=product.category_id) }}">{{ product.category_name }}</a> > 
+            {{ product.name }}
         </div>
-    </div>
+
+        <div class="product-container">
+            <div class="product-gallery">
+                <img src="{{ product.image_url or url_for('static', path='/images/default_image.png') }}" 
+                    alt="{{ product.name }}" 
+                    class="product-main-image"
+                    onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+            </div>
+
+            <div class="product-info">
+                <h1>{{ product.name }}</h1>
+                
+                <div class="product-rating">
+                    <span class="rating-stars">
+                        {% for i in range(1, 6) %}
+                            {% if i <= product.rating|round %}
+                                ★
+                            {% else %}
+                                ☆
+                            {% endif %}
+                        {% endfor %}
+                    </span>
+                    <span>({{ review_count }} отзывов)</span>
+                </div>
+
+                <div class="product-price">
+                    {{ product.price }} ₽
+                </div>
+
+                <div class="product-stock {% if product.stock <= 0 %}out-of-stock{% else %}in-stock{% endif %}">
+                    {% if product.stock <= 0 %}
+                        Нет в наличии
+                    {% else %}
+                        В наличии: {{ product.stock }} шт.
+                    {% endif %}
+                </div>
+
+                <div class="product-actions">
+                    <button class="btn btn-primary">Добавить в корзину</button>
+                    <button class="btn btn-secondary">В избранное</button>
+                </div>
+
+                <div class="product-description">
+                    <h3>Описание</h3>
+                    <p>{{ product.description or 'Описание отсутствует' }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="reviews-section">
+            <h2>Отзывы ({{ review_count }})</h2>
+            
+            {% if review_count > 0 %}
+                <div class="rating-summary">
+                    Средняя оценка: 
+                    <span class="rating-stars">
+                        {% for i in range(1, 6) %}
+                            {% if i <= rating|round %}
+                                ★
+                            {% else %}
+                                ☆
+                            {% endif %}
+                        {% endfor %}
+                    </span>
+                    {{ "%.1f"|format(rating) }} из 5
+                </div>
+                
+                <div class="reviews-list">
+                    {% for review in reviews %}
+                    <div class="review">
+                        <div class="review-header">
+                            <span class="review-author">{{ review.author }}</span>
+                            <span class="review-date">{{ review.date }}</span>
+                        </div>
+                        <div class="review-rating">
+                            {% for i in range(1, 6) %}
+                                {% if i <= review.rating %}
+                                    ★
+                                {% else %}
+                                    ☆
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <div class="review-text">
+                            {{ review.text }}
+                        </div>
+                        
+                        {% if review.photo_urls %}
+                        <div class="review-photos">
+                            {% for photo in review.photo_urls %}
+                            <img src="{{ photo }}" class="review-photo" loading="lazy">
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>Пока нет отзывов. Будьте первым!</p>
+            {% endif %}
+        </div>
+
+        {% if recommended_products %}
+        <div class="recommended-products">
+            <h2 class="recommended-title">Рекомендуемые товары</h2>
+            <div class="products-grid">
+                {% for product in recommended_products %}
+                <div class="product-card" onclick="window.location.href='{{ url_for('product_detail_page', product_id=product.id) }}'">
+                    <img src="{{ product.image_url or url_for('static', path='/images/default_image.png') }}" 
+                         alt="{{ product.name }}"
+                         loading="lazy"
+                         onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+                    
+                    <h3>{{ product.name }}</h3>
+                    <p class="product-price">{{ product.price }} ₽</p>
+                    <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% else %}in-stock{% endif %}">
+                        {% if product.stock <= 0 %}
+                            Нет в наличии
+                        {% else %}
+                            В наличии: {{ product.stock }} шт.
+                        {% endif %}
+                    </p>
+                    <div class="product-rating">
+                        <span class="rating-stars">
+                            {% for i in range(1, 6) %}
+                                {% if i <= product.rating|round %}
+                                    ★
+                                {% else %}
+                                    ☆
+                                {% endif %}
+                            {% endfor %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </main>
+
+    <footer>
+        <p>&copy; 2025 {{ shop_name }}. Все права защищены.</p>
+    </footer>
+    <script>
+// Открытие изображения на весь экран
+document.querySelector('.product-main-image').addEventListener('click', function() {
+    const fullscreen = document.createElement('div');
+    fullscreen.style.position = 'fixed';
+    fullscreen.style.top = '0';
+    fullscreen.style.left = '0';
+    fullscreen.style.width = '100vw';
+    fullscreen.style.height = '100vh';
+    fullscreen.style.backgroundColor = 'rgba(0,0,0,0.9)';
+    fullscreen.style.display = 'flex';
+    fullscreen.style.justifyContent = 'center';
+    fullscreen.style.alignItems = 'center';
+    fullscreen.style.zIndex = '1000';
+    fullscreen.style.cursor = 'zoom-out';
+    
+    const img = document.createElement('img');
+    img.src = this.src;
+    img.style.maxWidth = '90vw';
+    img.style.maxHeight = '90vh';
+    img.style.objectFit = 'contain';
+    
+    fullscreen.appendChild(img);
+    document.body.appendChild(fullscreen);
+    
+    fullscreen.addEventListener('click', () => fullscreen.remove());
+});
+
+    // Раскрытие описания
+    const desc = document.querySelector('.product-description p');
+    const fullDesc = desc.textContent;
+    if (fullDesc.length > 100) {
+        desc.textContent = fullDesc.slice(0, 100) + '...';
+        const toggleBtn = document.createElement('button');
+        toggleBtn.textContent = 'Показать ещё';
+        toggleBtn.style.background = 'none';
+        toggleBtn.style.border = 'none';
+        toggleBtn.style.color = '#3498db';
+        toggleBtn.style.cursor = 'pointer';
+        toggleBtn.style.marginLeft = '5px';
+        
+        toggleBtn.addEventListener('click', () => {
+            if (desc.textContent.length > 103) {
+                desc.textContent = fullDesc;
+                toggleBtn.textContent = 'Скрыть';
+            } else {
+                desc.textContent = fullDesc.slice(0, 100) + '...';
+                toggleBtn.textContent = 'Показать ещё';
+            }
+        });
+        
+        document.querySelector('.product-description').appendChild(toggleBtn);
+    }
+
+    // Прокрутка рекомендуемых товаров
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+    const slider = document.querySelector('.products-grid');
+
+    slider.addEventListener('mousedown', (e) => {
+        isDown = true;
+        startX = e.pageX - slider.offsetLeft;
+        scrollLeft = slider.scrollLeft;
+        slider.style.cursor = 'grabbing';
+    });
+
+    slider.addEventListener('mouseleave', () => {
+        isDown = false;
+        slider.style.cursor = 'grab';
+    });
+
+    slider.addEventListener('mouseup', () => {
+        isDown = false;
+        slider.style.cursor = 'grab';
+    });
+
+    slider.addEventListener('mousemove', (e) => {
+        if(!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - slider.offsetLeft;
+        const walk = (x - startX) * 2;
+        slider.scrollLeft = scrollLeft - walk;
+    });
+    </script>
 </body>
 </html>

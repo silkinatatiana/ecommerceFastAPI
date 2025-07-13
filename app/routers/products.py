@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse
 from typing import Annotated
 from slugify import slugify
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from sqlalchemy import select, insert
 from urllib.parse import unquote
 import httpx
@@ -12,6 +13,7 @@ from loguru import logger
 from app.backend.db_depends import get_db
 from app.schemas import CreateProduct
 from app.models import *
+from app.models import Review
 from app.routers.auth import get_current_user
 from app.config import Config
 
@@ -104,14 +106,17 @@ async def products_by_category(db: Annotated[AsyncSession, Depends(get_db)], cat
     return products_category.all()
 
 
-@router.get('/{product_id}', response_class=HTMLResponse, name="product_detail_page")
+@router.get('/{product_id}', response_class=HTMLResponse)
 async def product_detail_page(
     request: Request,
     product_id: int,
     db: AsyncSession = Depends(get_db)
 ):
     product = await db.scalar(
-        select(Product).where(Product.id == product_id)
+        select(Product)
+        .options(joinedload(Product.category))
+        .options(joinedload(Product.reviews).joinedload(Review.user))
+        .where(Product.id == product_id)
     )
 
     if not product:
@@ -119,16 +124,59 @@ async def product_detail_page(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Товар не найден"
         )
-    category = await db.scalar(select(Category).where(Category.id == product.category_id))
+
+    active_reviews = [r for r in product.reviews if r.is_active]
+    review_count = len(active_reviews)
+    avg_rating = sum(r.grade for r in active_reviews) / review_count if review_count > 0 else 0
+
+    formatted_reviews = []
+    for review in active_reviews:
+        formatted_reviews.append({
+            "author": review.user.username if review.user else "Аноним",
+            "date": review.comment_date.strftime("%d.%m.%Y"),
+            "rating": review.grade,
+            "text": review.comment,
+            "photo_urls": review.photo_urls.split(',') if review.photo_urls else []
+        })
+
+    recommended_products = await db.scalars(
+        select(Product)
+        .where(Product.category_id == product.category_id)
+        .where(Product.id != product.id)
+        .limit(4)
+    )
 
     return templates.TemplateResponse(
         "products/product.html",
         {
             "request": request,
-            "product": product,
-            "category": category,
+            "product": {
+                "id": product.id,
+                "name": product.name,
+                "description": product.description,
+                "price": product.price,
+                "stock": product.stock,
+                "image_url": product.image_url,
+                "category_id": product.category_id,
+                "category_name": product.category.name if product.category else "Без категории",
+                "rating": product.rating,
+            },
+            "reviews": formatted_reviews,
+            "review_count": review_count,
+            "rating": avg_rating,
+            "recommended_products": [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "price": p.price,
+                    "stock": p.stock,
+                    "image_url": p.image_url,
+                    "rating": p.rating
+                } for p in recommended_products
+            ],
             "shop_name": "PEAR",
-            "url": Config.url
+            "url": Config.url,
+            "descr": "Интернет-магазин электроники"
         }
     )
 

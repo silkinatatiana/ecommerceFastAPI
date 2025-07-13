@@ -14,16 +14,7 @@ from app.backend.db import Base, engine
 from app.config import Config
 
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('info.log'),
-        logging.StreamHandler()
-    ]
-)
 logger = logging.getLogger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:

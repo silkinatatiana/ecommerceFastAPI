@@ -1,8 +1,7 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from app.backend.db import Base
-from app.models import users, products
 
 class Review(Base):
     __tablename__ = 'reviews'
@@ -14,6 +13,7 @@ class Review(Base):
     comment_date = Column(DateTime, default=datetime.now)
     grade = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True)
+    photo_urls = Column(JSON, nullable=True)
 
     user = relationship("User", back_populates="reviews")
     product = relationship('Product', back_populates='reviews')
