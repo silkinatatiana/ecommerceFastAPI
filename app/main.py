@@ -64,8 +64,10 @@ async def get_main_page(request: Request):
             )
             categories.raise_for_status()
             products.raise_for_status()
-        except httpx.HTTPException as e:
-            raise HTTPException(502, "Сервис каталога недоступен")
+        except httpx.HTTPStatusError as e:  # Ловим ошибки HTTP (4xx, 5xx)
+            raise HTTPException(502, detail="Сервис каталога недоступен")
+        except Exception as e:  # Ловим другие ошибки (например, сетевые)
+            raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}")
 
 
     categories_products = {}

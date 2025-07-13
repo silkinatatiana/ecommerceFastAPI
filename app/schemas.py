@@ -1,15 +1,31 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import List
 
 
 class CreateProduct(BaseModel):
     name: str
-    description: str
+    description: str | None = None
     price: int
-    image_url: str
+    image_urls: List[str] = Field(default_factory=list)
     stock: int
     category_id: int
 
+class ProductOut(BaseModel):
+    id: int
+    name: str
+    slug: str
+    description: str | None = None
+    price: int
+    image_urls: List[str] = Field(default_factory=list)
+    stock: int
+    rating: int
+    is_active: bool
+    category_id: int
+    supplier_id: int
+    
+    class Config:
+        from_attributes = True
 
 class CreateCategory(BaseModel):
     name: str

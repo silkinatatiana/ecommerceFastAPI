@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ shop_name }}</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/styles/main.css') }}?v=1.0">
-
 </head>
 <body>
     <header>
@@ -27,26 +26,22 @@
                     <h3>{{ category_name | title }}</h3>
 
                     <div class="products-grid">
-                {% for product in products %}
-                <div class="product-card" onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', target='_blank')">
-                    {% if product.image_url %}
-                    <img src="{{ product.image_url }}" 
-                        alt="{{ product.name }}"
-                        loading="lazy"
-                        onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
-                    {% else %}
-                    <img src="{{ url_for('static', path='/images/default_image.png') }}" 
-                        alt="Нет изображения">
-                    {% endif %}
-                    
-                    <h3>{{ product.name }}</h3>
-                    <p class="product-price">{{ product.price|default("Цена не указана", true) }} ₽</p>
-                    <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
-                        {{ product.stock }} шт. в наличии
-                    </p>
-                </div>
-                {% endfor %}
-            </div>
+                        {% for product in products %}
+                        <div class="product-card" onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', target='_blank')">
+                            <img 
+                                src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}" 
+                                alt="{{ product.name }}"
+                                loading="lazy"
+                                onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+                            
+                            <h3>{{ product.name }}</h3>
+                            <p class="product-price">{{ product.price|default("Цена не указана", true) }} ₽</p>
+                            <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
+                                {{ product.stock }} шт. в наличии
+                            </p>
+                        </div>
+                        {% endfor %}
+                    </div>
                     
                     {% if products|length > 9 %}
                     <a href="{{ url_for('products_by_category', category_id=category_id) }}" class="view-all">

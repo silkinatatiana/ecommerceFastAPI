@@ -11,7 +11,7 @@ import httpx
 from loguru import logger
 
 from app.backend.db_depends import get_db
-from app.schemas import CreateProduct
+from app.schemas import CreateProduct, ProductOut
 from app.models import *
 from app.models import Review
 from app.routers.auth import get_current_user
@@ -63,18 +63,16 @@ async def create_product(
         select(Category).where(Category.id == create_product.category_id)
     )
     if category is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Category not found'
-        )
+        raise HTTPException(status_code=404, detail='Category not found')
 
-    decoded_image_url = unquote(create_product.image_url) if create_product.image_url else None
-
+    decoded_image_urls = [
+        unquote(url) if url else None for url in create_product.image_urls] if create_product.image_urls else None
+        
     new_product = Product(
         name=create_product.name,
         description=create_product.description,
         price=create_product.price,
-        image_url=decoded_image_url,
+        image_urls=create_product.image_urls,
         stock=create_product.stock,
         category_id=create_product.category_id,
         rating=0.0,
@@ -86,11 +84,20 @@ async def create_product(
     await db.refresh(new_product)
     return new_product
 
-@router.get('/')
-async def all_products(db: Annotated[AsyncSession, Depends(get_db)]):
-    products = await db.scalars(select(Product).where(Product.stock > 0))
-    all_products = products.all()
-    return all_products
+
+@router.get("/")
+async def all_products(db: AsyncSession = Depends(get_db), response_model=list[ProductOut]):
+    logger.info("1 - Start function")  # Доходит ли сюда?
+    try:
+        logger.info("2 - Before execute")  # Заходит ли в try?
+        result = await db.execute(select(Product))
+        logger.info("3 - After execute")  # Выполнился ли запрос?
+        products = result.scalars().all()
+        logger.info(f"4 - Products: {products}")  # Что вернула БД?
+        return products or []
+    except Exception as e:
+        logger.error(f"5 - Full error: {repr(e)}")  # Полная ошибка
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get('/by_category/{category_id}')

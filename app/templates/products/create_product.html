@@ -47,8 +47,11 @@
             </div>
             
             <div class="form-group">
-                <label for="image_url">Ссылка на изображение *</label>
-                <input type="url" id="image_url" name="image_url" placeholder="https://example.com/image.jpg" required>
+                <label>Изображения товара (максимум 5) *</label>
+                <div id="image-inputs">
+                    <input type="url" name="image_urls[]" placeholder="https://example.com/image1.jpg" required>
+                </div>
+                <button type="button" id="add-image-btn" class="btn-add-image">+ Добавить ещё изображение</button>
             </div>
             
             <div class="button-wrapper">

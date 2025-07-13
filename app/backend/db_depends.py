@@ -9,4 +9,4 @@ async def get_db() -> AsyncSession:
         try:
             yield session
         finally:
-            session.close()
+            await session.close()
