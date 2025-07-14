@@ -1,31 +1,25 @@
 document.addEventListener('DOMContentLoaded', function() {
+    
     const form = document.getElementById('product-form');
-    const alertContainer = document.getElementById('alert-container');
-    const imageInputsContainer = document.getElementById('image-inputs');
-    const addImageBtn = document.getElementById('add-image-btn');
+    if (!form) {
+        console.error('ОШИБКА: Форма не найдена. Добавьте id="product-form"');
+        return;
+    }
 
-    // Добавление новых полей для изображений (максимум 5)
-    addImageBtn.addEventListener('click', function() {
-        const inputs = imageInputsContainer.querySelectorAll('input');
-        if (inputs.length < 5) {
-            const newInput = document.createElement('input');
-            newInput.type = 'url';
-            newInput.name = 'image_urls[]';
-            newInput.placeholder = `https://example.com/image${inputs.length + 1}.jpg`;
-            newInput.required = true;
-            imageInputsContainer.appendChild(newInput);
-        } else {
-            showAlert('Максимум 5 изображений', 'warning');
-        }
-    });
+    const submitBtn = document.getElementById('submit-btn');
+    if (!submitBtn) {
+        console.error('ОШИБКА: Кнопка не найдена. Проверьте id="submit-btn"');
+        return;
+    }
 
-    // Отправка формы
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        const submitBtn = document.getElementById('submit-btn');
-        submitBtn.disabled = true;
-
+        console.log('Начата отправка формы');
+        
         try {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Отправка...';
+            
             const formData = new FormData(form);
             const data = {
                 name: formData.get('name'),
@@ -33,45 +27,50 @@ document.addEventListener('DOMContentLoaded', function() {
                 price: parseFloat(formData.get('price')),
                 stock: parseInt(formData.get('stock')),
                 category_id: parseInt(formData.get('category_id')),
-                image_urls: formData.getAll('image_urls[]')  // Получаем массив URL
+                image_urls: Array.from(formData.getAll('image_urls[]'))
+                           .filter(url => url.trim() !== '')
             };
+            
+            console.log('Отправляемые данные:', data);
 
             const response = await fetch('/products/create', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(data)
             });
 
-            if (response.ok) {
-                showAlert('Товар успешно добавлен!', 'success');
-                form.reset();
-                // Очищаем добавленные поля изображений (оставляя только первое)
-                const inputs = imageInputsContainer.querySelectorAll('input');
-                inputs.forEach((input, index) => {
-                    if (index > 0) input.remove();
-                });
+            const result = await response.json();
+            console.log('Ответ сервера:', result);
+
+            if (response.ok && result.id) {
+                window.location.href = `/products/${result.id}`;
             } else {
-                const error = await response.json();
-                showAlert(error.detail || 'Ошибка при добавлении товара', 'error');
+                throw new Error(result.detail || 'Ошибка создания товара');
             }
-        } catch (err) {
-            showAlert('Ошибка сети или сервера', 'error');
+            
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert(error.message);
         } finally {
             submitBtn.disabled = false;
+            submitBtn.textContent = 'ДОБАВИТЬ ТОВАР';
         }
     });
-
-    // Функция для показа уведомлений
-    function showAlert(message, type) {
-        alertContainer.innerHTML = `
-            <div class="alert alert-${type}">
-                ${message}
-            </div>
-        `;
-        setTimeout(() => {
-            alertContainer.innerHTML = '';
-        }, 5000);
+    
+    const addImageBtn = document.getElementById('add-image-btn');
+    if (addImageBtn) {
+        addImageBtn.addEventListener('click', function() {
+            const container = document.getElementById('image-inputs');
+            if (container.querySelectorAll('input').length < 5) {
+                const input = document.createElement('input');
+                input.type = 'url';
+                input.name = 'image_urls[]';
+                input.required = true;
+                input.placeholder = 'Ссылка на изображение';
+                container.appendChild(input);
+            }
+        });
     }
 });

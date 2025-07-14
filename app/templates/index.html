@@ -27,7 +27,8 @@
 
                     <div class="products-grid">
                         {% for product in products %}
-                        <div class="product-card" onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', target='_blank')">
+                        <div class="product-card" onclick="window.location.href='{{ url_for('product_detail_page', product_id=product.id) }}'">
+                        <!-- <div class="product-card" onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', target='_blank')"> -->
                             <img 
                                 src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}" 
                                 alt="{{ product.name }}"
