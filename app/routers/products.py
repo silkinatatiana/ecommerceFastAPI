@@ -163,7 +163,7 @@ async def product_detail_page(
                 "description": product.description,
                 "price": product.price,
                 "stock": product.stock,
-                "image_url": product.image_url,
+                "image_urls": product.image_urls,
                 "category_id": product.category_id,
                 "category_name": product.category.name if product.category else "Без категории",
                 "rating": product.rating,
@@ -177,7 +177,7 @@ async def product_detail_page(
                     "name": p.name,
                     "price": p.price,
                     "stock": p.stock,
-                    "image_url": p.image_url,
+                    "image_urls": p.image_urls,
                     "rating": p.rating
                 } for p in recommended_products
             ],
@@ -208,7 +208,7 @@ async def update_product(db: Annotated[AsyncSession, Depends(get_db)], product_s
             product_update.name = update_product_model.name
             product_update.description = update_product_model.description
             product_update.price = update_product_model.price
-            product_update.image_url = update_product_model.image_url
+            product_update.image_urls = update_product_model.image_urls
             product_update.stock = update_product_model.stock
             product_update.category_id = update_product_model.category_id
             product_update.slug = slugify(update_product_model.name)

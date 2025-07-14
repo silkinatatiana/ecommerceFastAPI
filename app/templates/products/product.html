@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ product.name }} | {{ shop_name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/styles/product.css') }}?v=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles/product.css') }}">
 </head>
 <body>
     <header>
         <h1>{{ shop_name }}</h1>
         <p>{{ descr }}</p>
         <div class="header-icons">
-            <img src="{{ url_for('static', path='/images/cart.png') }}" 
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+PHBhdGggZD0iTTEwIDE5LjVjMCAuODI4LS42NzIgMS41LTEuNSAxLjVzLTEuNS0uNjcyLTEuNS0xLjUuNjcyLTEuNSAxLjUtMS41IDEuNS42NzIgMS41IDEuNXptMy41LTEuNWMtLjgyOCAwLTEuNS42NzItMS41IDEuNXMuNjcyIDEuNSAxLjUgMS41IDEuNS0uNjcyIDEuNS0xLjUtLjY3Mi0xLjUtMS41LTEuNXptNi4zMDQtMS4wNWwtMy40MzItMTJoLTEuOTUybC0uNzE1IDJoLTkuMTkxbC0uNzE1LTJoLTEuOTUzbC0zLjQzMiAxMmguNzI0bC42NzctMi41aDEzLjM5NWwuNjc3IDIuNWguNzI0em0tMTMuNjQ5LTMuNWwtMS40MDctNS4wMDJoMTEuMTEzbC0xLjQwNyA1LjAwMmgtOC4zem0tLjUwNS0yaC0yLjI0OGwuNTY1LTJoMS4xMThsLS41NjUgMnoiLz48L3N2Zz4=" 
                 alt="Корзина" 
                 class="header-icon"
                 onclick="window.location.href='/cart'">
-            <img src="{{ url_for('static', path='/images/user.png') }}" 
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+PHBhdGggZD0iTTEyIDJjMy4wMzEgMCA1LjUgMi40NjkgNS41IDUuNXMtMi40NjkgNS41LTUuNSA1LjUtNS41LTIuNDY5LTUuNS01LjUgMi40NjktNS41IDUuNS01LjV6bTAgMTQuNWM0LjY4NyAwIDguNSAzLjgxMyA4LjUgOC41aC0xN2M0LjY4NyAwIDguNS0zLjgxMyA4LjUtOC41eiIvPjwvc3ZnPg==" 
                 alt="Личный кабинет" 
                 class="header-icon"
                 onclick="window.location.href='/profile'">
@@ -35,11 +35,25 @@
         </div>
 
         <div class="product-container">
-            <div class="product-gallery">
-                <img src="{{ product.image_url or url_for('static', path='/images/default_image.png') }}" 
-                    alt="{{ product.name }}" 
-                    class="product-main-image"
-                    onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+            <div class="gallery-section">
+                <div class="gallery-container">
+                    <div class="main-image-container">
+                        <img src="{{ product.image_urls[0] if product.image_urls else 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzY2NiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMyAxOWEyIDIgMCAwIDEtMiAySDNhMiAyIDAgMCAxLTItMlY1YTIgMiAwIDAgMSAyLTJoNGwyIDJoMTBsMi0yaDRhMiAyIDAgMCAxIDIgMnoiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEwIiByPSIzIi8+PHBhdGggZD0iTTE5IDIxYTIgMiAwIDAgMS0yLTJWNyAyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYxMmEyIDIgMCAwIDEtMiAyeiIvPjwvc3ZnPg==' }}" 
+                             alt="{{ product.name }}" 
+                             class="product-main-image"
+                             id="mainProductImage">
+                        <button class="nav-button prev" onclick="navigate(-1)">❮</button>
+                        <button class="nav-button next" onclick="navigate(1)">❯</button>
+                    </div>
+                    <div class="thumbnails">
+                        {% for url in product.image_urls %}
+                        <img src="{{ url }}" 
+                             class="thumbnail {% if loop.first %}active{% endif %}" 
+                             alt="Thumbnail {{ loop.index }}"
+                             onclick="changeMainImage(this, {{ loop.index0 }})">
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
 
             <div class="product-info">
@@ -82,6 +96,18 @@
             </div>
         </div>
 
+        <!-- Полноэкранная галерея (скрыта по умолчанию) -->
+        <div class="fullscreen-gallery" id="fullscreenGallery">
+            <span class="close-fullscreen" onclick="closeFullscreen()">&times;</span>
+            <div class="fullscreen-content">
+                <img src="" class="fullscreen-image" id="fullscreenImage">
+                <button class="fullscreen-nav fullscreen-prev" onclick="navigateFullscreen(-1)">❮</button>
+                <button class="fullscreen-nav fullscreen-next" onclick="navigateFullscreen(1)">❯</button>
+                <div class="image-counter" id="imageCounter"></div>
+            </div>
+        </div>
+
+        <!-- Остальные секции (отзывы, рекомендуемые товары) -->
         <div class="reviews-section">
             <h2>Отзывы ({{ review_count }})</h2>
             
@@ -141,10 +167,9 @@
             <div class="products-grid">
                 {% for product in recommended_products %}
                 <div class="product-card" onclick="window.location.href='{{ url_for('product_detail_page', product_id=product.id) }}'">
-                    <img src="{{ product.image_url or url_for('static', path='/images/default_image.png') }}" 
-                         alt="{{ product.name }}"
-                         loading="lazy"
-                         onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+                    <img src="{{ product.image_urls[0] if product.image_urls else 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzY2NiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMyAxOWEyIDIgMCAwIDEtMiAySDNhMiAyIDAgMCAxLTItMlY1YTIgMiAwIDAgMSAyLTJoNGwyIDJoMTBsMi0yaDRhMiAyIDAgMCAxIDIgMnoiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEwIiByPSIzIi8+PHBhdGggZD0iTTE5IDIxYTIgMiAwIDAgMS0yLTJWNyAyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYxMmEyIDIgMCAwIDEtMiAyeiIvPjwvc3ZnPg==' }}" 
+                        alt="{{ product.name }}" 
+                        class="product-main-image">
                     
                     <h3>{{ product.name }}</h3>
                     <p class="product-price">{{ product.price }} ₽</p>
@@ -176,90 +201,7 @@
     <footer>
         <p>&copy; 2025 {{ shop_name }}. Все права защищены.</p>
     </footer>
-    <script>
-// Открытие изображения на весь экран
-document.querySelector('.product-main-image').addEventListener('click', function() {
-    const fullscreen = document.createElement('div');
-    fullscreen.style.position = 'fixed';
-    fullscreen.style.top = '0';
-    fullscreen.style.left = '0';
-    fullscreen.style.width = '100vw';
-    fullscreen.style.height = '100vh';
-    fullscreen.style.backgroundColor = 'rgba(0,0,0,0.9)';
-    fullscreen.style.display = 'flex';
-    fullscreen.style.justifyContent = 'center';
-    fullscreen.style.alignItems = 'center';
-    fullscreen.style.zIndex = '1000';
-    fullscreen.style.cursor = 'zoom-out';
-    
-    const img = document.createElement('img');
-    img.src = this.src;
-    img.style.maxWidth = '90vw';
-    img.style.maxHeight = '90vh';
-    img.style.objectFit = 'contain';
-    
-    fullscreen.appendChild(img);
-    document.body.appendChild(fullscreen);
-    
-    fullscreen.addEventListener('click', () => fullscreen.remove());
-});
 
-    // Раскрытие описания
-    const desc = document.querySelector('.product-description p');
-    const fullDesc = desc.textContent;
-    if (fullDesc.length > 100) {
-        desc.textContent = fullDesc.slice(0, 100) + '...';
-        const toggleBtn = document.createElement('button');
-        toggleBtn.textContent = 'Показать ещё';
-        toggleBtn.style.background = 'none';
-        toggleBtn.style.border = 'none';
-        toggleBtn.style.color = '#3498db';
-        toggleBtn.style.cursor = 'pointer';
-        toggleBtn.style.marginLeft = '5px';
-        
-        toggleBtn.addEventListener('click', () => {
-            if (desc.textContent.length > 103) {
-                desc.textContent = fullDesc;
-                toggleBtn.textContent = 'Скрыть';
-            } else {
-                desc.textContent = fullDesc.slice(0, 100) + '...';
-                toggleBtn.textContent = 'Показать ещё';
-            }
-        });
-        
-        document.querySelector('.product-description').appendChild(toggleBtn);
-    }
-
-    // Прокрутка рекомендуемых товаров
-    let isDown = false;
-    let startX;
-    let scrollLeft;
-    const slider = document.querySelector('.products-grid');
-
-    slider.addEventListener('mousedown', (e) => {
-        isDown = true;
-        startX = e.pageX - slider.offsetLeft;
-        scrollLeft = slider.scrollLeft;
-        slider.style.cursor = 'grabbing';
-    });
-
-    slider.addEventListener('mouseleave', () => {
-        isDown = false;
-        slider.style.cursor = 'grab';
-    });
-
-    slider.addEventListener('mouseup', () => {
-        isDown = false;
-        slider.style.cursor = 'grab';
-    });
-
-    slider.addEventListener('mousemove', (e) => {
-        if(!isDown) return;
-        e.preventDefault();
-        const x = e.pageX - slider.offsetLeft;
-        const walk = (x - startX) * 2;
-        slider.scrollLeft = scrollLeft - walk;
-    });
-    </script>
+<script src="{{ url_for('static', path='/js/product_gallery.js') }}"></script>
 </body>
 </html>

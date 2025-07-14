@@ -86,3 +86,6 @@ async def get_main_page(request: Request):
         }
     )
 
+@app.get('/cart', response_class=HTMLResponse)
+def get_cart(request: Request):
+    return {"message": "This is cart"}
