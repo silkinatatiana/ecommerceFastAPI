@@ -1,5 +1,5 @@
 from app.backend.db import Base
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, JSON, FLOAT
 from sqlalchemy.orm import relationship
 from .users import User
 
@@ -16,6 +16,13 @@ class Product(Base):
     rating = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     category_id = Column(Integer, ForeignKey('categories.id'))
+    RAM_capacity = Column(String) # Объем оперативной памяти
+    built_in_memory_capacity = Column(String) # объем встроенной памяти
+    screen = Column(FLOAT)
+    cpu = Column(String)
+    number_of_processor_cores = Column(Integer)
+    number_of_graphics_cores = Column(Integer) # Количество графических ядер
+    color = Column(String)
 
     category = relationship("Category", back_populates="products")
     supplier_id = Column(Integer, ForeignKey(User.id))

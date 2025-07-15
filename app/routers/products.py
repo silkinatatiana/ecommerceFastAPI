@@ -52,8 +52,6 @@ async def create_product_form(
             detail="Не удалось загрузить данные категорий"
         )
     
-
-    
 @router.post('/create')
 async def create_product(
     db: Annotated[AsyncSession, Depends(get_db)], 

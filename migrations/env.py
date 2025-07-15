@@ -4,11 +4,10 @@ from sqlalchemy import pool
 from alembic import context
 import asyncio
 
-# Импортируйте ваш Base
 from app.backend.db import Base
 
 config = context.config
-config.set_main_option('sqlalchemy.url', 'sqlite+aiosqlite:///./sql_app.db')
+config.set_main_option('sqlalchemy.url', 'sqlite+aiosqlite:///./sqlite.db')
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
