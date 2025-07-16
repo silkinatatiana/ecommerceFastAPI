@@ -440,3 +440,77 @@ footer {
     margin-bottom: 0.3rem;
   }
 }
+
+/* Стили для горизонтального скролла рекомендуемых товаров */
+.recommended-products {
+    margin-top: 3rem;
+    padding: 0 1rem;
+}
+
+.products-scroll-container {
+    overflow-x: auto;
+    padding-bottom: 1rem; /* Чтобы не обрезались тени */
+    margin: 0 -1rem; /* Компенсируем padding контейнера */
+    scrollbar-width: thin;
+}
+
+.products-scroll-wrapper {
+    display: inline-flex;
+    gap: 1.5rem;
+    padding: 0 1rem;
+}
+
+.product-card {
+    flex: 0 0 250px;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.product-card a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.product-card .product-image {
+    width: 100%;
+    height: 180px;
+    object-fit: contain;
+    padding: 1rem;
+    background: var(--light-gray);
+}
+
+.product-card h3 {
+    padding: 0.8rem 1rem 0;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.product-card .product-price {
+    padding: 0 1rem 1rem;
+    font-weight: bold;
+    color: var(--secondary-color);
+}
+
+/* Стили для скроллбара (необязательно, но улучшает UX) */
+.products-scroll-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.products-scroll-container::-webkit-scrollbar-track {
+    background: var(--light-gray);
+}
+
+.products-scroll-container::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 3px;
+}

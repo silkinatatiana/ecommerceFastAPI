@@ -161,12 +161,22 @@
         {% if recommended_products %}
         <div class="recommended-products">
             <h2 class="recommended-title">Рекомендуемые товары</h2>
-            <div class="products-grid">
-                {% for product in recommended_products %}
-                <div class="product-card">
-                    <!-- Карточки товаров -->
+            <div class="products-scroll-container">
+                <div class="products-scroll-wrapper">
+                    {% for product in recommended_products %}
+                    <div class="product-card">
+                        <a href="{{ url_for('product_detail_page', product_id=product.id) }}">
+                            <img src="{{ product.image_urls[0] if product.image_urls else placeholder_image }}" 
+                                alt="{{ product.name }}" 
+                                class="product-image">
+                            <h3>{{ product.name }}</h3>
+                            <div class="product-price">
+                                {{ "{:,.0f}".format(product.price).replace(",", " ") }} ₽
+                            </div>
+                        </a>
+                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
         </div>
         {% endif %}
