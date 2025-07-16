@@ -2,16 +2,15 @@
   --primary-color: #4a6fa5;
   --primary-hover: #3a5a8c;
   --secondary-color: #166088;
-  --accent-color: #4fc3f7;
   --dark-color: #2d3142;
   --light-color: #f5f5f5;
   --light-gray: #e0e0e0;
   --success-color: #4caf50;
   --warning-color: #ff9800;
   --error-color: #f44336;
-  --border-radius: 10px;  /* Уменьшено с 12px */
-  --box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);  /* Уменьшено */
-  --transition: all 0.2s ease;  /* Ускорено */
+  --border-radius: 10px;
+  --box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  --transition: all 0.2s ease;
 }
 
 * {
@@ -147,18 +146,12 @@ textarea.form-control {
   .container {
     padding: 1rem;  /* Уменьшено с 1.5rem */
     width: 90%;
-  }
   
+}
   .btn-add {
     padding: 0.7rem;  /* Уменьшено */
     width: 100%;
   }
-}
-.alert {
-    padding: 12px;
-    margin: 1rem 0;
-    border-radius: var(--border-radius);
-    font-weight: 500;
 }
 
 .success {
@@ -184,11 +177,12 @@ textarea.form-control {
 .btn-add-image:hover {
     text-decoration: underline;
 }
-
 .alert {
-    padding: 15px;
-    margin-bottom: 20px;
-    border-radius: 4px;
+    padding: 12px 16px;
+    margin: 1rem 0;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    border: 1px solid transparent;
 }
 
 .alert-success {
@@ -221,13 +215,6 @@ textarea.form-control {
 
 .form-row .form-group {
     flex: 1;
-}
-
-@media (max-width: 768px) {
-    .form-row {
-        flex-direction: column;
-        gap: 15px;
-    }
 }
 
 .alert-danger {
@@ -286,17 +273,18 @@ textarea.form-control {
 }
 
 .remove-image-btn {
-  background: none;
+  background: var(--error-color);
   color: #999;
   border: none;
+  border-radius: 50%;
   width: 20px;
   height: 20px;
   font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
   transition: color 0.2s;
-  opacity: 0;
-  visibility: hidden;
+  opacity: 1;
+  visibility: visible;
   margin-left: 5px;
 }
 
@@ -325,20 +313,75 @@ textarea.form-control {
   border-bottom: 1px solid var(--light-gray);
 }
 
-.alert {
-  padding: 12px 16px;
-  border-radius: var(--border-radius);
-  margin-bottom: 15px;
+/* Стили для кнопки добавления изображений */
+#add-image-btn {
+    display: inline-block;
+    padding: 8px 15px;
+    margin-top: 10px;
+    background-color: var(--light-gray);
+    color: var(--dark-color);
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 0.9rem;
 }
 
-.alert-success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+#add-image-btn:hover {
+    background-color: #e0e0e0;
+    border-color: #bdbdbd;
 }
 
-.alert-error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+#add-image-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Стили для контейнера изображений */
+#image-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.image-input-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.remove-image-btn {
+  background: transparent; /* Прозрачный фон */
+  color: #999; /* Серый цвет */
+  border: none;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  transition: color 0.2s;
+}
+
+.remove-image-btn:hover {
+    opacity: 0.8;
+}
+#add-image-btn {
+    background: var(--light-gray);
+    border: 1px solid #ccc;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+    display: inline-block;
+}
+
+#add-image-btn:hover {
+    background: #e0e0e0;
+}
+
+#add-image-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
