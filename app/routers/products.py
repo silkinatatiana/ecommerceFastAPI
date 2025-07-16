@@ -9,11 +9,13 @@ from sqlalchemy import select, insert
 from urllib.parse import unquote
 import httpx
 from loguru import logger
+import time
+import uuid
 
 from app.backend.db_depends import get_db
 from app.schemas import CreateProduct, ProductOut
 from app.models import *
-from app.models import Review
+from app.models import Review, User
 from app.routers.auth import get_current_user
 from app.config import Config
 
@@ -24,77 +26,94 @@ templates = Jinja2Templates(directory='app/templates/')
 
 @router.get("/create", response_class=HTMLResponse)
 async def create_product_form(
-        request: Request,
+        request: Request
 ):
-    # if not (current_user.get('is_supplier') or current_user.get('is_admin')):
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Недостаточно прав для добавления товара"
-    #     )
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{Config.url}/categories/")
             response.raise_for_status()
             categories = response.json()
+
+            if not isinstance(categories, list):
+                categories = []
             
             return templates.TemplateResponse(
                 "products/create_product.html",
                 {
                     "request": request,
-                    "categories": list(categories),
+                    "categories": categories,
                     "config": {"url": Config.url}
                 }
             )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Не удалось загрузить данные категорий"
+        # В случае ошибки передаем пустой список
+        return templates.TemplateResponse(
+            "products/create_product.html",
+            {
+                "request": request,
+                "categories": [],
+                "config": {"url": Config.url}
+            }
         )
+
+async def create_slug(db: AsyncSession, name: str) -> str:
+    base_slug = slugify(name)
+    unique_slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
     
-@router.post('/create')
+    existing_product = await db.scalar(select(Product).where(Product.slug == unique_slug))
+    
+    if existing_product:
+        unique_slug = f"{unique_slug}-{uuid.uuid4().hex[:4]}"
+    
+    return unique_slug
+
+@router.post('/create', response_model=ProductOut)
 async def create_product(
     db: Annotated[AsyncSession, Depends(get_db)], 
-    create_product: CreateProduct
+    product_data: CreateProduct
 ):
-    category = await db.scalar(
-        select(Category).where(Category.id == create_product.category_id)
-    )
-    if category is None:
-        raise HTTPException(status_code=404, detail='Category not found')
+    try:
+        category = await db.scalar(
+            select(Category).where(Category.id == product_data.category_id)
+        )
+        if not category:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Категория не найдена"
+            )
 
-    decoded_image_urls = [
-        unquote(url) if url else None for url in create_product.image_urls] if create_product.image_urls else None
+        slug = await create_slug(db, product_data.name)
+
+        product = Product(
+            **product_data.dict(exclude_unset=True),
+            slug=slug,
+            rating=0.0,
+            is_active=True,
+            supplier_id=1  # когда добавлю ЛК, это поле будет браться из таблицы user
+        )
+
+        db.add(product)
+        await db.commit()
+        await db.refresh(product)
         
-    new_product = Product(
-        name=create_product.name,
-        description=create_product.description,
-        price=create_product.price,
-        image_urls=create_product.image_urls,
-        stock=create_product.stock,
-        category_id=create_product.category_id,
-        rating=0.0,
-        slug=slugify(create_product.name)
-    )
+        return product
 
-    db.add(new_product)
-    await db.commit()
-    await db.refresh(new_product)
-    return new_product
-
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 @router.get("/")
 async def all_products(db: AsyncSession = Depends(get_db), response_model=list[ProductOut]):
-    logger.info("1 - Start function")  # Доходит ли сюда?
     try:
-        logger.info("2 - Before execute")  # Заходит ли в try?
         result = await db.execute(select(Product))
-        logger.info("3 - After execute")  # Выполнился ли запрос?
         products = result.scalars().all()
-        logger.info(f"4 - Products: {products}")  # Что вернула БД?
         return products or []
     except Exception as e:
-        logger.error(f"5 - Full error: {repr(e)}")  # Полная ошибка
+        logger.error(f"5 - Full error: {repr(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -165,6 +184,13 @@ async def product_detail_page(
                 "category_id": product.category_id,
                 "category_name": product.category.name if product.category else "Без категории",
                 "rating": product.rating,
+                "RAM_capacity": product.RAM_capacity,
+                "built_in_memory_capacity": product.built_in_memory_capacity,
+                "screen": product.screen,
+                "cpu": product.cpu,
+                "number_of_processor_cores": product.number_of_processor_cores,
+                "number_of_graphics_cores": product.number_of_graphics_cores,
+                "color": product.color
             },
             "reviews": formatted_reviews,
             "review_count": review_count,

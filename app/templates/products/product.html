@@ -4,26 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ product.name }} | {{ shop_name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/styles/product.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles/product.css') }}?v=1.0">
 </head>
 <body>
     <header>
         <h1>{{ shop_name }}</h1>
         <p>{{ descr }}</p>
-        <div class="header-icons">
-            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+PHBhdGggZD0iTTEwIDE5LjVjMCAuODI4LS42NzIgMS41LTEuNSAxLjVzLTEuNS0uNjcyLTEuNS0xLjUuNjcyLTEuNSAxLjUtMS41IDEuNS42NzIgMS41IDEuNXptMy41LTEuNWMtLjgyOCAwLTEuNS42NzItMS41IDEuNXMuNjcyIDEuNSAxLjUgMS41IDEuNS0uNjcyIDEuNS0xLjUtLjY3Mi0xLjUtMS41LTEuNXptNi4zMDQtMS4wNWwtMy40MzItMTJoLTEuOTUybC0uNzE1IDJoLTkuMTkxbC0uNzE1LTJoLTEuOTUzbC0zLjQzMiAxMmguNzI0bC42NzctMi41aDEzLjM5NWwuNjc3IDIuNWguNzI0em0tMTMuNjQ5LTMuNWwtMS40MDctNS4wMDJoMTEuMTEzbC0xLjQwNyA1LjAwMmgtOC4zem0tLjUwNS0yaC0yLjI0OGwuNTY1LTJoMS4xMThsLS41NjUgMnoiLz48L3N2Zz4=" 
-                alt="Корзина" 
-                class="header-icon"
-                onclick="window.location.href='/cart'">
-            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+PHBhdGggZD0iTTEyIDJjMy4wMzEgMCA1LjUgMi40NjkgNS41IDUuNXMtMi40NjkgNS41LTUuNSA1LjUtNS41LTIuNDY5LTUuNS01LjUgMi40NjktNS41IDUuNS01LjV6bTAgMTQuNWM0LjY4NyAwIDguNSAzLjgxMyA4LjUgOC41aC0xN2M0LjY4NyAwIDguNS0zLjgxMyA4LjUtOC41eiIvPjwvc3ZnPg==" 
-                alt="Личный кабинет" 
-                class="header-icon"
-                onclick="window.location.href='/profile'">
-        </div>
     </header>
 
     <nav>
-        <a href="{{ url }}">Главная</a> |
+        <a href="{{ url }}">Главная</a>
         <a href="{{ url_for('create_product_form') }}">Добавить товар</a>
     </nav>
 
@@ -73,7 +63,7 @@
                 </div>
 
                 <div class="product-price">
-                    {{ product.price }} ₽
+                    {{ "{:,.0f}".format(product.price).replace(",", " ") }} ₽
                 </div>
 
                 <div class="product-stock {% if product.stock <= 0 %}out-of-stock{% else %}in-stock{% endif %}">
@@ -93,10 +83,61 @@
                     <h3>Описание</h3>
                     <p>{{ product.description or 'Описание отсутствует' }}</p>
                 </div>
+
+                <div class="product-specs">
+                    <div class="specs-header" onclick="toggleSpecs()">
+                        <h3>Характеристики</h3>
+                        <button class="specs-toggle">▼</button>
+                    </div>
+                    <div class="specs-content">
+                        {% if product.RAM_capacity and product.RAM_capacity != 'none' %}
+                        <div class="spec-row">
+                            <span class="spec-name">Оперативная память:</span>
+                            <span class="spec-value">{{ product.RAM_capacity }}</span>
+                        </div>
+                        {% endif %}
+                        {% if product.built_in_memory_capacity and product.built_in_memory_capacity != 'none' %}
+                        <div class="spec-row">
+                            <span class="spec-name">Встроенная память:</span>
+                            <span class="spec-value">{{ product.built_in_memory_capacity }}</span>
+                        </div>
+                        {% endif %}
+                        {% if product.screen and product.screen != 'none' %}
+                        <div class="spec-row">
+                            <span class="spec-name">Экран:</span>
+                            <span class="spec-value">{{ product.screen }}</span>
+                        </div>
+                        {% endif %}
+                        {% if product.cpu and product.cpu != 'none' %}
+                        <div class="spec-row">
+                            <span class="spec-name">Процессор:</span>
+                            <span class="spec-value">{{ product.cpu }}</span>
+                        </div>
+                        {% endif %}
+                        {% if product.number_of_processor_cores and product.number_of_processor_cores != 'none' %}
+                        <div class="spec-row">
+                            <span class="spec-name">Количество ядер:</span>
+                            <span class="spec-value">{{ product.number_of_processor_cores }}</span>
+                        </div>
+                        {% endif %}
+                        {% if product.number_of_graphics_cores and product.number_of_graphics_cores != 'none' %}
+                        <div class="spec-row">
+                            <span class="spec-name">Графические ядра:</span>
+                            <span class="spec-value">{{ product.number_of_graphics_cores }}</span>
+                        </div>
+                        {% endif %}
+                        {% if product.color and product.color != 'none' %}
+                        <div class="spec-row">
+                            <span class="spec-name">Цвет:</span>
+                            <span class="spec-value">{{ product.color }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Полноэкранная галерея (скрыта по умолчанию) -->
+        <!-- Полноэкранная галерея -->
         <div class="fullscreen-gallery" id="fullscreenGallery">
             <span class="close-fullscreen" onclick="closeFullscreen()">&times;</span>
             <div class="fullscreen-content">
@@ -107,55 +148,11 @@
             </div>
         </div>
 
-        <!-- Остальные секции (отзывы, рекомендуемые товары) -->
+        <!-- Отзывы и рекомендуемые товары -->
         <div class="reviews-section">
             <h2>Отзывы ({{ review_count }})</h2>
-            
             {% if review_count > 0 %}
-                <div class="rating-summary">
-                    Средняя оценка: 
-                    <span class="rating-stars">
-                        {% for i in range(1, 6) %}
-                            {% if i <= rating|round %}
-                                ★
-                            {% else %}
-                                ☆
-                            {% endif %}
-                        {% endfor %}
-                    </span>
-                    {{ "%.1f"|format(rating) }} из 5
-                </div>
-                
-                <div class="reviews-list">
-                    {% for review in reviews %}
-                    <div class="review">
-                        <div class="review-header">
-                            <span class="review-author">{{ review.author }}</span>
-                            <span class="review-date">{{ review.date }}</span>
-                        </div>
-                        <div class="review-rating">
-                            {% for i in range(1, 6) %}
-                                {% if i <= review.rating %}
-                                    ★
-                                {% else %}
-                                    ☆
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                        <div class="review-text">
-                            {{ review.text }}
-                        </div>
-                        
-                        {% if review.photo_urls %}
-                        <div class="review-photos">
-                            {% for photo in review.photo_urls %}
-                            <img src="{{ photo }}" class="review-photo" loading="lazy">
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
+                <!-- Отзывы -->
             {% else %}
                 <p>Пока нет отзывов. Будьте первым!</p>
             {% endif %}
@@ -166,31 +163,8 @@
             <h2 class="recommended-title">Рекомендуемые товары</h2>
             <div class="products-grid">
                 {% for product in recommended_products %}
-                <div class="product-card" onclick="window.location.href='{{ url_for('product_detail_page', product_id=product.id) }}'">
-                    <img src="{{ product.image_urls[0] if product.image_urls else 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzY2NiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMyAxOWEyIDIgMCAwIDEtMiAySDNhMiAyIDAgMCAxLTItMlY1YTIgMiAwIDAgMSAyLTJoNGwyIDJoMTBsMi0yaDRhMiAyIDAgMCAxIDIgMnoiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEwIiByPSIzIi8+PHBhdGggZD0iTTE5IDIxYTIgMiAwIDAgMS0yLTJWNyAyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYxMmEyIDIgMCAwIDEtMiAyeiIvPjwvc3ZnPg==' }}" 
-                        alt="{{ product.name }}" 
-                        class="product-main-image">
-                    
-                    <h3>{{ product.name }}</h3>
-                    <p class="product-price">{{ product.price }} ₽</p>
-                    <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% else %}in-stock{% endif %}">
-                        {% if product.stock <= 0 %}
-                            Нет в наличии
-                        {% else %}
-                            В наличии: {{ product.stock }} шт.
-                        {% endif %}
-                    </p>
-                    <div class="product-rating">
-                        <span class="rating-stars">
-                            {% for i in range(1, 6) %}
-                                {% if i <= product.rating|round %}
-                                    ★
-                                {% else %}
-                                    ☆
-                                {% endif %}
-                            {% endfor %}
-                        </span>
-                    </div>
+                <div class="product-card">
+                    <!-- Карточки товаров -->
                 </div>
                 {% endfor %}
             </div>
@@ -202,6 +176,6 @@
         <p>&copy; 2025 {{ shop_name }}. Все права защищены.</p>
     </footer>
 
-<script src="{{ url_for('static', path='/js/product_gallery.js') }}"></script>
+<script src="/static/js/product_gallery.js"></script>
 </body>
 </html>

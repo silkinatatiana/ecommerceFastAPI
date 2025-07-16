@@ -13,50 +13,106 @@
         <div id="alert-container"></div>
         
         <form id="product-form">
-            <div class="form-group">
-                <label for="name">Название товара *</label>
-                <input type="text" id="name" name="name" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="description">Описание</label>
-                <textarea id="description" name="description" rows="4"></textarea>
-            </div>
-            
-            <div class="form-row">
+            <div class="form-section">
+                
                 <div class="form-group">
-                    <label for="price">Цена (₽) *</label>
-                    <input type="number" id="price" name="price" min="0" required>
+                    <label for="name">Название товара *</label>
+                    <input type="text" id="name" name="name" class="form-control" required>
                 </div>
                 
                 <div class="form-group">
-                    <label for="stock">Количество *</label>
-                    <input type="number" id="stock" name="stock" min="0" required>
+                    <label for="description">Описание</label>
+                    <textarea id="description" name="description" class="form-control" rows="4"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="color">Цвет</label>
+                    <input type="text" id="color" name="color" class="form-control" placeholder="Например: Серебристый">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="price">Цена (₽) *</label>
+                        <input type="number" id="price" name="price" class="form-control" min="0" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="stock">Количество *</label>
+                        <input type="number" id="stock" name="stock" class="form-control" min="0" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="category_id">Категория *</label>
+                    <select id="category_id" name="category_id" class="form-control" required>
+                        <option value="">-- Выберите категорию --</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}" data-name="{{ category.name|lower }}">
+                                {{ category.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
             
-            <div class="form-group">
-                <label for="category_id">Категория *</label>
-                <select id="category_id" name="category_id" required>
-                    <option value="">-- Выберите категорию --</option>
-                    {% for category in categories %}
-                        <option value="{{ category.id }}">{{ category.name }}</option>
-                    {% endfor %}
-                </select>
+            <div class="form-section" id="laptopFields" style="display: none;">
+                <h2 class="section-title">Технические характеристики</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="RAM_capacity">Оперативная память</label>
+                        <input type="text" id="RAM_capacity" name="RAM_capacity" class="form-control" placeholder="Например: 8 GB">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="built_in_memory_capacity">Встроенная память</label>
+                        <input type="text" id="built_in_memory_capacity" name="built_in_memory_capacity" class="form-control" placeholder="Например: 256 GB">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="screen">Диагональ экрана (дюймы)</label>
+                    <input type="number" id="screen" name="screen" class="form-control" step="0.1" placeholder="Например: 15.6">
+                </div>
+                
+                <div class="form-group">
+                    <label for="cpu">Процессор</label>
+                    <input type="text" id="cpu" name="cpu" class="form-control" placeholder="Например: Intel Core i5">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="number_of_processor_cores">Ядер процессора</label>
+                        <input type="number" id="number_of_processor_cores" name="number_of_processor_cores" class="form-control">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="number_of_graphics_cores">Графических ядер</label>
+                        <input type="number" id="number_of_graphics_cores" name="number_of_graphics_cores" class="form-control">
+                    </div>
+                </div>
+                
+                <!-- <div class="form-group">
+                    <label for="color">Цвет</label>
+                    <input type="text" id="color" name="color" class="form-control" placeholder="Например: Серебристый">
+                </div> -->
             </div>
             
-            <div class="form-group">
+            <div class="form-section">
                 <label>Изображения товара (максимум 5) *</label>
                 <div id="image-inputs">
-                    <input type="url" name="image_urls[]" placeholder="https://example.com/image1.jpg" required>
+                    <input type="url" name="image_urls[]" class="form-control" placeholder="https://example.com/image1.jpg" required>
                 </div>
-                <button type="button" id="add-image-btn" class="btn-add-image">+ Добавить ещё изображение</button>
+                <button type="button" id="add-image-btn" class="secondary-btn">+ Добавить ещё изображение</button>
             </div>
             
-            <div class="button-wrapper">
-                <button type="submit" id="submit-btn" class="btn-add">
-                    ДОБАВИТЬ ТОВАР
+            <input type="hidden" id="supplier_id" name="supplier_id" value="{{ current_user.id if current_user else '' }}">
+            
+            <div class="form-actions">
+                <button type="submit" class="primary-btn" {% if not categories %}disabled title="Не загружены категории"{% endif %}>
+                    Создать товар
                 </button>
+                <button type="button" class="secondary-btn" onclick="window.history.back()">Отмена</button>
             </div>
         </form>
     </div>

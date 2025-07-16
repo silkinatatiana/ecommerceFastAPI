@@ -11,18 +11,18 @@ class Product(Base):
     slug = Column(String, nullable=False)
     description = Column(String)
     price = Column(Integer)
+    color = Column(String)
     image_urls =  Column(JSON, default=list)
     stock = Column(Integer)
     rating = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     category_id = Column(Integer, ForeignKey('categories.id'))
-    RAM_capacity = Column(String) # Объем оперативной памяти
-    built_in_memory_capacity = Column(String) # объем встроенной памяти
-    screen = Column(FLOAT)
-    cpu = Column(String)
-    number_of_processor_cores = Column(Integer)
-    number_of_graphics_cores = Column(Integer) # Количество графических ядер
-    color = Column(String)
+    RAM_capacity = Column(String, nullable=True) # Объем оперативной памяти
+    built_in_memory_capacity = Column(String, nullable=True) # объем встроенной памяти
+    screen = Column(FLOAT, nullable=True)
+    cpu = Column(String, nullable=True)
+    number_of_processor_cores = Column(Integer, nullable=True)
+    number_of_graphics_cores = Column(Integer, nullable=True) # Количество графических ядер
 
     category = relationship("Category", back_populates="products")
     supplier_id = Column(Integer, ForeignKey(User.id))
@@ -41,6 +41,12 @@ class Product(Base):
                 "rating": 5,
                 "is_active": True,
                 "category_id": 1,
-                "supplier_id": 1
+                "RAM_capacity": "24 GB",
+                "built_in_memory_capacity": "512 GB",
+                "screen": 6.7,
+                "cpu": " Apple M4 Pro",
+                "number_of_processor_cores": 5,
+                "number_of_graphics_cores": 5,
+                "color": "Silver"
             }
         }
