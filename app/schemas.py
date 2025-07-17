@@ -21,13 +21,10 @@ class CreateProduct(BaseModel):
 class ProductOut(BaseModel):
     id: int
     name: str
-    slug: str
     description: Optional[str] = None
     price: int
     image_urls: List[str] = Field(default_factory=list)
     stock: int
-    rating: float
-    is_active: bool
     category_id: int
     supplier_id: int
     
@@ -41,7 +38,7 @@ class ProductOut(BaseModel):
 
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CreateCategory(BaseModel):
     name: str
@@ -62,4 +59,3 @@ class CreateReviews(BaseModel):
     grade: int = Field(..., ge=1, le=5)
     comment: str = None
     comment_date: datetime = Field(default_factory=datetime.now)
-    is_active: bool = True

@@ -8,14 +8,11 @@ class Product(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    slug = Column(String, nullable=False)
     description = Column(String)
     price = Column(Integer)
     color = Column(String)
     image_urls =  Column(JSON, default=list)
     stock = Column(Integer)
-    rating = Column(Integer, default=0)
-    is_active = Column(Boolean, default=True)
     category_id = Column(Integer, ForeignKey('categories.id'))
     RAM_capacity = Column(String, nullable=True) # Объем оперативной памяти
     built_in_memory_capacity = Column(String, nullable=True) # объем встроенной памяти
@@ -33,13 +30,10 @@ class Product(Base):
         json_schema_extra = {
             "example": {
                 "name": "Смартфон",
-                "slug": "smartphone",
                 "description": "Мощный смартфон с процессором последнего поколения",
                 "price": 99999,
                 "image_urls": ["https://example.com/phone1.jpg", "https://example.com/phone2.jpg"],
                 "stock": 100,
-                "rating": 5,
-                "is_active": True,
                 "category_id": 1,
                 "RAM_capacity": "24 GB",
                 "built_in_memory_capacity": "512 GB",

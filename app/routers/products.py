@@ -57,16 +57,6 @@ async def create_product_form(
             }
         )
 
-async def create_slug(db: AsyncSession, name: str) -> str:
-    base_slug = slugify(name)
-    unique_slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
-    
-    existing_product = await db.scalar(select(Product).where(Product.slug == unique_slug))
-    
-    if existing_product:
-        unique_slug = f"{unique_slug}-{uuid.uuid4().hex[:4]}"
-    
-    return unique_slug
 
 @router.post('/create', response_model=ProductOut)
 async def create_product(
@@ -83,13 +73,9 @@ async def create_product(
                 detail="Категория не найдена"
             )
 
-        slug = await create_slug(db, product_data.name)
 
         product = Product(
             **product_data.dict(exclude_unset=True),
-            slug=slug,
-            rating=0.0,
-            is_active=True,
             supplier_id=1  # когда добавлю ЛК, это поле будет браться из таблицы user
         )
 
@@ -181,9 +167,9 @@ async def product_detail_page(
                 "price": product.price,
                 "stock": product.stock,
                 "image_urls": product.image_urls,
+                "rating": avg_rating,
                 "category_id": product.category_id,
                 "category_name": product.category.name if product.category else "Без категории",
-                "rating": product.rating,
                 "RAM_capacity": product.RAM_capacity,
                 "built_in_memory_capacity": product.built_in_memory_capacity,
                 "screen": product.screen,
@@ -194,7 +180,6 @@ async def product_detail_page(
             },
             "reviews": formatted_reviews,
             "review_count": review_count,
-            "rating": avg_rating,
             "recommended_products": [
                 {
                     "id": p.id,
