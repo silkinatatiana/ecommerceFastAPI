@@ -64,17 +64,19 @@ async def get_main_page(request: Request):
             )
             categories.raise_for_status()
             products.raise_for_status()
-        except httpx.HTTPStatusError as e:  # Ловим ошибки HTTP (4xx, 5xx)
+        except httpx.HTTPStatusError as e:
             raise HTTPException(502, detail="Сервис каталога недоступен")
-        except Exception as e:  # Ловим другие ошибки (например, сетевые)
+        except Exception as e:
             raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}")
 
 
     categories_products = {}
 
     for category in categories.json():
-        categories_products[category['name']] = [product for product in products.json() if
-                                                 product['category_id'] == category['id']]
+        categories_products[category['name']] = {
+        "id": category['id'],
+        "products": [p for p in products.json() if p['category_id'] == category['id']][:6]
+    }
     return templates.TemplateResponse(
         'index.html', {
             "request": request,
@@ -85,7 +87,3 @@ async def get_main_page(request: Request):
             "url": Config.url
         }
     )
-
-@app.get('/cart', response_class=HTMLResponse)
-def get_cart(request: Request) -> dict:
-    return {"message": "This is cart"}

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Request, Form
+from fastapi import APIRouter, Depends, status, HTTPException, Request, Query
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from typing import Annotated
@@ -47,7 +47,6 @@ async def create_product_form(
             )
 
     except Exception as e:
-        # В случае ошибки передаем пустой список
         return templates.TemplateResponse(
             "products/create_product.html",
             {
@@ -114,6 +113,31 @@ async def products_by_category(db: Annotated[AsyncSession, Depends(get_db)], cat
     products_category = await db.scalars(
         select(Product).where(Product.category_id == category.id, Product.stock > 0))
     return products_category.all()
+
+# @router.get("/") # TODO удалить
+# async def index(db: AsyncSession = Depends(get_db)):
+#     categories = await db.scalars(select(Category))
+#     categories_products = {}
+    
+#     for category in categories:
+#         products = await db.scalars(
+#             select(Product)
+#             .where(Product.category_id == category.id, Product.stock > 0)
+#             .limit(6))
+        
+#         categories_products[category.name] = {
+#             "id": category.id,
+#             "products": products.all(),
+#         }
+    
+#     return templates.TemplateResponse(
+#         "index.html",
+#         {
+#             "categories_products": categories_products,
+#             "shop_name": "Мой магазин",
+#             "descr": "Описание магазина",
+#         }
+#     )
 
 
 @router.get('/{product_id}', response_class=HTMLResponse)
@@ -270,3 +294,23 @@ async def delete_product(db: Annotated[AsyncSession, Depends(get_db)], product_s
             detail='You have not enough permission for this action'
         )
     
+
+# для AJAX запросов чтобы разворачивать на главной странице все товары в категории
+@router.get("/by_category/")
+async def get_products_by_category(
+    category_id: int = Query(..., alias="categoryId"),
+    skip: int = Query(6, alias="skip")
+):
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{Config.url}/products/",
+                params={"category_id": category_id}
+            )
+            response.raise_for_status()
+            all_products = response.json()
+            
+            return all_products[skip:] if skip < len(all_products) else []
+            
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
