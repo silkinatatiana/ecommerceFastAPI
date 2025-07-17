@@ -2,7 +2,7 @@ async function loadAllProducts(categoryId, button) {
     const skip = parseInt(button.dataset.skip);
     const container = document.getElementById(`products-${categoryId}`);
     const mainGrid = button.closest('.category').querySelector('.products-grid');
-    const hideBtn = button.parentElement.querySelector('.hide-btn'); // Находим кнопку "Скрыть"
+    const hideBtn = button.parentElement.querySelector('.hide-btn');
     
     container.innerHTML = '<p>Загрузка...</p>';
     button.disabled = true;
@@ -18,32 +18,35 @@ async function loadAllProducts(categoryId, button) {
             container.innerHTML = '<p>Нет дополнительных товаров</p>';
             return;
         }
-        
-        // Добавляем класс для новых товаров
+
         additionalProducts.forEach(product => {
-            const productHtml = `
-                <div class="product-card additional-product" data-category="${categoryId}">
-                    <img src="${product.image_urls?.[0] || '/static/images/default_image.png'}" 
-                         alt="${product.name}"
-                         loading="lazy"
-                         onerror="this.onerror=null;this.src='/static/images/default_image.png'">
-                    <h3>${product.name}</h3>
-                    <p class="product-price">${product.price || 'Цена не указана'} ₽</p>
-                    <p class="product-stock ${product.stock <= 0 ? 'out-of-stock' : ''}">
-                        ${product.stock} шт. в наличии
-                    </p>
-                </div>
+            const productCard = document.createElement('div');
+            productCard.className = 'product-card additional-product';
+            productCard.dataset.category = categoryId;
+            
+            productCard.innerHTML = `
+                <img src="${product.image_urls?.[0] || '/static/images/default_image.png'}" 
+                    alt="${product.name}"
+                    loading="lazy"
+                    onerror="this.onerror=null;this.src='/static/images/default_image.png'">
+                <h3>${product.name}</h3>
+                <p class="product-price">${product.price || 'Цена не указана'} ₽</p>
+                <p class="product-stock ${product.stock <= 0 ? 'out-of-stock' : ''}">
+                    ${product.stock} шт. в наличии
+                </p>
             `;
-            mainGrid.insertAdjacentHTML('beforeend', productHtml);
+            
+            productCard.addEventListener('click', () => {
+                window.location.href = `/products/${product.id}`;
+            });
+            
+            mainGrid.appendChild(productCard);
         });
         
-        // Обновляем skip
         button.dataset.skip = skip + additionalProducts.length;
         
-        // Показываем кнопку "Скрыть"
         hideBtn.style.display = 'inline-block';
         
-        // Скрываем кнопку если больше нет товаров
         if (additionalProducts.length < 6) {
             button.style.display = 'none';
         }
@@ -57,19 +60,15 @@ async function loadAllProducts(categoryId, button) {
     }
 }
 
-// Новая функция для скрытия товаров (добавьте её в тот же файл)
 function hideProducts(categoryId, button) {
     const viewAllBtn = button.parentElement.querySelector('.view-all-btn');
     const mainGrid = button.closest('.category').querySelector('.products-grid');
     
-    // Удаляем только добавленные товары
     const additionalProducts = mainGrid.querySelectorAll(`.additional-product[data-category="${categoryId}"]`);
     additionalProducts.forEach(product => product.remove());
     
-    // Восстанавливаем кнопку "Посмотреть все"
     viewAllBtn.style.display = 'inline-block';
-    viewAllBtn.dataset.skip = 6; // Сбрасываем счётчик
+    viewAllBtn.dataset.skip = 6;
     
-    // Скрываем кнопку "Скрыть"
     button.style.display = 'none';
 }

@@ -58,17 +58,6 @@
                         </div>
                         <div id="products-{{ category_data.id }}" class="additional-products"></div>
                     {% endif %}
-                    
-                    <!-- {% if category_data.products|length >= 6 %}
-                        <button onclick="loadAllProducts('{{ category_data.id }}', this)"
-                                class="view-all-btn"
-                                data-skip="7">
-                            Посмотреть все товары в категории "{{ category_name | title }}"
-                        </button>
-
-                        
-                        <div id="products-{{ category_data.id }}" class="additional-products"></div>
-                    {% endif %} -->
                 </div>
             {% endfor %}
         {% else %}
