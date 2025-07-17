@@ -153,8 +153,11 @@ async def product_detail_page(
         select(Product)
         .where(Product.category_id == product.category_id)
         .where(Product.id != product.id)
-        .limit(4)
     )
+
+    spec = [product.name, product.RAM_capacity, product.built_in_memory_capacity, product.screen, product.cpu, product.color]
+    
+    name = ', '.join([str(s) for s in spec if s is not None])
 
     return templates.TemplateResponse(
         "products/product.html",
@@ -162,7 +165,7 @@ async def product_detail_page(
             "request": request,
             "product": {
                 "id": product.id,
-                "name": product.name,
+                "name": name,
                 "description": product.description,
                 "price": product.price,
                 "stock": product.stock,
@@ -186,8 +189,7 @@ async def product_detail_page(
                     "name": p.name,
                     "price": p.price,
                     "stock": p.stock,
-                    "image_urls": p.image_urls,
-                    "rating": p.rating
+                    "image_urls": p.image_urls
                 } for p in recommended_products
             ],
             "shop_name": "PEAR",
