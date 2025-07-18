@@ -114,32 +114,6 @@ async def products_by_category(db: Annotated[AsyncSession, Depends(get_db)], cat
         select(Product).where(Product.category_id == category.id, Product.stock > 0))
     return products_category.all()
 
-# @router.get("/") # TODO удалить
-# async def index(db: AsyncSession = Depends(get_db)):
-#     categories = await db.scalars(select(Category))
-#     categories_products = {}
-    
-#     for category in categories:
-#         products = await db.scalars(
-#             select(Product)
-#             .where(Product.category_id == category.id, Product.stock > 0)
-#             .limit(6))
-        
-#         categories_products[category.name] = {
-#             "id": category.id,
-#             "products": products.all(),
-#         }
-    
-#     return templates.TemplateResponse(
-#         "index.html",
-#         {
-#             "categories_products": categories_products,
-#             "shop_name": "Мой магазин",
-#             "descr": "Описание магазина",
-#         }
-#     )
-
-
 @router.get('/{product_id}', response_class=HTMLResponse)
 async def product_detail_page(
     request: Request,
@@ -170,7 +144,7 @@ async def product_detail_page(
             "date": review.comment_date.strftime("%d.%m.%Y"),
             "rating": review.grade,
             "text": review.comment,
-            "photo_urls": review.photo_urls.split(',') if review.photo_urls else []
+            "photo_urls": review.photo_urls if review.photo_urls else []
         })
 
     recommended_products = await db.scalars(

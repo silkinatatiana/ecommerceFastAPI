@@ -9,7 +9,7 @@ from loguru import logger
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from app.routers import category, products, auth, permission
+from app.routers import category, products, auth, permission, reviews
 from app.backend.db import Base, engine
 from app.config import Config
 
@@ -31,6 +31,7 @@ app.include_router(products.router)
 app.include_router(auth.router)
 app.include_router(permission.router)
 app.include_router(category.router)
+app.include_router(reviews.router)
 
 shop_info = {
     'shop_name': 'PEAR',
@@ -74,9 +75,24 @@ async def get_main_page(request: Request):
 
     for category in categories.json():
         categories_products[category['name']] = {
-        "id": category['id'],
-        "products": [p for p in products.json() if p['category_id'] == category['id']][:6]
-    }
+            "id": category['id'],
+            "products": [
+                {
+                    **p,
+                    'name': ', '.join([str(s) for s in [
+                        p.get('name'),
+                        p.get('RAM_capacity'),
+                        p.get('built_in_memory_capacity'),
+                        p.get('screen'),
+                        p.get('cpu'),
+                        p.get('color')
+                    ] if s is not None])
+                } 
+                for p in products.json() 
+                if p['category_id'] == category['id']
+            ][:6]
+        }
+
     return templates.TemplateResponse(
         'index.html', {
             "request": request,
