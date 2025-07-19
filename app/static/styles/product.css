@@ -176,8 +176,12 @@ nav a:hover {
 }
 
 .rating-stars {
-  color: var(--warning-color);
+  color: #ffc107;
   font-size: 1.2rem;
+}
+
+.rating-link {
+    text-decoration: none !important;
 }
 
 .product-price {
@@ -386,11 +390,10 @@ nav a:hover {
 }
 
  .reviews-section h2 {
-            color: #333;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-        }
+    border-bottom: none !important;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
         
 .review-item {
     background: white;
@@ -472,31 +475,6 @@ nav a:hover {
     border-radius: 8px;
     margin-top: 30px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-
-.form-group input,
-.form-group textarea,
-.form-group select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1em;
-}
-
-.form-group textarea {
-    min-height: 100px;
-    resize: vertical;
 }
 
 .submit-review-btn {
@@ -714,28 +692,39 @@ align-items: center;
   color: #ccc !important;
 }
 
-/* Улучшенные стили для формы отзыва */
 .review-form {
   margin-top: 20px;
   padding: 20px;
   background: #f9f9f9;
   border-radius: 8px;
-}
+
+
 .form-group {
-  margin-bottom: 15px;
+    margin-bottom: 15px;
 }
+
 .form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
 }
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
 .form-group textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  min-height: 100px;
+    min-height: 100px;
+    resize: vertical;
 }
+}
+
 .submit-review-btn {
   background-color: #4CAF50;
   color: white;
@@ -834,7 +823,7 @@ align-items: center;
 }
 
 .half-star {
-    background: linear-gradient(90deg, gold 50%, lightgray 50%);
+    background: linear-gradient(90deg, #ffc107 50%, lightgray 50%);
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;

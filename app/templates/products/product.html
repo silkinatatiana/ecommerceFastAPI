@@ -51,15 +51,19 @@
                 
                 <div class="product-rating">
                     <span class="rating-stars">
-                        {% for i in range(1, 6) %}
-                            {% if i <= product.rating %}
-                                ★
-                            {% elif i - 1 <= product.rating <= i %}
-                                <span class="half-star">★</span>
-                            {% else %}
-                                ☆
-                            {% endif %}
-                        {% endfor %}
+                        {% if review_count > 0 %}
+                            {% for i in range(1, 6) %}
+                                {% if i <= product.rating %}
+                                    ★
+                                {% elif (i - 0.5) <= product.rating < i %}
+                                    <span class="half-star">★</span>
+                                {% else %}
+                                    ☆
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            ☆☆☆☆☆
+                        {% endif %}
                     </span>
                     <a href="#reviews-section" class="rating-link">
                         <span>Отзывы({{ review_count }})</span>
@@ -142,11 +146,11 @@
         </div>
 
         <div class="fullscreen-gallery" id="fullscreenGallery">
-            <span class="close-fullscreen" onclick="closeFullscreen()">&times;</span>
+            <span class="close-fullscreen">&times;</span>
             <div class="fullscreen-content">
                 <img src="" class="fullscreen-image" id="fullscreenImage">
-                <button class="fullscreen-nav fullscreen-prev" onclick="navigateFullscreen(-1)">❮</button>
-                <button class="fullscreen-nav fullscreen-next" onclick="navigateFullscreen(1)">❯</button>
+                <button class="fullscreen-nav fullscreen-prev">❮</button>
+                <button class="fullscreen-nav fullscreen-next">❯</button>
                 <div class="image-counter" id="imageCounter"></div>
             </div>
         </div>
@@ -230,8 +234,7 @@
             <div class="products-scroll-container">
                 <div class="products-scroll-wrapper">
                     {% for product in recommended_products %}
-                    <div class="product-card">
-                        <a href="{{ url_for('product_detail_page', product_id=product.id) }}">
+                        <div class="product-card" onclick="window.open    ('{{ url_for('product_detail_page', product_id=product.id) }}', '_blank')" style="cursor: pointer;">
                             <img src="{{ product.image_urls[0] if product.image_urls else placeholder_image }}" 
                                 alt="{{ product.name }}" 
                                 class="product-image">

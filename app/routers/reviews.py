@@ -40,8 +40,8 @@ async def product_reviews(
 
 @router.post("/create_by/{product_id}")
 async def create_review(
-    review_data: CreateReviews,  # используем Pydantic модель для валидации
-    product_id: int,  # из path параметра
+    review_data: CreateReviews,
+    product_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     if review_data.photo_urls and len(review_data.photo_urls) > 5:

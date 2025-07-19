@@ -1,91 +1,221 @@
 
-// Глобальные переменные для управления галереей
 let currentImageIndex = 0;
 let productImages = [];
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Инициализация галереи
     initGallery();
-    
-    // Инициализация формы отзыва
     initReviewForm();
-
 });
 
-// Инициализация галереи изображений
+// function setupEventListeners() {
+//     // Обработчики для свайпов на мобильных устройствах
+//     const fullscreenImage = document.getElementById('fullscreenImage');
+//     if (fullscreenImage) {
+//         let touchStartX = 0;
+//         let touchEndX = 0;
+        
+//         fullscreenImage.addEventListener('touchstart', (e) => {
+//             touchStartX = e.changedTouches[0].screenX;
+//         }, {passive: true});
+        
+//         fullscreenImage.addEventListener('touchend', (e) => {
+//             touchEndX = e.changedTouches[0].screenX;
+//             handleSwipe();
+//         }, {passive: true});
+//     }
+    
+//     // Обработчик клика по затемненной области
+//     document.getElementById('fullscreenGallery')?.addEventListener('click', (e) => {
+//         if (e.target === e.currentTarget) {
+//             closeFullscreen();
+//         }
+//     });
+// }
+
+// function handleSwipe() {
+//     const SWIPE_THRESHOLD = 50;
+//     const diff = touchStartX - touchEndX;
+    
+//     if (diff > SWIPE_THRESHOLD) {
+//         navigateFullscreen(1); // Свайп влево - следующее изображение
+//     } else if (diff < -SWIPE_THRESHOLD) {
+//         navigateFullscreen(-1); // Свайп вправо - предыдущее изображение
+//     }
+// }
+
+// function initGallery() {
+//     const thumbnails = document.querySelectorAll('.thumbnail');
+//     productImages = Array.from(thumbnails).map(thumb => thumb.src);
+    
+//     if (productImages.length > 0) {
+//         const mainImage = document.getElementById('mainProductImage');
+//         if (mainImage) {
+//             mainImage.style.cursor = 'pointer'; // Просто курсор-указатель
+//             mainImage.addEventListener('click', function() {
+//                 openFullscreen(currentImageIndex);
+//             });
+//         }
+        
+//         // Добавляем обработчики для миниатюр
+//         thumbnails.forEach((thumb, index) => {
+//             thumb.addEventListener('click', () => {
+//                 changeMainImage(thumb, index);
+//                 openFullscreen(index);
+//             });
+//         });
+
+//             // Добавляем обработчики для кнопок навигации в полноэкранном режиме
+//         document.querySelector('.fullscreen-prev')?.addEventListener('click', (e) => {
+//             e.stopPropagation();
+//             navigateFullscreen(-1);
+//         });
+        
+//         document.querySelector('.fullscreen-next')?.addEventListener('click', (e) => {
+//             e.stopPropagation();
+//             navigateFullscreen(1);
+//         });
+
+//          // Обработчик клавиатуры
+//         document.addEventListener('keydown', (e) => {
+//             if (document.getElementById('fullscreenGallery').style.display === 'flex') {
+//                 switch(e.key) {
+//                     case 'ArrowLeft': navigateFullscreen(-1); break;
+//                     case 'ArrowRight': navigateFullscreen(1); break;
+//                     case 'Escape': closeFullscreen(); break;
+//                 }
+//             }
+//         });
+//     }
+// }
+
 function initGallery() {
+    // Собираем все изображения товара
     const thumbnails = document.querySelectorAll('.thumbnail');
     productImages = Array.from(thumbnails).map(thumb => thumb.src);
     
     if (productImages.length > 0) {
-        // Добавляем обработчик клика на главное изображение
+        // Главное изображение
         const mainImage = document.getElementById('mainProductImage');
         if (mainImage) {
+            mainImage.style.cursor = 'pointer'; // Просто курсор-указатель
             mainImage.addEventListener('click', function() {
                 openFullscreen(currentImageIndex);
             });
         }
         
-        // Добавляем обработчики для миниатюр
+        // Миниатюры
         thumbnails.forEach((thumb, index) => {
-            thumb.addEventListener('click', function() {
-                changeMainImage(thumb, index);
+            thumb.style.cursor = 'pointer';
+            thumb.addEventListener('click', function(e) {
+                e.stopPropagation();
+                changeMainImage(this, index);
+                openFullscreen(index);
             });
         });
-
-            // Добавляем обработчики для кнопок навигации в полноэкранном режиме
-        document.querySelector('.fullscreen-prev')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            navigateFullscreen(-1);
-        });
-        
-        document.querySelector('.fullscreen-next')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            navigateFullscreen(1);
-        });
     }
+    
+    // Навигация в полноэкранном режиме
+    document.querySelector('.fullscreen-prev')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        navigateFullscreen(-1);
+    });
+    
+    document.querySelector('.fullscreen-next')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        navigateFullscreen(1);
+    });
+    
+    // Закрытие по клику на фон или крестик
+    // document.getElementById('fullscreenGallery')?.addEventListener('click', function(e) {
+    //     if (e.target === this || e.target.classList.contains('close-fullscreen')) {
+    //         closeFullscreen();
+    //     }
+    // });
+
+    document.getElementById('fullscreenGallery')?.addEventListener('click', function(e) {
+    // Проверяем клик на фон ИЛИ на элемент с классом close-fullscreen ИЛИ его потомков
+    if (e.target === this || e.target.closest('.close-fullscreen')) {
+        e.preventDefault();  // Предотвращаем стандартное поведение
+        e.stopPropagation(); // Останавливаем всплытие события
+        closeFullscreen();
+    }
+});
+    
+    // Закрытие по ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeFullscreen();
+        }
+    });
 }
 
-// Изменение главного изображения при клике на миниатюру
 function changeMainImage(thumbnail, index) {
     const mainImage = document.getElementById('mainProductImage');
     if (mainImage) {
         mainImage.src = thumbnail.src;
-        
-        // Обновляем активную миниатюру
-        document.querySelectorAll('.thumbnail').forEach(thumb => {
-            thumb.classList.remove('active');
-        });
-        thumbnail.classList.add('active');
-        
+        currentImageIndex = index;
+        updateActiveThumbnail(index);
+    }
+}
+
+function updateActiveThumbnail(index) {
+    document.querySelectorAll('.thumbnail').forEach(thumb => {
+        thumb.classList.remove('active');
+    });
+    document.querySelectorAll('.thumbnail')[index]?.classList.add('active');
+}
+
+function openFullscreen(index) {
+    const fullscreenGallery = document.getElementById('fullscreenGallery');
+    const fullscreenImage = document.getElementById('fullscreenImage');
+    const imageCounter = document.getElementById('imageCounter');
+    
+    if (!fullscreenGallery || !fullscreenImage) return;
+    
+    currentImageIndex = index;
+    fullscreenImage.src = productImages[currentImageIndex];
+    imageCounter.textContent = `${currentImageIndex + 1}/${productImages.length}`;
+    fullscreenGallery.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function navigateFullscreen(direction) {
+    currentImageIndex = (currentImageIndex + direction + productImages.length) % productImages.length;
+    
+    const fullscreenImage = document.getElementById('fullscreenImage');
+    const imageCounter = document.getElementById('imageCounter');
+    
+    fullscreenImage.src = productImages[currentImageIndex];
+    imageCounter.textContent = `${currentImageIndex + 1}/${productImages.length}`;
+}
+
+function closeFullscreen() {
+    const fullscreenGallery = document.getElementById('fullscreenGallery');
+    if (fullscreenGallery) {
+        fullscreenGallery.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
+function changeMainImage(thumbnail, index) {
+    const mainImage = document.getElementById('mainProductImage');
+    if (mainImage) {
+        mainImage.src = thumbnail.src;
+        updateActiveThumbnail(index);
         currentImageIndex = index;
     }
 }
 
-// Навигация по изображениям (вперед/назад)
+function updateActiveThumbnail(index) {
+    document.querySelectorAll('.thumbnail').forEach(thumb => {
+        thumb.classList.remove('active');
+    });
+    document.querySelectorAll('.thumbnail')[index]?.classList.add('active');
+}
+
 function navigate(direction) {
-    if (productImages.length === 0) return;
-    
-    currentImageIndex += direction;
-    
-    // Проверка границ
-    if (currentImageIndex < 0) {
-        currentImageIndex = productImages.length - 1;
-    } else if (currentImageIndex >= productImages.length) {
-        currentImageIndex = 0;
-    }
-    
-    // Обновляем изображение
-    const mainImage = document.getElementById('mainProductImage');
-    if (mainImage) {
-        mainImage.src = productImages[currentImageIndex];
-        
-        // Обновляем активную миниатюру
-        document.querySelectorAll('.thumbnail').forEach(thumb => {
-            thumb.classList.remove('active');
-        });
-        document.querySelectorAll('.thumbnail')[currentImageIndex].classList.add('active');
-    }
+    currentImageIndex = (currentImageIndex + direction + productImages.length) % productImages.length;
+    changeMainImage(document.querySelectorAll('.thumbnail')[currentImageIndex], currentImageIndex);
 }
 
 // Открытие изображения в полноэкранном режиме
@@ -101,6 +231,11 @@ function openFullscreen(index) {
     imageCounter.textContent = `${currentImageIndex + 1} / ${productImages.length}`;
     fullscreenGallery.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+
+        // Плавное появление
+    setTimeout(() => {
+        fullscreenGallery.style.opacity = '1';
+    }, 10);
 }
 
 // Навигация в полноэкранном режиме
@@ -112,18 +247,23 @@ function navigateFullscreen(direction) {
     const fullscreenImage = document.getElementById('fullscreenImage');
     const imageCounter = document.getElementById('imageCounter');
     
-    if (fullscreenImage && imageCounter) {
+        // Анимация перехода
+    fullscreenImage.style.opacity = '0';
+    setTimeout(() => {
         fullscreenImage.src = productImages[currentImageIndex];
-        imageCounter.textContent = `${currentImageIndex + 1} / ${productImages.length}`;
-    }
+        imageCounter.textContent = `${currentImageIndex + 1}/${productImages.length}`;
+        fullscreenImage.style.opacity = '1';
+    }, 300);
 }
 
-// Закрытие полноэкранного режима
 function closeFullscreen() {
     const fullscreenGallery = document.getElementById('fullscreenGallery');
     if (fullscreenGallery) {
-        fullscreenGallery.style.display = 'none';
-        document.body.style.overflow = 'auto';
+        fullscreenGallery.style.opacity = '0';
+        setTimeout(() => {
+            fullscreenGallery.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 }
 
@@ -139,7 +279,25 @@ function closeFullscreenReviewImage() {
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     initGallery();
-    
+
+    const gallery = document.getElementById('fullscreenGallery');
+
+    if (gallery) {
+        // Универсальный обработчик для закрытия
+        gallery.addEventListener('click', function(e) {
+            // Закрытие по клику на фон
+            if (e.target === this) {
+                closeFullscreen();
+            }
+            // Закрытие по клику на крестик (плюс проверка на дочерние элементы)
+            else if (e.target.closest('.close-fullscreen')) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeFullscreen();
+            }
+        });
+    }
+
     // Закрытие по клику вне изображения
     document.getElementById('fullscreenGallery')?.addEventListener('click', function(e) {
         if (e.target === this) {
