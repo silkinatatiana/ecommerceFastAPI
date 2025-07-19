@@ -133,12 +133,11 @@ async def product_detail_page(
             detail="Товар не найден"
         )
 
-    active_reviews = [r for r in product.reviews if r.is_active]
-    review_count = len(active_reviews)
-    avg_rating = sum(r.grade for r in active_reviews) / review_count if review_count > 0 else 0
+    review_count = len(product.reviews)
+    avg_rating = sum(r.grade for r in product.reviews) / review_count if review_count > 0 else 0
 
     formatted_reviews = []
-    for review in active_reviews:
+    for review in product.reviews:
         formatted_reviews.append({
             "author": review.user.username if review.user else "Аноним",
             "date": review.comment_date.strftime("%d.%m.%Y"),

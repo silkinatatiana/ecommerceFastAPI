@@ -38,28 +38,30 @@ async def product_reviews(
     )
     return reviews.all()
 
-
-@router.post("/products/{product_id}/reviews")
+@router.post("/create_by/{product_id}")
 async def create_review(
-    product_id: int,
-    comment: str = Form(...),
-    grade: int = Form(..., ge=1, le=5),
-    photo_urls: Optional[List[str]] = Form(None),
+    review_data: CreateReviews,  # используем Pydantic модель для валидации
+    product_id: int,  # из path параметра
     db: AsyncSession = Depends(get_db),
 ):
-    if photo_urls and len(photo_urls) > 5:
+    if review_data.photo_urls and len(review_data.photo_urls) > 5:
         raise HTTPException(400, "Можно прикрепить не более 5 фото")
 
     review = Review(
-        user_id=1, # в аргументы функции нужно будет передать реального пользователя и сюда его id
+        user_id=review_data.user_id,
         product_id=product_id,
-        comment=comment,
-        grade=grade,
-        photo_urls=photo_urls or None
+        comment=review_data.comment,
+        grade=review_data.grade,
+        photo_urls=review_data.photo_urls or []
     )
     db.add(review)
     await db.commit()
-    return {"message": "Отзыв сохранен"}
+    await db.refresh(review)
+    return {
+        "message": "Отзыв сохранен", 
+        "review_id": review.id,
+        "product_id": review.product_id
+    }
 
 @router.delete('/{review_id}', status_code=status.HTTP_200_OK)
 async def delete_review(

@@ -56,6 +56,7 @@ class CreateUser(BaseModel):
 
 
 class CreateReviews(BaseModel):
+    user_id: int
     grade: int = Field(..., ge=1, le=5)
     comment: str = None
-    comment_date: datetime = Field(default_factory=datetime.now)
+    photo_urls: Optional[List[str]] = None
