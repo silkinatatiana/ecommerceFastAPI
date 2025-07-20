@@ -1,13 +1,13 @@
 import asyncio
 import logging
 import httpx
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 from app.routers import category, products, auth, permission, reviews
 from app.backend.db import Base, engine
@@ -56,13 +56,18 @@ async def log_requests(request: Request, call_next):
         raise
 
 @app.get('/', response_class=HTMLResponse)
-async def get_main_page(request: Request):
+async def get_main_page(request: Request, category_id: Optional[int] = Query(None)):
     async with httpx.AsyncClient() as client:
         try:
+            products_url = f"{Config.url}/products/"
+            if category_id:
+                products_url += f"?category_id={category_id}"
+            
             categories, products = await asyncio.gather(
                 client.get(f"{Config.url}/categories/"),
-                client.get(f"{Config.url}/products/")
+                client.get(products_url)
             )
+            
             categories.raise_for_status()
             products.raise_for_status()
         except httpx.HTTPStatusError as e:
@@ -70,13 +75,10 @@ async def get_main_page(request: Request):
         except Exception as e:
             raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}")
 
-
     categories_products = {}
 
     for category in categories.json():
-        categories_products[category['name']] = {
-            "id": category['id'],
-            "products": [
+            category_products = [
                 {
                     **p,
                     'name': ', '.join([str(s) for s in [
@@ -87,11 +89,16 @@ async def get_main_page(request: Request):
                         p.get('cpu'),
                         p.get('color')
                     ] if s is not None])
-                } 
-                for p in products.json() 
+                }
+                for p in products.json()
                 if p['category_id'] == category['id']
-            ][:6]
-        }
+            ]
+            
+            if not category_id or category['id'] == category_id:
+                categories_products[category['name']] = {
+                    "id": category['id'],
+                    "products": category_products[:6] if not category_id else category_products
+                }
 
     return templates.TemplateResponse(
         'index.html', {
@@ -100,6 +107,7 @@ async def get_main_page(request: Request):
             "descr": "Магазин техники и электроники",
             "categories": list(categories_products.keys()),
             "categories_products": categories_products,
-            "url": Config.url
+            "url": Config.url,
+            "current_category": category_id
         }
     )

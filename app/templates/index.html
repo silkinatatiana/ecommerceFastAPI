@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ shop_name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/styles/main.css') }}?v=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles/main.css') }}?v=1.1">
 </head>
 <body>
     <header>
@@ -18,32 +18,63 @@
     </nav>
 
     <main>
-        <h2>Товары по категориям</h2>
+        <div class="filters-container">
+            <div class="category-filter">
+                <button class="filter-toggle" onclick="toggleFilter()" id="categoryFilterButton">
+                    {% if current_category %}
+                        {% for category_name, category_data in categories_products.items() %}
+                            {% if category_data.id == current_category %}
+                                {{ category_name | title }}
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        Категории
+                    {% endif %}
+                </button>
+                <div class="filter-dropdown" id="categoryDropdown">
+                    <a href="?" class="filter-option {% if not current_category %}active{% endif %}">
+                        Все категории
+                    </a>
+                    {% for category_name, category_data in categories_products.items() %}
+                    <a href="?category_id={{ category_data.id }}" 
+                    class="filter-option {% if current_category == category_data.id %}active{% endif %}"
+                    onclick="updateFilterButton('{{ category_name | title }}')">
+                        {{ category_name | title }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <h2>{% if current_category %}Товары категории{% else %}Все товары{% endif %}</h2>
 
         {% if categories_products %}
             {% for category_name, category_data in categories_products.items() %}
                 <div class="category">
-                    <h3>{{ category_name | title }}</h3>
+                    {% if not current_category %}
+                        <h3>{{ category_name | title }}</h3>
+                    {% endif %}
 
                     <div class="products-grid">
                         {% for product in category_data.products %}
                             <div class="product-card" 
-                            onclick="window.open    ('{{ url_for('product_detail_page', product_id=product.id) }}', '_blank')" style="cursor: pointer;">
-                            <img 
-                                src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}" 
-                                alt="{{ product.name }}"
-                                loading="lazy"
-                                onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
-                            
-                            <h3>{{ product.name }}</h3>
-                            <p class="product-price">{{ product.price|default("Цена не указана", true) }} ₽</p>
-                            <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
-                                {{ product.stock }} шт. в наличии
-                            </p>
-                        </div>
+                                 onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', '_blank')">
+                                <img 
+                                    src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}" 
+                                    alt="{{ product.name }}"
+                                    loading="lazy"
+                                    onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+                                
+                                <h3>{{ product.name }}</h3>
+                                <p class="product-price">{{ product.price|default("Цена не указана", true) }} ₽</p>
+                                <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
+                                    {{ product.stock }} шт. в наличии
+                                </p>
+                            </div>
                         {% endfor %}
                     </div>
-                    {% if category_data.products|length >= 6 %}
+                    
+                    {% if not current_category and category_data.products|length >= 6 %}
                         <div class="category-actions">
                             <button onclick="loadAllProducts('{{ category_data.id }}', this)"
                                     class="view-all-btn"
@@ -68,6 +99,23 @@
     <footer>
         <p>&copy; 2025 {{ shop_name }}. Все права защищены.</p>
     </footer>
+
+    <script>
+        function toggleFilter() {
+            const dropdown = document.getElementById('categoryDropdown');
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // Закрываем фильтр при клике вне его области
+        document.addEventListener('click', function(event) {
+            const filterContainer = document.querySelector('.category-filter');
+            if (!filterContainer.contains(event.target)) {
+                document.getElementById('categoryDropdown').style.display = 'none';
+            }
+        });
+
+        // Остальные функции (loadAllProducts и т.д.) остаются без изменений
+    </script>
     <script src="/static/js/main.js"></script>
 </body>
 </html>

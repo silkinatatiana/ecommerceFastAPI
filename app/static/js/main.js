@@ -1,5 +1,6 @@
 async function loadAllProducts(categoryId, button) {
     const skip = parseInt(button.dataset.skip);
+    console.log(skip)
     const container = document.getElementById(`products-${categoryId}`);
     const mainGrid = button.closest('.category').querySelector('.products-grid');
     const hideBtn = button.parentElement.querySelector('.hide-btn');
@@ -72,3 +73,33 @@ function hideProducts(categoryId, button) {
     
     button.style.display = 'none';
 }
+
+function toggleFilter() {
+    const dropdown = document.getElementById('categoryDropdown');
+    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+}
+
+function updateFilterButton(categoryName) {
+    const button = document.getElementById('categoryFilterButton');
+    button.textContent = categoryName;
+}
+
+// Закрываем фильтр при клике вне его области
+document.addEventListener('click', function(event) {
+    const filterContainer = document.querySelector('.category-filter');
+    if (!filterContainer.contains(event.target)) {
+        document.getElementById('categoryDropdown').style.display = 'none';
+    }
+});
+
+// Обработка выбора категории
+document.querySelectorAll('.filter-option').forEach(option => {
+    option.addEventListener('click', function(e) {
+        if (this.getAttribute('href') !== '#') {
+            e.preventDefault();
+            const url = this.getAttribute('href');
+            window.history.pushState({}, '', url);
+            location.reload();
+        }
+    });
+});

@@ -149,18 +149,18 @@
             <span class="close-fullscreen">&times;</span>
             <div class="fullscreen-content">
                 <img src="" class="fullscreen-image" id="fullscreenImage">
-                <button class="fullscreen-nav fullscreen-prev">❮</button>
-                <button class="fullscreen-nav fullscreen-next">❯</button>
+                <button class="fullscreen-nav fullscreen-prev" onclick="navigateFullscreen(-1)">❮</button>
+                <button class="fullscreen-nav fullscreen-next" onclick="navigateFullscreen(1)">❯</button>
                 <div class="image-counter" id="imageCounter"></div>
             </div>
         </div>
 
-         <div class="reviews-section" id="reviews-section">
+        <div class="reviews-section" id="reviews-section">
             <h2>Отзывы ({{ review_count }})</h2>
             
             {% if review_count > 0 %}
                 <div class="reviews-list">
-                    {% for review in reviews %}
+                    {% for review in reviews[:3] %}
                     <div class="review-item">
                         <div class="review-header">
                             <span class="review-author">{{ review.author }}</span>
@@ -178,18 +178,76 @@
                         <div class="review-text">
                             {{ review.text }}
                         </div>
-                        {% if review.images and review.images.length > 0 %}
-                        <div class="review-images">
-                            {% for image in review.images %}
-                            <img src="{{ image }}" 
-                            class="review-image-thumb" 
-                            alt="Отзыв {{ loop.index }}"
-                            onclick="openFullscreenReviewImage('{{ image }}')">
-                            {% endfor %}
+                          {% if review.images and review.images.length > 0 %}
+                        <div class="review-gallery">
+                            <div class="review-main-image-container">
+                                <img src="{{ review.images[0] }}" 
+                                     class="review-main-image" 
+                                     alt="Отзыв {{ loop.index }}"
+                                     onclick="openReviewFullscreen(this)">
+                            </div>
+                            {% if review.images|length > 1 %}
+                            <div class="review-images-container"></div>
+                                {% for image in review.images %}
+                                <img src="{{ image }}" 
+                                    class="review-image-thumbnail {% if loop.first %}selected{% endif %}"
+                                    onclick="selectReviewImage(this, '{{ image }}')">
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>
                     {% endfor %}
+
+                    {% if review_count > 3 %}
+                    <div class="more-reviews-toggle" id="moreReviewsToggle">
+                        Показать все отзывы
+                    </div>
+                    
+                    <div class="more-reviews" id="moreReviews">
+                        {% for review in reviews[3:] %}
+                        <div class="review-item">
+                            <div class="review-header">
+                                <span class="review-author">{{ review.author }}</span>
+                                <span class="review-date">{{ review.date }}</span>
+                                <span class="review-rating">
+                                    {% for i in range(1, 6) %}
+                                        {% if i <= review.rating %}
+                                            ★
+                                        {% else %}
+                                            ☆
+                                        {% endif %}
+                                    {% endfor %}
+                                </span>
+                            </div>
+                            <div class="review-text">
+                                {{ review.text }}
+                            </div>
+                            {% if review.images and review.images|length > 0 %}
+                            <div class="review-gallery">
+                                <div class="review-main-image-container">
+                                    <img src="{{ review.images[0] }}" 
+                                         class="review-main-image" 
+                                         alt="Отзыв {{ loop.index + 3 }}"
+                                         onclick="openFullscreenReviewImage('{{ review.images[0] }}', {{ loop.index0 }}, {{ review.images|length }})">
+                                </div>
+                                {% if review.images|length > 1 %}
+                                <div class="review-thumbnails">
+                                    {% for image in review.images %}
+                                    <img src="{{ image }}" 
+                                         class="review-thumbnail {% if loop.first %}active{% endif %}" 
+                                         alt="Миниатюра {{ loop.index }}"
+                                         onclick="changeReviewMainImage(this, '{{ image }}', {{ loop.index0 }}, {{ review.images|length }})">
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
             {% else %}
                 <p>Пока нет отзывов. Будьте первым!</p>

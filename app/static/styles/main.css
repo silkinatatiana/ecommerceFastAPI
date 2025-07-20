@@ -275,3 +275,94 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+.category-filter a.active {
+    font-weight: bold;
+    color: #0066cc;
+    text-decoration: underline;
+}
+/* Стили для фильтра категорий */
+.filters-container {
+    margin: 20px 0;
+    position: relative;
+}
+
+.category-filter {
+    display: inline-block;
+    position: relative;
+    z-index: 10;
+}
+
+.filter-toggle {
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.filter-toggle:hover {
+    background-color: #e9ecef;
+}
+
+.filter-dropdown {
+    display: none;
+    position: absolute;
+    background-color: white;
+    min-width: 200px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    z-index: 20;
+    margin-top: 5px;
+}
+
+.filter-dropdown a {
+    display: block;
+    padding: 10px 15px;
+    text-decoration: none;
+    color: #333;
+    transition: background-color 0.2s;
+}
+
+.filter-dropdown a:hover {
+    background-color: #f1f1f1;
+}
+
+.filter-option.active {
+    background-color: #e7f1ff;
+    color: #0066cc;
+    font-weight: bold;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+    .filter-dropdown {
+        position: static;
+        width: 100%;
+    }
+}
+
+.filter-toggle {
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 150px; /* Фиксированная ширина для стабильности */
+    text-align: left;
+    position: relative;
+}
+
+.filter-toggle:after {
+    content: '▼';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+}

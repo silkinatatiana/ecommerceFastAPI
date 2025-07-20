@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Query
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from typing import Annotated
+from typing import Annotated, Optional
 from slugify import slugify
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -92,13 +92,17 @@ async def create_product(
         )
 
 @router.get("/")
-async def all_products(db: AsyncSession = Depends(get_db), response_model=list[ProductOut]):
+async def all_products(db: AsyncSession = Depends(get_db), category_id: Optional[int] = Query(None), response_model=list[ProductOut]):
     try:
-        result = await db.execute(select(Product))
+        query = select(Product)
+        if category_id:
+            query = query.where(Product.category_id == category_id)
+        
+        result = await db.execute(query)
         products = result.scalars().all()
         return products or []
     except Exception as e:
-        logger.error(f"5 - Full error: {repr(e)}")
+        logger.error(f"Error fetching products: {repr(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -283,7 +287,7 @@ async def get_products_by_category(
             response.raise_for_status()
             all_products = response.json()
             
-            return all_products[skip:] if skip < len(all_products) else []
+            return all_products[skip-1:] if skip < len(all_products) else []
             
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
