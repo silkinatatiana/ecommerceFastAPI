@@ -1,15 +1,18 @@
 import asyncio
 import logging
 import httpx
-from fastapi import FastAPI, Request, HTTPException, Query
+from fastapi import FastAPI, Request, HTTPException, Query, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select, distinct
+from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, Optional, Annotated
 
 from app.routers import category, products, auth, permission, reviews
+from app.backend.db_depends import get_db
 from app.backend.db import Base, engine
 from app.config import Config
 
@@ -55,8 +58,33 @@ async def log_requests(request: Request, call_next):
         logger.error(f"Ошибка: {str(e)}", exc_info=True)
         raise
 
+async def get_filters(db: Annotated[AsyncSession, Depends(get_db)]) -> dict:
+    filter_fields = {
+        "colors": "color",
+        "ram_capacities": "RAM_capacity",
+        "built_in_memory_capacities": "built_in_memory_capacity",
+        "screens": "screen",
+        "cpus": "cpu",
+        "processor_cores": "number_of_processor_cores",
+        "graphics_cores": "number_of_graphics_cores"
+    }
+    
+    filters = {}
+
+    for name, column in filter_fields.items():
+        query = select(distinct(getattr(products.Product, column)))
+        query = query.where(getattr(products.Product, column) != None)
+        query = query.order_by(getattr(products.Product, column))
+        
+        result = await db.execute(query)
+        values = [row[0] for row in result if row[0] is not None]
+        filters[name] = sorted(values)
+
+    return filters
+
 @app.get('/', response_class=HTMLResponse)
-async def get_main_page(request: Request, category_id: Optional[int] = Query(None)):
+async def get_main_page(request: Request, db: Annotated[AsyncSession, Depends(get_db)],
+                        category_id: Optional[int] = Query(None)):
     async with httpx.AsyncClient() as client:
         try:
             products_url = f"{Config.url}/products/"
@@ -75,8 +103,9 @@ async def get_main_page(request: Request, category_id: Optional[int] = Query(Non
         except Exception as e:
             raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}")
 
+    filters = await get_filters(db)
     categories_products = {}
-
+    
     for category in categories.json():
             category_products = [
                 {
@@ -108,6 +137,7 @@ async def get_main_page(request: Request, category_id: Optional[int] = Query(Non
             "categories": list(categories_products.keys()),
             "categories_products": categories_products,
             "url": Config.url,
-            "current_category": category_id
+            "current_category": category_id,
+            "filters": filters
         }
     )
