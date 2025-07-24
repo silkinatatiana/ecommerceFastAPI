@@ -26,7 +26,7 @@ class ProductOut(BaseModel):
     image_urls: List[str] = Field(default_factory=list)
     stock: int
     category_id: int
-    supplier_id: int
+    supplier_id: Optional[int] = None
     
     RAM_capacity: Optional[str] = None
     built_in_memory_capacity: Optional[str] = None

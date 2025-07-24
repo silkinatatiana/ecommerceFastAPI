@@ -1,16 +1,12 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Query
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from typing import Annotated, Optional
-from slugify import slugify
+from typing import Annotated, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, insert
-from urllib.parse import unquote
+from sqlalchemy import select, insert, or_, and_, not_
 import httpx
 from loguru import logger
-import time
-import uuid
 
 from app.backend.db_depends import get_db
 from app.schemas import CreateProduct, ProductOut
@@ -18,7 +14,6 @@ from app.models import *
 from app.models import Review, User
 from app.routers.auth import get_current_user
 from app.config import Config
-
 
 router = APIRouter(prefix='/products', tags=['products'])
 templates = Jinja2Templates(directory='app/templates/')
@@ -36,7 +31,7 @@ async def create_product_form(
 
             if not isinstance(categories, list):
                 categories = []
-            
+
             return templates.TemplateResponse(
                 "products/create_product.html",
                 {
@@ -59,8 +54,8 @@ async def create_product_form(
 
 @router.post('/create', response_model=ProductOut)
 async def create_product(
-    db: Annotated[AsyncSession, Depends(get_db)], 
-    product_data: CreateProduct
+        db: Annotated[AsyncSession, Depends(get_db)],
+        product_data: CreateProduct
 ):
     try:
         category = await db.scalar(
@@ -72,7 +67,6 @@ async def create_product(
                 detail="Категория не найдена"
             )
 
-
         product = Product(
             **product_data.dict(exclude_unset=True),
             supplier_id=1  # когда добавлю ЛК, это поле будет браться из таблицы user
@@ -81,7 +75,7 @@ async def create_product(
         db.add(product)
         await db.commit()
         await db.refresh(product)
-        
+
         return product
 
     except Exception as e:
@@ -93,29 +87,31 @@ async def create_product(
 
 @router.get("/")
 async def all_products(
-    db: AsyncSession = Depends(get_db),
-    category_id: Optional[int] = Query(None),
-    colors: Optional[str] = Query(None),
-    response_model=list[ProductOut]
+        db: AsyncSession = Depends(get_db),
+        category_id: Optional[str] = Query(None),
+        colors: Optional[str] = Query(None),
+        built_in_memory: Optional[str] = Query(None),
 ):
     try:
         query = select(Product)
-        
+
         if category_id:
-            query = query.where(Product.category_id == category_id)
-        
+            categ_ids = [int(categ_id) for categ_id in category_id.split(",") ]
+            query = query.where(Product.category_id.in_(categ_ids))
+
         if colors:
-            color_list = [color.strip() for color in colors.split(",")]
-            query = query.where(Product.color.in_(color_list))
-        
+            query = query.where(Product.color.in_(colors.split(",")))
+
+        if built_in_memory:
+            query = query.where(Product.built_in_memory_capacity.in_(built_in_memory.split(",")))
+
         result = await db.execute(query)
         products = result.scalars().all()
         return products or []
+
     except Exception as e:
         logger.error(f"Error fetching products: {repr(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-    
-
 
 @router.get('/by_category/{category_id}')
 async def products_by_category(db: Annotated[AsyncSession, Depends(get_db)], category_id: int):
@@ -132,9 +128,9 @@ async def products_by_category(db: Annotated[AsyncSession, Depends(get_db)], cat
 
 @router.get('/{product_id}', response_class=HTMLResponse)
 async def product_detail_page(
-    request: Request,
-    product_id: int,
-    db: AsyncSession = Depends(get_db)
+        request: Request,
+        product_id: int,
+        db: AsyncSession = Depends(get_db)
 ):
     product = await db.scalar(
         select(Product)
@@ -168,8 +164,9 @@ async def product_detail_page(
         .where(Product.id != product.id)
     )
 
-    spec = [product.name, product.RAM_capacity, product.built_in_memory_capacity, product.screen, product.cpu, product.color]
-    
+    spec = [product.name, product.RAM_capacity, product.built_in_memory_capacity, product.screen, product.cpu,
+            product.color]
+
     name = ', '.join([str(s) for s in spec if s is not None])
 
     return templates.TemplateResponse(
@@ -282,13 +279,13 @@ async def product_detail_page(
 #             status_code=status.HTTP_403_FORBIDDEN,
 #             detail='You have not enough permission for this action'
 #         )
-    
+
 
 # для AJAX запросов чтобы разворачивать на главной странице все товары в категории
 @router.get("/by_category/")
 async def get_products_by_category(
-    category_id: int = Query(..., alias="categoryId"),
-    skip: int = Query(6, alias="skip")
+        category_id: int = Query(..., alias="categoryId"),
+        skip: int = Query(6, alias="skip")
 ):
     try:
         async with httpx.AsyncClient() as client:
@@ -298,8 +295,8 @@ async def get_products_by_category(
             )
             response.raise_for_status()
             all_products = response.json()
-            
-            return all_products[skip-1:] if skip < len(all_products) else []
-            
+
+            return all_products[skip - 1:] if skip < len(all_products) else []
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

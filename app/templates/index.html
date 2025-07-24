@@ -19,15 +19,14 @@
 
     <main>
         <div class="main-content-wrapper">
-            <!-- Блок фильтров -->
             <div class="filters-sidebar">
                 <div class="filter-block">
                     <h3>Категории</h3>
                     <div class="filter-options">
                         {% for category_name, category_data in categories_products.items() %}
                         <label class="filter-checkbox">
-                            <input type="checkbox" 
-                                   name="category" 
+                            <input type="checkbox"
+                                   name="category"
                                    value="{{ category_data.id }}"
                                    {% if current_category == category_data.id %}checked{% endif %}
                                    onchange="applyFilters()">
@@ -35,6 +34,20 @@
                         </label>
                         {% endfor %}
                     </div>
+
+                    <h3>Объем встроенной памяти</h3>
+                        <div class="filter-options">
+                            {% for memory in all_built_in_memory %}
+                            <label class="filter-checkbox">
+                                <input type="checkbox"
+                                    name="built_in_memory"
+                                    value="{{ memory }}"
+                                    {% if memory in selected_built_in_memory %}checked{% endif %}
+                                    onchange="applyFilters()">
+                                <span>{{ memory }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
                 </div>
 
                 <div class="filter-block">
@@ -42,8 +55,8 @@
                     <div class="filter-options">
                         {% for color in colors %}
                         <label class="filter-checkbox">
-                            <input type="checkbox" 
-                                   name="color" 
+                            <input type="checkbox"
+                                   name="color"
                                    value="{{ color }}"
                                    onchange="applyFilters()">
                             <span>{{ color | title }}</span>
@@ -51,7 +64,7 @@
                         {% endfor %}
                     </div>
                 </div>
-                
+
                 <button class="reset-filters" onclick="resetFilters()">Сбросить фильтры</button>
             </div>
 
@@ -69,14 +82,14 @@
 
                                 <div class="products-grid">
                                     {% for product in category_data.products %}
-                                        <div class="product-card" 
+                                        <div class="product-card"
                                              onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', '_blank')">
-                                            <img 
-                                                src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}" 
+                                            <img
+                                                src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}"
                                                 alt="{{ product.name }}"
                                                 loading="lazy"
                                                 onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
-                                            
+
                                             <h3>{{ product.name }}</h3>
                                             <p class="product-price">{{ product.price|default("Цена не указана", true) }} ₽</p>
                                             <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
@@ -85,7 +98,7 @@
                                         </div>
                                     {% endfor %}
                                 </div>
-                                
+
                                 {% if not current_category and category_data.products|length >= 6 %}
                                     <div class="category-actions">
                                         <button onclick="loadAllProducts('{{ category_data.id }}', this)"
@@ -93,7 +106,7 @@
                                                 data-skip="7">
                                             Посмотреть все товары в категории "{{ category_name | title }}"
                                         </button>
-                                        <button onclick="hideProducts('{{ category_data.id }}', this)" 
+                                        <button onclick="hideProducts('{{ category_data.id }}', this)"
                                                 class="hide-btn"
                                                 style="display: none;">
                                             Скрыть
@@ -118,54 +131,6 @@
     <footer>
         <p>&copy; 2025 {{ shop_name }}. Все права защищены.</p>
     </footer>
-
-    <script>
-        function applyFilters() {
-            const selectedCategories = Array.from(document.querySelectorAll('input[name="category"]:checked'))
-                .map(el => el.value)
-                .join(',');
-            
-            const selectedColors = Array.from(document.querySelectorAll('input[name="color"]:checked'))
-                .map(el => el.value)
-                .join(',');
-            
-            const params = new URLSearchParams();
-            
-            if (selectedCategories) params.append('category_id', selectedCategories);
-            if (selectedColors) params.append('colors', selectedColors);
-            
-            window.location.search = params.toString();
-        }
-        
-        function resetFilters() {
-            window.location.search = '';
-        }
-        
-        // Инициализация фильтров из URL
-        document.addEventListener('DOMContentLoaded', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            
-            // Категории
-            const categoryParam = urlParams.get('category_id');
-            if (categoryParam) {
-                const categories = categoryParam.split(',');
-                categories.forEach(cat => {
-                    const checkbox = document.querySelector(`input[name="category"][value="${cat}"]`);
-                    if (checkbox) checkbox.checked = true;
-                });
-            }
-            
-            // Цвета
-            const colorParam = urlParams.get('colors');
-            if (colorParam) {
-                const colors = colorParam.split(',');
-                colors.forEach(color => {
-                    const checkbox = document.querySelector(`input[name="color"][value="${color}"]`);
-                    if (checkbox) checkbox.checked = true;
-                });
-            }
-        });
-    </script>
     <script src="/static/js/main.js"></script>
 </body>
 </html>

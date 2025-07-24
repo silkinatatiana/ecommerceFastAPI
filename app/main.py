@@ -17,15 +17,15 @@ from app.backend.db import Base, engine
 from app.config import Config
 from app.models import *
 
-
-
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
+
 
 app = FastAPI(lifespan=lifespan)
 
@@ -43,11 +43,13 @@ shop_info = {
     'descr': 'магазин электроники'
 }
 
+
 @app.on_event("startup")
 async def startup():
     logger.info("Приложение запущено")
     for route in app.routes:
         print(f"{route.path} -> {route.name}")
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -60,6 +62,7 @@ async def log_requests(request: Request, call_next):
         logger.error(f"Ошибка: {str(e)}", exc_info=True)
         raise
 
+
 async def get_filters(db: Annotated[AsyncSession, Depends(get_db)]) -> dict:
     filter_fields = {
         "colors": "color",
@@ -70,26 +73,32 @@ async def get_filters(db: Annotated[AsyncSession, Depends(get_db)]) -> dict:
         "processor_cores": "number_of_processor_cores",
         "graphics_cores": "number_of_graphics_cores"
     }
-    
+
     filters = {}
 
     for name, column in filter_fields.items():
         query = select(distinct(getattr(products.Product, column)))
         query = query.where(getattr(products.Product, column) != None)
         query = query.order_by(getattr(products.Product, column))
-        
+
         result = await db.execute(query)
         values = [row[0] for row in result if row[0] is not None]
         filters[name] = sorted(values)
 
     return filters
 
+
+def sort_func(memory):
+    num, val = memory.split()
+    return val, int(num)
+
 @app.get('/', response_class=HTMLResponse)
 async def get_main_page(
-    request: Request,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    category_id: Optional[int] = Query(None),
-    colors: Optional[str] = Query(None)
+        request: Request,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        category_id: Optional[str] = Query(None),
+        colors: Optional[str] = Query(None),
+        built_in_memory: Optional[str] = Query(None)
 ):
     async with httpx.AsyncClient() as client:
         try:
@@ -99,12 +108,14 @@ async def get_main_page(
                 params['category_id'] = category_id
             if colors:
                 params['colors'] = colors
-            
+            if built_in_memory:
+                params['built_in_memory'] = built_in_memory
+
             categories, products = await asyncio.gather(
                 client.get(f"{Config.url}/categories/"),
                 client.get(products_url, params=params)
             )
-            
+
             categories.raise_for_status()
             products.raise_for_status()
         except httpx.HTTPStatusError as e:
@@ -114,40 +125,51 @@ async def get_main_page(
 
     filters = await get_filters(db)
     categories_products = {}
-    
+    selected_category_ids = [int(cid) for cid in category_id.split(',')] if category_id else []
+
     for category in categories.json():
-            category_products = [
-                {
-                    **p,
-                    'name': ', '.join([str(s) for s in [
-                        p.get('name'),
-                        p.get('RAM_capacity'),
-                        p.get('built_in_memory_capacity'),
-                        p.get('screen'),
-                        p.get('cpu'),
-                        p.get('color')
-                    ] if s is not None])
-                }
-                for p in products.json()
-                if p['category_id'] == category['id']
-            ]
-            
-            if not category_id or category['id'] == category_id:
-                categories_products[category['name']] = {
-                    "id": category['id'],
-                    "products": category_products[:6] if not category_id else category_products
-                }
+        category_products = [
+            {
+                **p,
+                'name': ', '.join([str(s) for s in [
+                    p.get('name'),
+                    p.get('RAM_capacity'),
+                    p.get('built_in_memory_capacity'),
+                    p.get('screen'),
+                    p.get('cpu'),
+                    p.get('color')
+                ] if s is not None])
+            }
+            for p in products.json()
+            if p['category_id'] == category['id']
+        ]
+
+        if not selected_category_ids or category['id'] in selected_category_ids:
+            categories_products[category['name']] = {
+                "id": category['id'],
+                "products": category_products[:6] if not selected_category_ids else category_products
+            }
 
     has_products = any(category_data["products"] for category_data in categories_products.values())
-    query = select(distinct(Product.color)).where(Product.color.isnot(None))
 
-    if category_id:
-        query = query.where(Product.category_id == category_id)
+    color_query = select(distinct(Product.color)).where(Product.color.isnot(None))
 
-    result = await db.execute(query)
-    all_colors = result.scalars().all()
-    
+    if selected_category_ids:
+        color_query = color_query.where(Product.category_id.in_(selected_category_ids))
+
+    color_result = await db.execute(color_query)
+    all_colors = color_result.scalars().all()
     selected_colors = colors.split(",") if colors else []
+
+    memory_query = select(distinct(Product.built_in_memory_capacity)).where(
+        Product.built_in_memory_capacity.isnot(None))
+
+    if selected_category_ids:
+        memory_query = memory_query.where(Product.category_id.in_(selected_category_ids))
+
+    memory_result = await db.execute(memory_query)
+    all_built_in_memory = sorted(memory_result.scalars().all(), key=sort_func)
+    selected_built_in_memory = built_in_memory.split(",") if built_in_memory else []
 
     return templates.TemplateResponse(
         'index.html', {
@@ -157,9 +179,11 @@ async def get_main_page(
             "categories": list(categories_products.keys()),
             "colors": list(all_colors),
             "selected_colors": selected_colors,
+            "all_built_in_memory": list(all_built_in_memory),
+            "selected_built_in_memory": selected_built_in_memory,
             "categories_products": categories_products,
             "url": Config.url,
-            "current_category": category_id,
+            "current_categories": selected_category_ids,
             "filters": filters,
             "has_products": has_products
         }
