@@ -18,82 +18,101 @@
     </nav>
 
     <main>
-        <div class="filters-container">
-            <div class="category-filter">
-                <button class="filter-toggle" onclick="toggleFilter()" id="categoryFilterButton">
-                    {% if current_category %}
+        <div class="main-content-wrapper">
+            <!-- Блок фильтров -->
+            <div class="filters-sidebar">
+                <div class="filter-block">
+                    <h3>Категории</h3>
+                    <div class="filter-options">
                         {% for category_name, category_data in categories_products.items() %}
-                            {% if category_data.id == current_category %}
-                                {{ category_name | title }}
-                            {% endif %}
-                        {% endfor %}
-                    {% else %}
-                        Категории
-                    {% endif %}
-                </button>
-                <div class="filter-dropdown" id="categoryDropdown">
-                    <a href="?" class="filter-option {% if not current_category %}active{% endif %}">
-                        Все категории
-                    </a>
-                    {% for category_name, category_data in categories_products.items() %}
-                    <a href="?category_id={{ category_data.id }}" 
-                    class="filter-option {% if current_category == category_data.id %}active{% endif %}"
-                    onclick="updateFilterButton('{{ category_name | title }}')">
-                        {{ category_name | title }}
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <h2>{% if current_category %}Товары категории{% else %}Все товары{% endif %}</h2>
-
-        {% if categories_products %}
-            {% for category_name, category_data in categories_products.items() %}
-                <div class="category">
-                    {% if not current_category %}
-                        <h3>{{ category_name | title }}</h3>
-                    {% endif %}
-
-                    <div class="products-grid">
-                        {% for product in category_data.products %}
-                            <div class="product-card" 
-                                 onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', '_blank')">
-                                <img 
-                                    src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}" 
-                                    alt="{{ product.name }}"
-                                    loading="lazy"
-                                    onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
-                                
-                                <h3>{{ product.name }}</h3>
-                                <p class="product-price">{{ product.price|default("Цена не указана", true) }} ₽</p>
-                                <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
-                                    {{ product.stock }} шт. в наличии
-                                </p>
-                            </div>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" 
+                                   name="category" 
+                                   value="{{ category_data.id }}"
+                                   {% if current_category == category_data.id %}checked{% endif %}
+                                   onchange="applyFilters()">
+                            <span>{{ category_name | title }}</span>
+                        </label>
                         {% endfor %}
                     </div>
-                    
-                    {% if not current_category and category_data.products|length >= 6 %}
-                        <div class="category-actions">
-                            <button onclick="loadAllProducts('{{ category_data.id }}', this)"
-                                    class="view-all-btn"
-                                    data-skip="7">
-                                Посмотреть все товары в категории "{{ category_name | title }}"
-                            </button>
-                            <button onclick="hideProducts('{{ category_data.id }}', this)" 
-                                    class="hide-btn"
-                                    style="display: none;">
-                                Скрыть
-                            </button>
-                        </div>
-                        <div id="products-{{ category_data.id }}" class="additional-products"></div>
-                    {% endif %}
                 </div>
-            {% endfor %}
-        {% else %}
-            <p>Товары не найдены</p>
-        {% endif %}
+
+                <div class="filter-block">
+                    <h3>Цвета</h3>
+                    <div class="filter-options">
+                        {% for color in colors %}
+                        <label class="filter-checkbox">
+                            <input type="checkbox" 
+                                   name="color" 
+                                   value="{{ color }}"
+                                   onchange="applyFilters()">
+                            <span>{{ color | title }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <button class="reset-filters" onclick="resetFilters()">Сбросить фильтры</button>
+            </div>
+
+            <!-- Основной контент -->
+            <div class="content-area">
+                <h2>{% if current_category %}Товары категории{% else %}Все товары{% endif %}</h2>
+
+                {% if categories_products and has_products %}
+                    {% for category_name, category_data in categories_products.items() %}
+                        {% if category_data.products %}
+                            <div class="category">
+                                {% if not current_category %}
+                                    <h3>{{ category_name | title }}</h3>
+                                {% endif %}
+
+                                <div class="products-grid">
+                                    {% for product in category_data.products %}
+                                        <div class="product-card" 
+                                             onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', '_blank')">
+                                            <img 
+                                                src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}" 
+                                                alt="{{ product.name }}"
+                                                loading="lazy"
+                                                onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+                                            
+                                            <h3>{{ product.name }}</h3>
+                                            <p class="product-price">{{ product.price|default("Цена не указана", true) }} ₽</p>
+                                            <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
+                                                {{ product.stock }} шт. в наличии
+                                            </p>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                {% if not current_category and category_data.products|length >= 6 %}
+                                    <div class="category-actions">
+                                        <button onclick="loadAllProducts('{{ category_data.id }}', this)"
+                                                class="view-all-btn"
+                                                data-skip="7">
+                                            Посмотреть все товары в категории "{{ category_name | title }}"
+                                        </button>
+                                        <button onclick="hideProducts('{{ category_data.id }}', this)" 
+                                                class="hide-btn"
+                                                style="display: none;">
+                                            Скрыть
+                                        </button>
+                                    </div>
+                                    <div id="products-{{ category_data.id }}" class="additional-products"></div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <div class="no-products-found">
+                        <p>Товары не найдены</p>
+                        <p>Попробуйте изменить параметры фильтрации</p>
+                        <button class="reset-filters" onclick="resetFilters()">Сбросить фильтры</button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
     </main>
 
     <footer>
@@ -101,20 +120,51 @@
     </footer>
 
     <script>
-        function toggleFilter() {
-            const dropdown = document.getElementById('categoryDropdown');
-            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        function applyFilters() {
+            const selectedCategories = Array.from(document.querySelectorAll('input[name="category"]:checked'))
+                .map(el => el.value)
+                .join(',');
+            
+            const selectedColors = Array.from(document.querySelectorAll('input[name="color"]:checked'))
+                .map(el => el.value)
+                .join(',');
+            
+            const params = new URLSearchParams();
+            
+            if (selectedCategories) params.append('category_id', selectedCategories);
+            if (selectedColors) params.append('colors', selectedColors);
+            
+            window.location.search = params.toString();
         }
-
-        // Закрываем фильтр при клике вне его области
-        document.addEventListener('click', function(event) {
-            const filterContainer = document.querySelector('.category-filter');
-            if (!filterContainer.contains(event.target)) {
-                document.getElementById('categoryDropdown').style.display = 'none';
+        
+        function resetFilters() {
+            window.location.search = '';
+        }
+        
+        // Инициализация фильтров из URL
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // Категории
+            const categoryParam = urlParams.get('category_id');
+            if (categoryParam) {
+                const categories = categoryParam.split(',');
+                categories.forEach(cat => {
+                    const checkbox = document.querySelector(`input[name="category"][value="${cat}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+            
+            // Цвета
+            const colorParam = urlParams.get('colors');
+            if (colorParam) {
+                const colors = colorParam.split(',');
+                colors.forEach(color => {
+                    const checkbox = document.querySelector(`input[name="color"][value="${color}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
             }
         });
-
-        // Остальные функции (loadAllProducts и т.д.) остаются без изменений
     </script>
     <script src="/static/js/main.js"></script>
 </body>

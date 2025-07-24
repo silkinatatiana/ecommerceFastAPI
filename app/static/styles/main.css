@@ -281,7 +281,6 @@ footer {
     color: #0066cc;
     text-decoration: underline;
 }
-/* Стили для фильтра категорий */
 .filters-container {
     margin: 20px 0;
     position: relative;
@@ -337,7 +336,6 @@ footer {
     font-weight: bold;
 }
 
-/* Адаптивность для мобильных */
 @media (max-width: 768px) {
     .filter-dropdown {
         position: static;
@@ -353,7 +351,7 @@ footer {
     font-size: 16px;
     cursor: pointer;
     transition: all 0.3s;
-    min-width: 150px; /* Фиксированная ширина для стабильности */
+    min-width: 150px; 
     text-align: left;
     position: relative;
 }
@@ -365,4 +363,145 @@ footer {
     top: 50%;
     transform: translateY(-50%);
     font-size: 12px;
+}
+
+/* Новые стили для фильтров */
+.main-content-wrapper {
+    display: flex;
+    gap: 30px;
+}
+
+.filters-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+    background: white;
+    padding: 20px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    height: fit-content;
+}
+
+.content-area {
+    flex-grow: 1;
+}
+
+.filter-block {
+    margin-bottom: 25px;
+}
+
+.filter-block h3 {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    color: var(--secondary-color);
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+.filter-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.filter-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: var(--transition);
+}
+
+.filter-checkbox:hover {
+    background-color: var(--light-gray);
+}
+
+.filter-checkbox input {
+    cursor: pointer;
+}
+
+.reset-filters {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--light-gray);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: var(--transition);
+    margin-top: 10px;
+}
+
+.reset-filters:hover {
+    background-color: #ddd;
+}
+
+@media (max-width: 768px) {
+    .main-content-wrapper {
+        flex-direction: column;
+    }
+    
+    .filters-sidebar {
+        width: 100%;
+        order: -1;
+    }
+}
+
+/* Стили для сообщения "Товары не найдены" */
+.no-products-found {
+    text-align: center;
+    padding: 40px;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-top: 20px;
+}
+
+.no-products-found p:first-child {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: var(--dark-color);
+}
+
+.no-products-found p:last-child {
+    margin-bottom: 20px;
+    color: var(--secondary-color);
+}
+
+.no-products-found .reset-filters {
+    padding: 10px 20px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.no-products-found .reset-filters:hover {
+    background-color: var(--primary-hover);
+}
+
+/* Гарантируем, что фильтры останутся на месте */
+.main-content-wrapper {
+    display: flex;
+    gap: 30px;
+    min-height: 60vh; /* Минимальная высота для сохранения структуры */
+}
+
+.filters-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+    background: white;
+    padding: 20px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    height: fit-content;
+    position: sticky;
+    top: 20px;
+}
+
+.content-area {
+    flex-grow: 1;
 }

@@ -15,6 +15,8 @@ from app.routers import category, products, auth, permission, reviews
 from app.backend.db_depends import get_db
 from app.backend.db import Base, engine
 from app.config import Config
+from app.models import *
+
 
 
 logger = logging.getLogger(__name__)
@@ -83,17 +85,24 @@ async def get_filters(db: Annotated[AsyncSession, Depends(get_db)]) -> dict:
     return filters
 
 @app.get('/', response_class=HTMLResponse)
-async def get_main_page(request: Request, db: Annotated[AsyncSession, Depends(get_db)],
-                        category_id: Optional[int] = Query(None)):
+async def get_main_page(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    category_id: Optional[int] = Query(None),
+    colors: Optional[str] = Query(None)
+):
     async with httpx.AsyncClient() as client:
         try:
             products_url = f"{Config.url}/products/"
+            params = {}
             if category_id:
-                products_url += f"?category_id={category_id}"
+                params['category_id'] = category_id
+            if colors:
+                params['colors'] = colors
             
             categories, products = await asyncio.gather(
                 client.get(f"{Config.url}/categories/"),
-                client.get(products_url)
+                client.get(products_url, params=params)
             )
             
             categories.raise_for_status()
@@ -129,15 +138,29 @@ async def get_main_page(request: Request, db: Annotated[AsyncSession, Depends(ge
                     "products": category_products[:6] if not category_id else category_products
                 }
 
+    has_products = any(category_data["products"] for category_data in categories_products.values())
+    query = select(distinct(Product.color)).where(Product.color.isnot(None))
+
+    if category_id:
+        query = query.where(Product.category_id == category_id)
+
+    result = await db.execute(query)
+    all_colors = result.scalars().all()
+    
+    selected_colors = colors.split(",") if colors else []
+
     return templates.TemplateResponse(
         'index.html', {
             "request": request,
             "shop_name": "PEAR",
             "descr": "Магазин техники и электроники",
             "categories": list(categories_products.keys()),
+            "colors": list(all_colors),
+            "selected_colors": selected_colors,
             "categories_products": categories_products,
             "url": Config.url,
             "current_category": category_id,
-            "filters": filters
+            "filters": filters,
+            "has_products": has_products
         }
     )
