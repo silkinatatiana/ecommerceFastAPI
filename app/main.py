@@ -144,11 +144,11 @@ async def get_main_page(
             if p['category_id'] == category['id']
         ]
 
-        if not selected_category_ids or category['id'] in selected_category_ids:
-            categories_products[category['name']] = {
-                "id": category['id'],
-                "products": category_products[:6] if not selected_category_ids else category_products
-            }
+        # if not selected_category_ids or category['id'] in selected_category_ids:
+        categories_products[category['name']] = {
+            "id": category['id'],
+            "products": category_products[:6] if not selected_category_ids else category_products
+        }
 
     has_products = any(category_data["products"] for category_data in categories_products.values())
 
@@ -170,7 +170,9 @@ async def get_main_page(
     memory_result = await db.execute(memory_query)
     all_built_in_memory = sorted(memory_result.scalars().all(), key=sort_func)
     selected_built_in_memory = built_in_memory.split(",") if built_in_memory else []
-
+    print(list(categories_products.keys()))
+    print()
+    print(selected_category_ids)
     return templates.TemplateResponse(
         'index.html', {
             "request": request,

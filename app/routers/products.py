@@ -85,6 +85,7 @@ async def create_product(
             detail=str(e)
         )
 
+
 @router.get("/")
 async def all_products(
         db: AsyncSession = Depends(get_db),
@@ -96,7 +97,7 @@ async def all_products(
         query = select(Product)
 
         if category_id:
-            categ_ids = [int(categ_id) for categ_id in category_id.split(",") ]
+            categ_ids = [int(categ_id) for categ_id in category_id.split(",")]
             query = query.where(Product.category_id.in_(categ_ids))
 
         if colors:
@@ -113,6 +114,7 @@ async def all_products(
         logger.error(f"Error fetching products: {repr(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get('/by_category/{category_id}')
 async def products_by_category(db: Annotated[AsyncSession, Depends(get_db)], category_id: int):
     category = await db.scalar(select(Category).where(Category.id == category_id))
@@ -122,7 +124,7 @@ async def products_by_category(db: Annotated[AsyncSession, Depends(get_db)], cat
             detail='Category not found'
         )
     products_category = await db.scalars(
-        select(Product).where(Product.category_id == category.id, Product.stock > 0))
+        select(Product).where(Product.category_id == category.id))
     return products_category.all()
 
 
@@ -296,7 +298,7 @@ async def get_products_by_category(
             response.raise_for_status()
             all_products = response.json()
 
-            return all_products[skip - 1:] if skip < len(all_products) else []
+            return all_products[skip - 1:] if skip <= len(all_products) else []
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -34,20 +34,22 @@
                         </label>
                         {% endfor %}
                     </div>
+                </div>
 
+                <div class="filter-block">
                     <h3>Объем встроенной памяти</h3>
-                        <div class="filter-options">
-                            {% for memory in all_built_in_memory %}
-                            <label class="filter-checkbox">
-                                <input type="checkbox"
+                    <div class="filter-options">
+                        {% for memory in all_built_in_memory %}
+                        <label class="filter-checkbox">
+                            <input type="checkbox"
                                     name="built_in_memory"
                                     value="{{ memory }}"
                                     {% if memory in selected_built_in_memory %}checked{% endif %}
                                     onchange="applyFilters()">
-                                <span>{{ memory }}</span>
-                            </label>
-                            {% endfor %}
-                        </div>
+                            <span>{{ memory }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
                 </div>
 
                 <div class="filter-block">
@@ -68,7 +70,6 @@
                 <button class="reset-filters" onclick="resetFilters()">Сбросить фильтры</button>
             </div>
 
-            <!-- Основной контент -->
             <div class="content-area">
                 <h2>{% if current_category %}Товары категории{% else %}Все товары{% endif %}</h2>
 

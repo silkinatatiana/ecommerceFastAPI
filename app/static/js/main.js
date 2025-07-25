@@ -1,24 +1,27 @@
-async function loadAllProducts(categoryIds, button) {
+async function loadAllProducts(categoryId, button) {
     const skip = parseInt(button.dataset.skip);
-//    console.log(skip)
-    const container = document.getElementById(`products-${categoryIds.join('-')}`);
+    const container = document.getElementById(`products-${Array.isArray(categoryId) ? categoryId[0] : categoryId}`);
     const mainGrid = button.closest('.category').querySelector('.products-grid');
     const hideBtn = button.parentElement.querySelector('.hide-btn');
-    
+
     container.innerHTML = '<p>Загрузка...</p>';
     button.disabled = true;
 
     try {
         const params = new URLSearchParams();
-        categoryIds.forEach(id => params.append('categoryIds', id));
+        if (Array.isArray(categoryId)) {
+            categoryId.forEach(id => params.append('categoryId', id));
+        } else {
+            params.append('categoryId', categoryId);
+        }
         params.append('skip', skip);
 
         const response = await fetch(`/products/by_category/?${params.toString()}`);
 
         if (!response.ok) throw new Error(await response.text());
-        
+
         const additionalProducts = await response.json();
-        
+
         if (additionalProducts.length === 0) {
             container.innerHTML = '<p>Нет дополнительных товаров</p>';
             return;
@@ -28,9 +31,9 @@ async function loadAllProducts(categoryIds, button) {
             const productCard = document.createElement('div');
             productCard.className = 'product-card additional-product';
             productCard.dataset.category = product.category_id;
-            
+
             productCard.innerHTML = `
-                <img src="${product.image_urls?.[0] || '/static/images/default_image.png'}" 
+                <img src="${product.image_urls?.[0] || '/static/images/default_image.png'}"
                     alt="${product.name}"
                     loading="lazy"
                     onerror="this.onerror=null;this.src='/static/images/default_image.png'">
@@ -40,22 +43,22 @@ async function loadAllProducts(categoryIds, button) {
                     ${product.stock} шт. в наличии
                 </p>
             `;
-            
+
             productCard.addEventListener('click', () => {
                 window.location.href = `/products/${product.id}`;
             });
-            
+
             mainGrid.appendChild(productCard);
         });
-        
+
         button.dataset.skip = skip + additionalProducts.length;
-        
+
         hideBtn.style.display = 'inline-block';
-        
+
         if (additionalProducts.length < 6) {
             button.style.display = 'none';
         }
-        
+
     } catch (error) {
         container.innerHTML = `<p>Ошибка загрузки: ${error.message}</p>`;
         console.error('Ошибка:', error);
@@ -87,69 +90,51 @@ function updateFilterButton(categoryName) {
     button.textContent = categoryName;
 }
 
-// Закрываем фильтр при клике вне его области
-document.addEventListener('click', function(event) {
-    const filterContainer = document.querySelector('.category-filter');
-    if (!filterContainer.contains(event.target)) {
-        document.getElementById('categoryDropdown').style.display = 'none';
-    }
-});
+//// Закрываем фильтр при клике вне его области
+//document.addEventListener('click', function(event) {
+//    const filterContainer = document.querySelector('.category-filter');
+//    if (!filterContainer.contains(event.target)) {
+//        document.getElementById('categoryDropdown').style.display = 'none';
+//    }
+//});
 
 document.querySelectorAll('input[name="category"]').forEach(checkbox => {
     checkbox.addEventListener('change', function() {
-        applyFilters();
-        const categoryId = this.dataset.categoryId;
-        const selectedMemory = Array.from(document.querySelectorAll('input[name="built_in_memory"]:checked'))
-        .map(el => el.value)
-        .join(',');
+        // 1. Собираем все выбранные категории
+        const selectedCategories = Array.from(
+            document.querySelectorAll('input[name="category"]:checked')
+        ).map(el => el.value).join(',');
 
-        // Получаем текущие выбранные категории
-        const currentSelected = Array.from(document.querySelectorAll('.filter-option.selected'))
-                                   .map(opt => opt.dataset.categoryId);
+        // 2. Собираем выбранную память
+        const selectedMemory = Array.from(
+            document.querySelectorAll('input[name="built_in_memory"]:checked')
+        ).map(el => el.value).join(',');
 
-        // Добавляем/удаляем текущую категорию
-        if (this.classList.contains('selected')) {
-            this.classList.remove('selected');
-            currentSelected = currentSelected.filter(id => id !== categoryId);
-        } else {
-            this.classList.add('selected');
-            currentSelected.push(categoryId);
+        // 3. Формируем URL
+        const params = new URLSearchParams();
+        if (selectedCategories.length > 0) {
+            params.append('categoryId', selectedCategories.join(','));
         }
-        if (selectedMemory) params.append('built_in_memory', selectedMemory);
+        if (selectedMemory) {
+            params.append('built_in_memory', selectedMemory);
+        }
 
-        // Обновляем URL
-        const url = currentSelected.length > 0
-            ? `/products?categoryIds=${currentSelected.join(',')}`
+        // 4. Обновляем URL без перезагрузки
+        const url = params.toString()
+            ? `/products?${params.toString()}`
             : '/products';
-
         window.history.pushState({}, '', url);
-        loadFilteredProducts(currentSelected); // Новая функция для загрузки
+
+        // 5. Загружаем товары
+        loadFilteredProducts(selectedCategories);
     });
 });
 
-//async function loadFilteredProducts(categoryIds) {
-//    const productsContainer = document.getElementById('products-container');
-//    productsContainer.innerHTML = '<p>Загрузка...</p>';
-//
-//    try {
-//        const params = new URLSearchParams();
-//        categoryIds.forEach(id => params.append('categoryIds', id));
-//
-//        const response = await fetch(`/products?${params.toString()}`);
-//        const products = await response.json();
-//
-//        // Отрисовываем продукты
-//        renderProducts(products);
-//    } catch (error) {
-//        productsContainer.innerHTML = `<p>Ошибка загрузки: ${error.message}</p>`;
-//    }
-//}
-
-async function loadFilteredProducts(categoryIds) {
+async function loadFilteredProducts(categoryId) {
     try {
         const params = new URLSearchParams();
-        if (categoryIds.length > 0) {
-            params.append('category_id', categoryIds.join(','));
+        if (categoryId.length > 0) {
+            params.append('category_id', categoryId.join(','));
         }
 
         // Добавьте другие параметры фильтрации, если нужно
@@ -164,7 +149,7 @@ async function loadFilteredProducts(categoryIds) {
     }
 }
 
-function getSelectedCategoryIds() {
+function getSelectedCategoryId() {
     return Array.from(document.querySelectorAll('.filter-option.selected'))
                .map(opt => opt.dataset.categoryId);
 }
@@ -202,7 +187,6 @@ function initFiltersFromUrl() {
 }
 }
 
-// Вызываем при загрузке страницы
 document.addEventListener('DOMContentLoaded', initFiltersFromUrl);
 
 function applyFilters() {
@@ -266,4 +250,6 @@ function applyFilters() {
             }
 
         });
+
+
 
