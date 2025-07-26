@@ -505,3 +505,38 @@ footer {
 .content-area {
     flex-grow: 1;
 }
+
+/* Стили для header */
+header {
+    position: relative;
+    padding: 20px 0;
+}
+
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.header-text {
+    flex: 1;
+}
+
+.user-icon {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.user-icon img {
+    width: 40px;
+    height: 40px;
+    transition: opacity 0.3s;
+}
+
+.user-icon img:hover {
+    opacity: 0.8;
+}

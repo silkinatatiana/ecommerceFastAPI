@@ -1,20 +1,26 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Request
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
 from sqlalchemy import select, insert
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from typing import Annotated
 from passlib.context import CryptContext
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from datetime import datetime, timedelta, timezone
 import jwt
+import httpx
 
 from app.models.users import User
 from app.schemas import CreateUser
 from app.backend.db_depends import get_db
+from app.config import Config
 
 SECRET_KEY = 'a7c3da68e483259507f3857aa85a9379e0cde15a7e4aebd846f957651c748628'
 ALGORITHM = 'HS256'
 
 router = APIRouter(prefix='/auth', tags=['auth'])
+templates = Jinja2Templates(directory='app/templates/')
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
 
@@ -123,10 +129,36 @@ async def create_user(db: Annotated[AsyncSession, Depends(get_db)], create_user:
 
 async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], username: str, password: str):
     user = await db.scalar(select(User).where(User.username == username))
-    if not user or not bcrypt_context.verify(password, user.hashed_password) or user.is_active == False:
+    if not user or not bcrypt_context.verify(password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+
+@router.get("/create", response_class=HTMLResponse)
+def create_auth_form(request: Request):
+    return templates.TemplateResponse(
+            "auth/create_auth_form.html",
+            {
+                "request": request,
+                "config": {"url": Config.url}
+            }
+        )
+
+# @router.get('/login')
+# def login():
+#     return "Success"
+#
+# @router.post('/register')
+# def register():
+#     d = {
+#         "first_name": "string",
+#         "last_name": "string",
+#         "username": "string",
+#         "email": "string",
+#         "password": "string"
+#     }
+#     return "Success"

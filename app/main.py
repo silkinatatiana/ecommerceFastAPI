@@ -170,9 +170,7 @@ async def get_main_page(
     memory_result = await db.execute(memory_query)
     all_built_in_memory = sorted(memory_result.scalars().all(), key=sort_func)
     selected_built_in_memory = built_in_memory.split(",") if built_in_memory else []
-    print(list(categories_products.keys()))
-    print()
-    print(selected_category_ids)
+
     return templates.TemplateResponse(
         'index.html', {
             "request": request,
