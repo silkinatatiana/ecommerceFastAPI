@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request, HTTPException, Query, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
@@ -19,7 +20,6 @@ from app.models import *
 
 logger = logging.getLogger(__name__)
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     async with engine.begin() as conn:
@@ -27,16 +27,37 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
 
+class NoCacheStaticFiles(StaticFiles):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        return response
+
+
 app = FastAPI(lifespan=lifespan)
 
 templates = Jinja2Templates(directory="app/templates")
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+app.mount("/static", NoCacheStaticFiles(directory="app/static"), name="static")
 
 app.include_router(products.router)
 app.include_router(auth.router)
 app.include_router(permission.router)
 app.include_router(category.router)
 app.include_router(reviews.router)
+
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],  # Или конкретные домены
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 shop_info = {
     'shop_name': 'PEAR',

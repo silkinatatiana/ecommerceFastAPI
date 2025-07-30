@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Request
+from fastapi import APIRouter, Depends, status, HTTPException, Request, Form, status, Cookie
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -112,19 +112,61 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
     }
 
 
-@router.post('/')
-async def create_user(db: Annotated[AsyncSession, Depends(get_db)], create_user: CreateUser):
-    await db.execute(insert(User).values(first_name=create_user.first_name,
-                                         last_name=create_user.last_name,
-                                         username=create_user.username,
-                                         email=create_user.email,
-                                         hashed_password=bcrypt_context.hash(create_user.password),
-                                         ))
-    await db.commit()
-    return {
-        'status_code': status.HTTP_201_CREATED,
-        'transaction': 'Successful'
-    }
+# @router.post('/')
+# async def create_user(db: Annotated[AsyncSession, Depends(get_db)], create_user: CreateUser):
+#     await db.execute(insert(User).values(first_name=create_user.first_name,
+#                                          last_name=create_user.last_name,
+#                                          username=create_user.username,
+#                                          email=create_user.email,
+#                                          hashed_password=bcrypt_context.hash(create_user.password),
+#                                          ))
+#     await db.commit()
+#     return {
+#         'status_code': status.HTTP_201_CREATED,
+#         'transaction': 'Successful'
+#     }
+@router.get('/account', response_class=HTMLResponse)
+async def personal_account(
+        request: Request,
+        token: str = Cookie(None),
+        db: AsyncSession = Depends(get_db)
+):
+    try:
+        print(token)
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Пользователь не авторизован"
+            )
+
+        clean_token = token.replace("Bearer ", "")
+        user_data = await get_current_user(clean_token)
+        print(f"Clean {clean_token}")
+        user = await db.get(User, user_data['id'])
+        print(f"User: {user}")
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Пользователь не авторизован"
+            )
+        print(1)
+        return templates.TemplateResponse(
+            "auth/personal_account.html",
+            {
+                "request": request,
+                "auth_account_url": "/auth/account",
+                "user": {
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "username": user.username,
+                    "email": user.email
+                },
+                "config": {"url": Config.url, "shop_name": "Pear"}
+            }
+        )
+    except HTTPException as e:
+        response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+        return response
 
 
 async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], username: str, password: str):
@@ -141,24 +183,109 @@ async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], userna
 @router.get("/create", response_class=HTMLResponse)
 def create_auth_form(request: Request):
     return templates.TemplateResponse(
+        "auth/create_auth_form.html",
+        {
+            "request": request,
+            "config": {"url": Config.url}
+        }
+    )
+
+
+from fastapi.responses import JSONResponse
+
+
+@router.post('/register')
+async def register(
+        request: Request,
+        db: AsyncSession = Depends(get_db),
+        first_name: str = Form(...),
+        last_name: str = Form(...),
+        username: str = Form(...),
+        email: str = Form(...),
+        password: str = Form(...),
+        confirm_password: str = Form(...)
+):
+    if password != confirm_password:
+        return JSONResponse(
+            content={"detail": "Пароли не совпадают"},
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        await db.execute(insert(User).values(
+            first_name=first_name,
+            last_name=last_name,
+            username=username,
+            email=email,
+            hashed_password=bcrypt_context.hash(password))
+        )
+        await db.commit()
+        return JSONResponse(
+            content={"redirect_url": "/auth/account"},
+            status_code=status.HTTP_200_OK
+        )
+
+    except Exception as e:
+        await db.rollback()
+        error_msg = "Пользователь с таким именем уже существует" if "username" in str(e) else "Ошибка регистрации"
+        return JSONResponse(
+            content={"detail": error_msg},
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+
+@router.post('/login', response_class=HTMLResponse)
+async def login(request: Request,
+                db: AsyncSession = Depends(get_db),
+                username: str = Form(...),
+                password: str = Form(...)
+                ):
+    try:
+        user = await authenticate_user(db, username, password)
+        token = await create_access_token(
+            user.username,
+            user.id,
+            user.is_admin,
+            user.is_supplier,
+            user.is_customer,
+            timedelta(minutes=20)
+        )
+
+        response = RedirectResponse(url="/auth/account", status_code=status.HTTP_303_SEE_OTHER)
+        response.set_cookie(
+            key="token",
+            value=token,
+            httponly=True,
+            max_age=1200,
+            secure=True,  # Для HTTPS
+            samesite='lax'
+        )
+        return response
+
+    except HTTPException as e:
+        return templates.TemplateResponse(
             "auth/create_auth_form.html",
             {
                 "request": request,
+                "error": "Неверное имя пользователя или пароль",
                 "config": {"url": Config.url}
-            }
+            },
+            status_code=status.HTTP_401_UNAUTHORIZED
         )
 
-# @router.get('/login')
-# def login():
-#     return "Success"
-#
-# @router.post('/register')
-# def register():
-#     d = {
-#         "first_name": "string",
-#         "last_name": "string",
-#         "username": "string",
-#         "email": "string",
-#         "password": "string"
-#     }
-#     return "Success"
+
+@router.get('/logout')
+async def logout():
+    response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+    response.delete_cookie("token")
+    return response
+
+
+async def get_current_user_from_cookie(request: Request):
+    token = request.cookies.get("token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+    return await get_current_user(token.replace("Bearer", ""))

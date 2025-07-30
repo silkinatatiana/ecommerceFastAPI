@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет | {{ config.shop_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles/personal_account.css') }}?v=1.0">
+    <style>
+        :root {
+            --primary-color: #4285f4;
+            --secondary-color: #f1f3f4;
+            --danger-color: #f44336;
+            --text-color: #202124;
+            --light-text: #5f6368;
+            --border-color: #dadce0;
+        }
+
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: var(--text-color);
+        }
+
+        .account-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .account-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+        }
+
+        .user-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            margin-right: 20px;
+        }
+
+        .user-info h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .user-info p {
+            margin: 5px 0 0;
+            color: var(--light-text);
+        }
+
+        .account-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            border: none;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .account-content {
+            display: flex;
+            gap: 30px;
+        }
+
+        .account-sidebar {
+            width: 250px;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 12px 15px;
+            color: var(--text-color);
+            text-decoration: none;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background-color: var(--secondary-color);
+            color: var(--primary-color);
+        }
+
+        .nav-link i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .account-main {
+            flex: 1;
+        }
+
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .section-title {
+            margin-top: 0;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 20px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .info-label {
+            color: var(--light-text);
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-weight: 400;
+        }
+
+        .edit-form {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: var(--secondary-color);
+            border-radius: 4px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .orders-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .order-item {
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .order-status {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        @media (max-width: 768px) {
+            .account-content {
+                flex-direction: column;
+            }
+
+            .account-sidebar {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="account-container">
+        <div class="account-header">
+            <div class="user-profile">
+                <div class="user-avatar">{{ user.first_name[0] }}{{ user.last_name[0] }}</div>
+                <div class="user-info">
+                    <h2>{{ user.first_name }} {{ user.last_name }}</h2>
+                    <p>@{{ user.username }}</p>
+                </div>
+            </div>
+            <div class="account-actions">
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">Выйти</a>
+            </div>
+        </div>
+
+        <div class="account-content">
+            <div class="account-sidebar">
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="#profile" class="nav-link active">
+                            <i>👤</i> Профиль
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#orders" class="nav-link">
+                            <i>🛒</i> Мои заказы
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#security" class="nav-link">
+                            <i>🔒</i> Безопасность
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="account-main">
+                <!-- Секция профиля -->
+                <div id="profile" class="section">
+                    <h3 class="section-title">Личная информация</h3>
+
+                    <div class="info-grid">
+                        <div class="info-label">Имя:</div>
+                        <div class="info-value">{{ user.first_name }}</div>
+                    </div>
+
+                    <div class="info-grid">
+                        <div class="info-label">Фамилия:</div>
+                        <div class="info-value">{{ user.last_name }}</div>
+                    </div>
+
+                    <div class="info-grid">
+                        <div class="info-label">Имя пользователя:</div>
+                        <div class="info-value">@{{ user.username }}</div>
+                    </div>
+
+                    <div class="info-grid">
+                        <div class="info-label">Email:</div>
+                        <div class="info-value">{{ user.email }}</div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="toggleEditForm('profile')">Редактировать профиль</button>
+
+                    <div id="profile-edit-form" class="edit-form">
+                        <form id="update-profile-form" action="/account/update" method="post">
+                            <div class="form-group">
+                                <label for="first_name">Имя</label>
+                                <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="last_name">Фамилия</label>
+                                <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" id="email" name="email" value="{{ user.email }}" required>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Сохранить</button>
+                                <button type="button" class="btn" onclick="toggleEditForm('profile')">Отмена</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Секция заказов -->
+                <div id="orders" class="section" style="display: none;">
+                    <h3 class="section-title">Мои заказы</h3>
+
+                    <ul class="orders-list">
+                        <li class="order-item">
+                            <div class="order-header">
+                                <strong>Заказ #12345</strong>
+                                <span class="order-status status-completed">Завершен</span>
+                            </div>
+                            <div>Дата: 15.05.2023</div>
+                            <div>Сумма: 12 490 ₽</div>
+                        </li>
+
+                        <li class="order-item">
+                            <div class="order-header">
+                                <strong>Заказ #12344</strong>
+                                <span class="order-status status-pending">В обработке</span>
+                            </div>
+                            <div>Дата: 10.05.2023</div>
+                            <div>Сумма: 8 750 ₽</div>
+                        </li>
+                    </ul>
+
+                    <p style="text-align: center; color: var(--light-text);">Показано 2 из 5 заказов</p>
+                </div>
+
+                <!-- Секция безопасности -->
+                <div id="security" class="section" style="display: none;">
+                    <h3 class="section-title">Безопасность</h3>
+
+                    <div class="info-grid">
+                        <div class="info-label">Пароль:</div>
+                        <div class="info-value">********</div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="toggleEditForm('password')">Изменить пароль</button>
+
+                    <div id="password-edit-form" class="edit-form">
+                        <form id="update-password-form" action="/account/update-password" method="post">
+                            <div class="form-group">
+                                <label for="current_password">Текущий пароль</label>
+                                <input type="password" id="current_password" name="current_password" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="new_password">Новый пароль</label>
+                                <input type="password" id="new_password" name="new_password" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="confirm_password">Подтвердите пароль</label>
+                                <input type="password" id="confirm_password" name="confirm_password" required>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Сохранить</button>
+                                <button type="button" class="btn" onclick="toggleEditForm('password')">Отмена</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Переключение между разделами
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                // Удаляем активный класс у всех ссылок
+                document.querySelectorAll('.nav-link').forEach(item => {
+                    item.classList.remove('active');
+                });
+
+                // Добавляем активный класс текущей ссылке
+                this.classList.add('active');
+
+                // Скрываем все разделы
+                document.querySelectorAll('.account-main .section').forEach(section => {
+                    section.style.display = 'none';
+                });
+
+                // Показываем выбранный раздел
+                const sectionId = this.getAttribute('href').substring(1);
+                document.getElementById(sectionId).style.display = 'block';
+            });
+        });
+
+        // Переключение форм редактирования
+        function toggleEditForm(formType) {
+            const form = document.getElementById(`${formType}-edit-form`);
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Обработка форм
+        document.getElementById('update-profile-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            try {
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    alert('Данные успешно обновлены!');
+                    location.reload();
+                } else {
+                    const error = await response.json();
+                    alert(error.detail || 'Ошибка обновления данных');
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при обновлении данных');
+            }
+        });
+
+        document.getElementById('update-password-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            if (document.getElementById('new_password').value !==
+                document.getElementById('confirm_password').value) {
+                alert('Новый пароль и подтверждение не совпадают');
+                return;
+            }
+
+            const formData = new FormData(this);
+
+            try {
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    alert('Пароль успешно изменен!');
+                    toggleEditForm('password');
+                } else {
+                    const error = await response.json();
+                    alert(error.detail || 'Ошибка изменения пароля');
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при изменении пароля');
+            }
+        });
+    </script>
+</body>
+</html>
