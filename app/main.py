@@ -1,11 +1,11 @@
 import asyncio
 import logging
 import httpx
-from fastapi import FastAPI, Request, HTTPException, Query, Depends
+import jwt
+from fastapi import FastAPI, Request, HTTPException, Query, Depends, Cookie
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
@@ -17,6 +17,7 @@ from app.backend.db_depends import get_db
 from app.backend.db import Base, engine
 from app.config import Config
 from app.models import *
+from app.routers.auth import SECRET_KEY, ALGORITHM
 
 logger = logging.getLogger(__name__)
 
@@ -113,99 +114,123 @@ def sort_func(memory):
     num, val = memory.split()
     return val, int(num)
 
+
 @app.get('/', response_class=HTMLResponse)
 async def get_main_page(
         request: Request,
         db: Annotated[AsyncSession, Depends(get_db)],
+        token: Optional[str] = Cookie(None, alias='token'),
         category_id: Optional[str] = Query(None),
         colors: Optional[str] = Query(None),
         built_in_memory: Optional[str] = Query(None)
 ):
-    async with httpx.AsyncClient() as client:
-        try:
-            products_url = f"{Config.url}/products/"
-            params = {}
-            if category_id:
-                params['category_id'] = category_id
-            if colors:
-                params['colors'] = colors
-            if built_in_memory:
-                params['built_in_memory'] = built_in_memory
+    is_authenticated = False
+    user_id = None
 
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            is_authenticated = True
+            user_id = payload.get("user_id")
+        except Exception as e:
+            print(f"Ошибка декодирования токена: {e}")
+
+    # Запросы к API каталога
+    try:
+        products_url = f"{Config.url}/products/"
+        params = {
+            "user_id": user_id,  # Передаем ID пользователя (если есть)
+            **({"category_id": category_id} if category_id else {}),
+            **({"colors": colors} if colors else {}),
+            **({"built_in_memory": built_in_memory} if built_in_memory else {})
+        }
+
+        async with httpx.AsyncClient() as client:
             categories, products = await asyncio.gather(
                 client.get(f"{Config.url}/categories/"),
                 client.get(products_url, params=params)
             )
-
             categories.raise_for_status()
             products.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            raise HTTPException(502, detail="Сервис каталога недоступен")
-        except Exception as e:
-            raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}")
 
-    filters = await get_filters(db)
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(502, detail="Сервис каталога недоступен")
+    except Exception as e:
+        raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}")
+
+    # Обработка данных
+    categories_data = categories.json()
+    products_data = products.json()
+
+    # Фильтрация и обработка товаров
     categories_products = {}
     selected_category_ids = [int(cid) for cid in category_id.split(',')] if category_id else []
 
-    for category in categories.json():
+    for category in categories_data:
         category_products = [
             {
                 **p,
-                'name': ', '.join([str(s) for s in [
-                    p.get('name'),
-                    p.get('RAM_capacity'),
-                    p.get('built_in_memory_capacity'),
-                    p.get('screen'),
-                    p.get('cpu'),
-                    p.get('color')
-                ] if s is not None])
+                'name': ', '.join(
+                    str(s) for s in [
+                        p.get('name'),
+                        p.get('RAM_capacity'),
+                        p.get('built_in_memory_capacity'),
+                        p.get('screen'),
+                        p.get('cpu'),
+                        p.get('color')
+                    ]
+                    if s is not None
+                )
             }
-            for p in products.json()
+            for p in products_data
             if p['category_id'] == category['id']
         ]
 
-        # if not selected_category_ids or category['id'] in selected_category_ids:
         categories_products[category['name']] = {
             "id": category['id'],
             "products": category_products[:6] if not selected_category_ids else category_products
         }
 
-    has_products = any(category_data["products"] for category_data in categories_products.values())
+    # Фильтры
+    filters = await get_filters(db)
 
+    # Цвета
     color_query = select(distinct(Product.color)).where(Product.color.isnot(None))
-
     if selected_category_ids:
         color_query = color_query.where(Product.category_id.in_(selected_category_ids))
+    all_colors = (await db.execute(color_query)).scalars().all()
 
-    color_result = await db.execute(color_query)
-    all_colors = color_result.scalars().all()
-    selected_colors = colors.split(",") if colors else []
-
+    # Память
     memory_query = select(distinct(Product.built_in_memory_capacity)).where(
         Product.built_in_memory_capacity.isnot(None))
-
     if selected_category_ids:
         memory_query = memory_query.where(Product.category_id.in_(selected_category_ids))
+    all_built_in_memory = sorted((await db.execute(memory_query)).scalars().all(), key=sort_func)
 
-    memory_result = await db.execute(memory_query)
-    all_built_in_memory = sorted(memory_result.scalars().all(), key=sort_func)
-    selected_built_in_memory = built_in_memory.split(",") if built_in_memory else []
-
-    return templates.TemplateResponse(
-        'index.html', {
+    # Формирование ответа
+    response = templates.TemplateResponse(
+        'index.html',
+        {
             "request": request,
             "shop_name": "PEAR",
             "descr": "Магазин техники и электроники",
             "categories": list(categories_products.keys()),
-            "colors": list(all_colors),
-            "selected_colors": selected_colors,
-            "all_built_in_memory": list(all_built_in_memory),
-            "selected_built_in_memory": selected_built_in_memory,
+            "colors": all_colors,
+            "selected_colors": colors.split(",") if colors else [],
+            "all_built_in_memory": all_built_in_memory,
+            "selected_built_in_memory": built_in_memory.split(",") if built_in_memory else [],
             "categories_products": categories_products,
             "url": Config.url,
             "current_categories": selected_category_ids,
             "filters": filters,
-            "has_products": has_products
+            "has_products": any(c["products"] for c in categories_products.values()),
+            "is_authenticated": is_authenticated,
+            "user_id": user_id  # Передаем в шаблон, если нужно
         }
     )
+
+    # Если токен невалидный - очищаем куку
+    if token and not is_authenticated:
+        response.delete_cookie("token")
+
+    return response

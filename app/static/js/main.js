@@ -251,5 +251,21 @@ function applyFilters() {
 
         });
 
+document.addEventListener('DOMContentLoaded', function() {
+    const userIcon = document.getElementById('userIcon');
+    const dropdown = document.getElementById('userDropdown');
+
+    if (userIcon && dropdown) {
+        userIcon.addEventListener('click', function(e) {
+            e.stopPropagation();
+            dropdown.classList.toggle('show-dropdown');
+        });
+
+        document.addEventListener('click', function() {
+            dropdown.classList.remove('show-dropdown');
+        });
+    }
+});
+
 
 

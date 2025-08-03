@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, JSON, FLOAT
 from sqlalchemy.orm import relationship
 from .users import User
 
+
 class Product(Base):
     __tablename__ = 'products'
 
@@ -11,15 +12,15 @@ class Product(Base):
     description = Column(String)
     price = Column(Integer)
     color = Column(String)
-    image_urls =  Column(JSON, default=list)
+    image_urls = Column(JSON, default=list)
     stock = Column(Integer)
     category_id = Column(Integer, ForeignKey('categories.id'))
-    RAM_capacity = Column(String, nullable=True) # Объем оперативной памяти
-    built_in_memory_capacity = Column(String, nullable=True) # объем встроенной памяти
+    RAM_capacity = Column(String, nullable=True)  # Объем оперативной памяти
+    built_in_memory_capacity = Column(String, nullable=True)  # объем встроенной памяти
     screen = Column(FLOAT, nullable=True)
     cpu = Column(String, nullable=True)
     number_of_processor_cores = Column(Integer, nullable=True)
-    number_of_graphics_cores = Column(Integer, nullable=True) # Количество графических ядер
+    number_of_graphics_cores = Column(Integer, nullable=True)  # Количество графических ядер
 
     category = relationship("Category", back_populates="products")
     supplier_id = Column(Integer, ForeignKey(User.id))

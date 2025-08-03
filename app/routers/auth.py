@@ -258,7 +258,8 @@ async def login(request: Request,
             httponly=True,
             max_age=1200,
             secure=True,  # Для HTTPS
-            samesite='lax'
+            samesite='lax',
+            path='/'
         )
         return response
 
@@ -289,3 +290,8 @@ async def get_current_user_from_cookie(request: Request):
             detail="Not authenticated"
         )
     return await get_current_user(token.replace("Bearer", ""))
+
+
+@router.get('/favorites', response_class=HTMLResponse)
+async def favorites_page(request: Request):
+    return {"message": "It`s favorites"}

@@ -5,96 +5,77 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вход / Регистрация | {{ config.shop_name }}</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/styles/create_auth_form.css') }}?v=1.2">
-    <style>
-        .error-message {
-            color: #d32f2f;
-            font-size: 14px;
-            margin-top: 5px;
-            padding: 5px;
-            background-color: #fde8e8;
-            border-radius: 4px;
-            display: none;
-        }
-
-        .success-message {
-            color: #388e3c;
-            font-size: 14px;
-            margin-top: 5px;
-            padding: 5px;
-            background-color: #e8f5e9;
-            border-radius: 4px;
-            display: none;
-        }
-    </style>
 </head>
 <body>
-    <div class="auth-container">
-        <div class="auth-tabs">
-            <div class="auth-tab active" onclick="switchTab('login')">Вход</div>
-            <div class="auth-tab" onclick="switchTab('register')">Регистрация</div>
+    <div class="auth-container-wrapper">
+        <a href="{{ url_for('get_main_page') }}" class="back-to-catalog">
+            ← Вернуться в каталог
+        </a>
+        <div class="auth-container">
+            <div class="auth-tabs">
+                <div class="auth-tab active" onclick="switchTab('login')">Вход</div>
+                <div class="auth-tab" onclick="switchTab('register')">Регистрация</div>
+            </div>
+
+            <div id="login-error" class="error-message"></div>
+            <div id="register-error" class="error-message"></div>
+            <div id="success-message" class="success-message"></div>
+
+            <form id="login-form" class="auth-form active" action="{{ config.url }}/auth/login" method="post">
+                <div class="form-group">
+                    <label for="login-username">Имя пользователя</label>
+                    <input type="text" id="login-username" name="username" required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="login-password">Пароль</label>
+                    <input type="password" id="login-password" name="password" required autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="submit-btn">Войти</button>
+
+            </form>
+
+            <!-- Форма регистрации -->
+            <form id="register-form" class="auth-form" action="{{ config.url }}/auth/register" method="post">
+                <div class="form-group">
+                    <label for="register-first_name">Имя</label>
+                    <input type="text" id="register-first_name" name="first_name" required autocomplete="given-name">
+                </div>
+
+                <div class="form-group">
+                    <label for="register-last_name">Фамилия</label>
+                    <input type="text" id="register-last_name" name="last_name" required autocomplete="family-name">
+                </div>
+
+                <div class="form-group">
+                    <label for="register-username">Имя пользователя</label>
+                    <input type="text" id="register-username" name="username" required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="register-email">Email</label>
+                    <input type="email" id="register-email" name="email" required autocomplete="email">
+                </div>
+
+                <div class="form-group">
+                    <label for="register-password">Пароль</label>
+                    <input type="password" id="register-password" name="password" required autocomplete="new-password">
+                </div>
+
+                <div class="form-group">
+                    <label for="register-confirm-password">Подтвердите пароль</label>
+                    <input type="password" id="register-confirm-password" name="confirm_password" required autocomplete="new-password">
+                </div>
+
+                <button type="submit" class="submit-btn">Зарегистрироваться</button>
+
+                <div class="form-footer">
+                    Уже есть аккаунт? <a href="#" onclick="switchTab('login'); return false;">Войти</a>
+                </div>
+            </form>
         </div>
-
-        <!-- Сообщения об ошибках/успехе -->
-        <div id="login-error" class="error-message"></div>
-        <div id="register-error" class="error-message"></div>
-        <div id="success-message" class="success-message"></div>
-
-        <!-- Форма входа -->
-        <form id="login-form" class="auth-form active" action="{{ config.url }}/auth/login" method="post">
-            <div class="form-group">
-                <label for="login-username">Имя пользователя</label>
-                <input type="text" id="login-username" name="username" required autocomplete="username">
-            </div>
-
-            <div class="form-group">
-                <label for="login-password">Пароль</label>
-                <input type="password" id="login-password" name="password" required autocomplete="current-password">
-            </div>
-
-            <button type="submit" class="submit-btn">Войти</button>
-
-        </form>
-
-        <!-- Форма регистрации -->
-        <form id="register-form" class="auth-form" action="{{ config.url }}/auth/register" method="post">
-            <div class="form-group">
-                <label for="register-first_name">Имя</label>
-                <input type="text" id="register-first_name" name="first_name" required autocomplete="given-name">
-            </div>
-
-            <div class="form-group">
-                <label for="register-last_name">Фамилия</label>
-                <input type="text" id="register-last_name" name="last_name" required autocomplete="family-name">
-            </div>
-
-            <div class="form-group">
-                <label for="register-username">Имя пользователя</label>
-                <input type="text" id="register-username" name="username" required autocomplete="username">
-            </div>
-
-            <div class="form-group">
-                <label for="register-email">Email</label>
-                <input type="email" id="register-email" name="email" required autocomplete="email">
-            </div>
-
-            <div class="form-group">
-                <label for="register-password">Пароль</label>
-                <input type="password" id="register-password" name="password" required autocomplete="new-password">
-            </div>
-
-            <div class="form-group">
-                <label for="register-confirm-password">Подтвердите пароль</label>
-                <input type="password" id="register-confirm-password" name="confirm_password" required autocomplete="new-password">
-            </div>
-
-            <button type="submit" class="submit-btn">Зарегистрироваться</button>
-
-            <div class="form-footer">
-                Уже есть аккаунт? <a href="#" onclick="switchTab('login'); return false;">Войти</a>
-            </div>
-        </form>
     </div>
-
-    <script src="/static/js/create_auth_form.js"></script>
+<script src="/static/js/create_auth_form.js"></script>
 </body>
 </html>

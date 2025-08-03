@@ -8,17 +8,32 @@
 </head>
 <body>
     <header>
-    <div class="header-container">
-        <div class="header-text">
-            <h1>{{ shop_name }}</h1>
-            <p>{{ descr }}</p>
+        <div class="header-container">
+            <div class="header-text">
+                <h1>{{ shop_name }}</h1>
+                <p>{{ descr }}</p>
+            </div>
+            <div class="user-icon-container">
+                {% if is_authenticated %}
+                    <div class="user-icon" id="userIcon">
+                        <img src="{{ url_for('static', path='/images/user_auth.png') }}"
+                             alt="Меню пользователя"
+                             title="Меню пользователя">
+                        <div class="user-dropdown" id="userDropdown">
+                            <a href="{{ url_for('personal_account') }}">Профиль</a>
+<!--                            <a href="{{ url_for('favorites_page') }}">Избранное</a>-->
+                            <a href="{{ url_for('logout') }}" class="logout">Выйти</a>
+                        </div>
+                    </div>
+                {% else %}
+                    <a href="{{ url_for('create_auth_form') }}" class="user-icon">
+                        <img src="{{ url_for('static', path='/images/user.png') }}"
+                             alt="Войти"
+                             title="Войти">
+                    </a>
+                {% endif %}
+            </div>
         </div>
-        <div class="user-icon">
-            <a href="{{ url_for('create_auth_form') }}">
-                <img src="{{ url_for('static', path='/images/user.png') }}" alt="Вход" title="Вход в систему">
-            </a>
-        </div>
-    </div>
 </header>
 
     <nav>
