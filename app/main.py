@@ -12,7 +12,7 @@ from loguru import logger
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional, Annotated
 
-from app.routers import category, products, auth, permission, reviews
+from app.routers import category, products, auth, permission, reviews, favorites
 from app.backend.db_depends import get_db
 from app.backend.db import Base, engine
 from app.config import Config
@@ -41,7 +41,6 @@ class NoCacheStaticFiles(StaticFiles):
 app = FastAPI(lifespan=lifespan)
 
 templates = Jinja2Templates(directory="app/templates")
-# app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 app.mount("/static", NoCacheStaticFiles(directory="app/static"), name="static")
 
@@ -50,15 +49,7 @@ app.include_router(auth.router)
 app.include_router(permission.router)
 app.include_router(category.router)
 app.include_router(reviews.router)
-
-
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],  # Или конкретные домены
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+app.include_router(favorites.router)
 
 shop_info = {
     'shop_name': 'PEAR',
@@ -191,23 +182,19 @@ async def get_main_page(
             "products": category_products[:6] if not selected_category_ids else category_products
         }
 
-    # Фильтры
     filters = await get_filters(db)
 
-    # Цвета
     color_query = select(distinct(Product.color)).where(Product.color.isnot(None))
     if selected_category_ids:
         color_query = color_query.where(Product.category_id.in_(selected_category_ids))
     all_colors = (await db.execute(color_query)).scalars().all()
 
-    # Память
     memory_query = select(distinct(Product.built_in_memory_capacity)).where(
         Product.built_in_memory_capacity.isnot(None))
     if selected_category_ids:
         memory_query = memory_query.where(Product.category_id.in_(selected_category_ids))
     all_built_in_memory = sorted((await db.execute(memory_query)).scalars().all(), key=sort_func)
 
-    # Формирование ответа
     response = templates.TemplateResponse(
         'index.html',
         {
@@ -225,11 +212,10 @@ async def get_main_page(
             "filters": filters,
             "has_products": any(c["products"] for c in categories_products.values()),
             "is_authenticated": is_authenticated,
-            "user_id": user_id  # Передаем в шаблон, если нужно
+            "user_id": user_id
         }
     )
 
-    # Если токен невалидный - очищаем куку
     if token and not is_authenticated:
         response.delete_cookie("token")
 

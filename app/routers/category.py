@@ -5,8 +5,6 @@ from slugify import slugify
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.routers.auth import get_current_user
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
-import httpx
 
 from app.backend.db_depends import get_db
 from app.schemas import CreateCategory

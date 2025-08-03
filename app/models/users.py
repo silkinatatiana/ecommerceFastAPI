@@ -19,3 +19,4 @@ class User(Base):
 
     products = relationship("Product", back_populates="supplier")
     reviews = relationship("Review", back_populates="user")
+    favorites = relationship("Favorites", back_populates="user")
