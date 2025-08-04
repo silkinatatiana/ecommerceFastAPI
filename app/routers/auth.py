@@ -141,15 +141,12 @@ async def personal_account(
 
         clean_token = token.replace("Bearer ", "")
         user_data = await get_current_user(clean_token)
-        print(f"Clean {clean_token}")
         user = await db.get(User, user_data['id'])
-        print(f"User: {user}")
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Пользователь не авторизован"
             )
-        print(1)
         return templates.TemplateResponse(
             "auth/personal_account.html",
             {
@@ -251,7 +248,7 @@ async def login(request: Request,
             timedelta(minutes=20)
         )
 
-        response = RedirectResponse(url="/auth/account", status_code=status.HTTP_303_SEE_OTHER)
+        response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
         response.set_cookie(
             key="token",
             value=token,

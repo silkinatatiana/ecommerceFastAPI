@@ -6,7 +6,7 @@ from typing import List, Optional
 class CreateProduct(BaseModel):
     name: str
     description: Optional[str] = None
-    price: int  
+    price: int
     stock: int
     category_id: int
     image_urls: Optional[List[str]] = None
@@ -18,6 +18,7 @@ class CreateProduct(BaseModel):
     number_of_graphics_cores: Optional[int] = None
     color: Optional[str] = None
 
+
 class ProductOut(BaseModel):
     id: int
     name: str
@@ -27,7 +28,7 @@ class ProductOut(BaseModel):
     stock: int
     category_id: int
     supplier_id: Optional[int] = None
-    
+
     RAM_capacity: Optional[str] = None
     built_in_memory_capacity: Optional[str] = None
     screen: Optional[float] = None
@@ -36,9 +37,9 @@ class ProductOut(BaseModel):
     number_of_graphics_cores: Optional[int] = None
     color: Optional[str] = None
 
-    
     class Config:
         from_attributes = True
+
 
 class CreateCategory(BaseModel):
     name: str
@@ -60,3 +61,12 @@ class CreateReviews(BaseModel):
     grade: int = Field(..., ge=1, le=5)
     comment: str = None
     photo_urls: Optional[List[str]] = None
+
+
+class Favorites(BaseModel):
+    id: int
+    user_id: int
+    product_id: int
+
+    class Config:
+        from_attributes = True
