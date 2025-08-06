@@ -58,26 +58,32 @@ async def create_favorites(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Ошибка при добавлении в избранное: {str(e)}"
         )
-#
-#
-# @router.delete('/', response_model=Favorites, status_code=status.HTTP_204_NO_CONTENT)
-# async def del_favorite_product(db: Annotated[AsyncSession, Depends(get_db)], favorite: Favorites):
-#     favorite = await db.scalar(select(Favorites)
-#                                .where(Favorites.user_id == favorite.user_id)
-#                                .where(Favorites.product_id == favorite.product_id))
-#     if not favorite:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="Товар не найден в избранном"
-#         )
-#
-#     try:
-#         await db.delete(favorite)
-#         await db.commit()
-#
-#     except Exception as e:
-#         await db.rollback()
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail=f"Ошибка при удалении: {str(e)}"
-#         )
+
+
+@router.delete('/', status_code=status.HTTP_204_NO_CONTENT)
+async def del_favorite_product(product_id: int,
+                               current_user: User = Depends(get_current_user),
+                               db: AsyncSession = Depends(get_db)):
+    try:
+        stmt = (
+            delete(Favorites).where(
+                Favorites.user_id == current_user['id'],
+                Favorites.product_id == product_id,
+            )
+        )
+        result = await db.execute(stmt)
+        await db.commit()
+
+        if result.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Товар не найден в избранном'
+            )
+        return None
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Ошибка при удалении из избранного: {str(e)}'
+        )
