@@ -121,11 +121,9 @@ async function loadAllProducts(categoryId, button) {
     }
 }
 
-// Вспомогательные функции
 function getActiveFilters() {
     const filters = {};
 
-    // Собираем все активные чекбоксы
     document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
         if (checkbox.name && checkbox.value) {
             if (filters[checkbox.name]) {

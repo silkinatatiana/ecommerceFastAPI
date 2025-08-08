@@ -623,15 +623,17 @@ header {
 }
 
 .heart-icon {
-  width: 18px;
-  height: 18px;
-  color: #bdbdbd;
-  transition: all 0.2s ease;
+    width: 24px;
+    height: 24px;
+    fill: none; /* Прозрачная заливка */
+    stroke: #bdbdbd; /* Цвет контура */
+    stroke-width: 2;
+    transition: all 0.3s ease;
 }
 
 .heart-icon.active {
-  color: #ff4081 !important;
-  fill: currentColor !important;
+    fill: #ff4081; /* Заливка розовым */
+    stroke: #ff4081; /* Контур розовым */
 }
 
 .view-all {
