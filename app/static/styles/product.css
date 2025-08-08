@@ -810,3 +810,49 @@ footer {
     margin-bottom: 0.3rem;
   }
 }
+
+.btn-favorite {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.btn-favorite:hover {
+    background-color: rgba(255, 107, 107, 0.1);
+}
+
+.heart-icon {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: #ccc;
+    stroke-width: 2px;
+    transition: all 0.3s ease;
+}
+
+.btn-favorite.active .heart-icon {
+    fill: #ff6b6b;
+    stroke: #ff6b6b;
+    transform: scale(1.1);
+}
+
+.btn-favorite:hover .heart-icon {
+    stroke: #ff6b6b;
+}
+
+.btn-favorite:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.btn-favorite:disabled .heart-icon {
+    stroke: #999;
+}

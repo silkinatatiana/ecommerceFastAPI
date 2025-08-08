@@ -92,6 +92,7 @@ async def all_products(
         category_id: Optional[str] = Query(None),
         colors: Optional[str] = Query(None),
         built_in_memory: Optional[str] = Query(None),
+        product_ids: Optional[str] = Query(None)
 ):
     try:
         query = select(Product)
@@ -99,6 +100,10 @@ async def all_products(
         if category_id:
             categ_ids = [int(categ_id) for categ_id in category_id.split(",")]
             query = query.where(Product.category_id.in_(categ_ids))
+
+        if product_ids:
+            ids_list = [int(id_) for id_ in product_ids.split(",")]
+            query = query.where(Product.id.in_(ids_list))
 
         if colors:
             query = query.where(Product.color.in_(colors.split(",")))
@@ -132,7 +137,7 @@ async def products_by_category(db: Annotated[AsyncSession, Depends(get_db)], cat
 async def product_detail_page(
         request: Request,
         product_id: int,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
 ):
     product = await db.scalar(
         select(Product)
@@ -282,23 +287,60 @@ async def product_detail_page(
 #             detail='You have not enough permission for this action'
 #         )
 
-
-# для AJAX запросов чтобы разворачивать на главной странице все товары в категории
 @router.get("/by_category/")
 async def get_products_by_category(
+        request: Request,
+        db: AsyncSession = Depends(get_db),
         category_id: int = Query(..., alias="categoryId"),
-        skip: int = Query(6, alias="skip")
+        skip: int = Query(6, alias="skip"),
+        is_favorite: bool = Query(False, alias="isFavorite"),
+        user_id: Optional[int] = Query(None)
 ):
     try:
+        # Базовые параметры для запроса продуктов
+        params = {'category_id': category_id}
+
+        # Если включен фильтр "Избранное" и есть user_id
+        if is_favorite and user_id:
+            # 1. Получаем все избранные товары пользователя
+            fav_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
+            fav_result = await db.execute(fav_query)
+            all_favorites = fav_result.scalars().all()
+
+            if not all_favorites:
+                return []  # Нет избранных товаров вообще
+
+            # 2. Получаем товары из нужной категории, которые есть в избранном
+            products_query = select(Product.id).where(
+                Product.id.in_(all_favorites),
+                Product.category_id == category_id
+            )
+            products_result = await db.execute(products_query)
+            valid_products = products_result.scalars().all()
+
+            if not valid_products:
+                return []  # Нет избранных товаров в этой категории
+
+            params['product_ids'] = ','.join(map(str, valid_products))
+
+        # Делаем запрос к основному API продуктов
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{Config.url}/products/",
-                params={"category_id": category_id}
+                params=params
             )
             response.raise_for_status()
-            all_products = response.json()
+            products = response.json()
 
-            return all_products[skip - 1:] if skip <= len(all_products) else []
+            return products[skip - 1:] if skip <= len(products) else []
 
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Product service error: {str(e)}"
+        )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(
+            status_code=400,
+            detail=f"Request processing error: {str(e)}"
+        )

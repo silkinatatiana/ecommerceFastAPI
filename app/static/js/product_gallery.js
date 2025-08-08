@@ -340,3 +340,28 @@ function toggleSpecs() {
     const isVisible = specsContent.classList.toggle('show');
     toggleBtn.textContent = isVisible ? '▲' : '▼';
 }
+
+async function toggleFavorite(button, productId) {
+    const isFavorite = button.classList.contains('active');
+    const url = '/favorites';
+    const method = isFavorite ? 'DELETE' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': 'YOUR_CSRF_TOKEN_HERE' // если используете CSRF защиту
+            },
+            body: JSON.stringify({ product_id: productId })
+        });
+
+        if (response.ok) {
+            button.classList.toggle('active');
+        } else {
+            console.error('Ошибка при обновлении избранного');
+        }
+    } catch (error) {
+        console.error('Ошибка сети:', error);
+    }
+}

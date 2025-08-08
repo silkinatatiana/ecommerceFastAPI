@@ -9,6 +9,8 @@ async function loadAllProducts(categoryId, button) {
 
     try {
         const params = new URLSearchParams();
+
+        // Базовые параметры
         if (Array.isArray(categoryId)) {
             categoryId.forEach(id => params.append('categoryId', id));
         } else {
@@ -16,43 +18,84 @@ async function loadAllProducts(categoryId, button) {
         }
         params.append('skip', skip);
 
-        const response = await fetch(`/products/by_category/?${params.toString()}`);
+        // Параметры избранного
+        const favoritesOnly = document.getElementById('favoritesOnlyCheckbox');
+        if (favoritesOnly && favoritesOnly.checked) {
+            params.append('is_favorite', 'true');
 
-        if (!response.ok) throw new Error(await response.text());
+            // Получаем user_id из мета-тега или куки
+            const userMeta = document.querySelector('meta[name="user-id"]');
+            const user_id = userMeta ? userMeta.content : getCookie('user_id');
+
+            if (user_id) {
+                params.append('user_id', user_id);
+            } else {
+                console.warn('User ID not found for favorites filter');
+                throw new Error('Требуется авторизация для просмотра избранного');
+            }
+        }
+
+        // Добавляем другие активные фильтры
+        const activeFilters = getActiveFilters(); // Функция собирает все активные фильтры
+        Object.entries(activeFilters).forEach(([key, value]) => {
+            params.append(key, value);
+        });
+
+        const response = await fetch(`/products/by_category/?${params.toString()}`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'include' // Для передачи кук
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Ошибка загрузки');
+        }
 
         const additionalProducts = await response.json();
 
+        // Обработка пустого результата
         if (additionalProducts.length === 0) {
-            container.innerHTML = '<p>Нет дополнительных товаров</p>';
+            container.innerHTML = '<p class="no-products">Нет дополнительных товаров</p>';
+            button.style.display = 'none';
             return;
         }
 
+        // Отрисовка товаров
         additionalProducts.forEach(product => {
             const productCard = document.createElement('div');
             productCard.className = 'product-card additional-product';
             productCard.dataset.category = product.category_id;
+            productCard.dataset.id = product.id;
 
             productCard.innerHTML = `
                 <img src="${product.image_urls?.[0] || '/static/images/default_image.png'}"
                     alt="${product.name}"
                     loading="lazy"
                     onerror="this.onerror=null;this.src='/static/images/default_image.png'">
-                <h3>${product.name}</h3>
-                <p class="product-price">${product.price || 'Цена не указана'} ₽</p>
-                <p class="product-stock ${product.stock <= 0 ? 'out-of-stock' : ''}">
-                    ${product.stock} шт. в наличии
-                </p>
+                <div class="product-info">
+                    <h3>${product.name}</h3>
+                    <p class="product-price">${product.price ? `${product.price} ₽` : 'Цена не указана'}</p>
+                    <p class="product-stock ${product.stock <= 0 ? 'out-of-stock' : ''}">
+                        ${product.stock} шт. в наличии
+                    </p>
+                    ${product.is_favorite ? '<div class="favorite-badge">★</div>' : ''}
+                </div>
             `;
 
-            productCard.addEventListener('click', () => {
-                window.location.href = `/products/${product.id}`;
+            productCard.addEventListener('click', (e) => {
+                if (!e.target.closest('.favorite-toggle')) {
+                    window.location.href = `/products/${product.id}`;
+                }
             });
 
             mainGrid.appendChild(productCard);
         });
 
+        // Обновляем состояние кнопок
         button.dataset.skip = skip + additionalProducts.length;
-
         hideBtn.style.display = 'inline-block';
 
         if (additionalProducts.length < 6) {
@@ -60,12 +103,46 @@ async function loadAllProducts(categoryId, button) {
         }
 
     } catch (error) {
-        container.innerHTML = `<p>Ошибка загрузки: ${error.message}</p>`;
         console.error('Ошибка:', error);
+        container.innerHTML = `
+            <div class="load-error">
+                <p>${error.message}</p>
+                <button onclick="window.location.reload()">Попробовать снова</button>
+            </div>
+        `;
+
+        if (error.message.includes('авторизация')) {
+            // Перенаправляем на страницу входа, если требуется авторизация
+            setTimeout(() => window.location.href = '/login', 2000);
+        }
     } finally {
         button.disabled = false;
         container.innerHTML = '';
     }
+}
+
+// Вспомогательные функции
+function getActiveFilters() {
+    const filters = {};
+
+    // Собираем все активные чекбоксы
+    document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+        if (checkbox.name && checkbox.value) {
+            if (filters[checkbox.name]) {
+                filters[checkbox.name] += `,${checkbox.value}`;
+            } else {
+                filters[checkbox.name] = checkbox.value;
+            }
+        }
+    });
+
+    return filters;
+}
+
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
 }
 
 function hideProducts(categoryId, button) {
@@ -90,73 +167,87 @@ function updateFilterButton(categoryName) {
     button.textContent = categoryName;
 }
 
-//// Закрываем фильтр при клике вне его области
-//document.addEventListener('click', function(event) {
-//    const filterContainer = document.querySelector('.category-filter');
-//    if (!filterContainer.contains(event.target)) {
-//        document.getElementById('categoryDropdown').style.display = 'none';
-//    }
-//});
+function applyFilters() {
+    const params = new URLSearchParams();
 
-document.querySelectorAll('input[name="category"]').forEach(checkbox => {
-    checkbox.addEventListener('change', function() {
-        // 1. Собираем все выбранные категории
-        const selectedCategories = Array.from(
-            document.querySelectorAll('input[name="category"]:checked')
-        ).map(el => el.value).join(',');
-
-        // 2. Собираем выбранную память
-        const selectedMemory = Array.from(
-            document.querySelectorAll('input[name="built_in_memory"]:checked')
-        ).map(el => el.value).join(',');
-
-        // 3. Формируем URL
-        const params = new URLSearchParams();
-        if (selectedCategories.length > 0) {
-            params.append('categoryId', selectedCategories.join(','));
-        }
-        if (selectedMemory) {
-            params.append('built_in_memory', selectedMemory);
-        }
-
-        // 4. Обновляем URL без перезагрузки
-        const url = params.toString()
-            ? `/products?${params.toString()}`
-            : '/products';
-        window.history.pushState({}, '', url);
-
-        // 5. Загружаем товары
-        loadFilteredProducts(selectedCategories);
-    });
-});
-
-async function loadFilteredProducts(categoryId) {
-    try {
-        const params = new URLSearchParams();
-        if (categoryId.length > 0) {
-            params.append('category_id', categoryId.join(','));
-        }
-
-        // Добавьте другие параметры фильтрации, если нужно
-
-        const response = await fetch(`/products?${params.toString()}`);
-        if (!response.ok) throw new Error(await response.text());
-
-        return await response.json();
-    } catch (error) {
-        console.error('Ошибка загрузки продуктов:', error);
-        return [];
+    // Категории
+    const categoryCheckboxes = document.querySelectorAll('input[name="category"]:checked');
+    if (categoryCheckboxes.length > 0) {
+        params.append('category_id', Array.from(categoryCheckboxes).map(cb => cb.value).join(','));
     }
+
+    // Цвета
+    const colorCheckboxes = document.querySelectorAll('input[name="color"]:checked');
+    if (colorCheckboxes.length > 0) {
+        params.append('colors', Array.from(colorCheckboxes).map(cb => cb.value).join(','));
+    }
+
+    // Память
+    const memoryCheckboxes = document.querySelectorAll('input[name="built_in_memory"]:checked');
+    if (memoryCheckboxes.length > 0) {
+        params.append('built_in_memory', Array.from(memoryCheckboxes).map(cb => cb.value).join(','));
+    }
+
+    // Избранное
+    const favoritesCheckbox = document.getElementById('favoritesOnlyCheckbox');
+     if (favoritesCheckbox) {
+        if (favoritesCheckbox.checked) {
+            params.set('is_favorite', 'true');
+        } else {
+            params.delete('is_favorite');
+        }
+    }
+
+    // Обновляем URL без перезагрузки страницы
+    window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
+
+    // Принудительная перезагрузка для применения фильтров
+    window.location.search = params.toString();
 }
 
-function getSelectedCategoryId() {
-    return Array.from(document.querySelectorAll('.filter-option.selected'))
-               .map(opt => opt.dataset.categoryId);
+function resetFilters() {
+    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+
+    window.history.pushState({}, '', window.location.pathname);
+
+    window.location.href = window.location.pathname;
+}
+
+async function loadFilteredProducts() {
+    const productsContainer = document.getElementById('products-container');
+    productsContainer.innerHTML = '<div class="loading-spinner"></div>';
+
+    try {
+        const params = new URLSearchParams(window.location.search);
+
+        // Добавляем user_id если есть
+        const userMeta = document.querySelector('meta[name="user-id"]');
+        if (userMeta && params.get('is_favorite') === 'true') {
+            params.append('user_id', userMeta.content);
+        }
+
+        const response = await fetch(`/products/filtered?${params.toString()}`);
+
+        if (!response.ok) throw new Error(await response.text());
+
+        const products = await response.json();
+        renderProducts(products);
+
+    } catch (error) {
+        console.error('Ошибка загрузки:', error);
+        productsContainer.innerHTML = `
+            <div class="error-message">
+                ${error.message}
+                <button onclick="loadFilteredProducts()">Повторить</button>
+            </div>
+        `;
+    }
 }
 
 function initFiltersFromUrl() {
     const urlParams = new URLSearchParams(window.location.search);
-    const memoryParam = urlParams.get('built_in_memory');
 
     // Категории
     const categoryParam = urlParams.get('category_id');
@@ -166,6 +257,13 @@ function initFiltersFromUrl() {
             const checkbox = document.querySelector(`input[name="category"][value="${cat}"]`);
             if (checkbox) checkbox.checked = true;
         });
+    }
+
+    // Избранное
+    const favoritesOnly = urlParams.get('is_favorite');
+    if (favoritesOnly === 'true') {
+        const checkbox = document.getElementById('favoritesOnlyCheckbox');
+        if (checkbox) checkbox.checked = true;
     }
 
     // Цвета
@@ -178,80 +276,20 @@ function initFiltersFromUrl() {
         });
     }
 
+    // Память
+    const memoryParam = urlParams.get('built_in_memory');
     if (memoryParam) {
-    const memories = memoryParam.split(',');
-    memories.forEach(mem => {
-        const checkbox = document.querySelector(`input[name="built_in_memory"][value="${mem}"]`);
-        if (checkbox) checkbox.checked = true;
-    });
-}
-}
-
-document.addEventListener('DOMContentLoaded', initFiltersFromUrl);
-
-function applyFilters() {
-            const selectedCategories = Array.from(document.querySelectorAll('input[name="category"]:checked'))
-                .map(el => el.value)
-                .join(',');
-
-            const selectedColors = Array.from(document.querySelectorAll('input[name="color"]:checked'))
-                .map(el => el.value)
-                .join(',');
-
-            const selectedMemory = Array.from(document.querySelectorAll('input[name="built_in_memory"]:checked'))
-                .map(el => el.value)
-                .join(',');
-
-            const params = new URLSearchParams();
-
-            if (selectedCategories) params.append('category_id', selectedCategories);
-            if (selectedColors) params.append('colors', selectedColors);
-            if (selectedMemory) params.append('built_in_memory', selectedMemory);
-
-            window.location.search = params.toString();
-        }
-
-        function resetFilters() {
-            window.location.search = '';
-        }
-
-        // Инициализация фильтров из URL
-        document.addEventListener('DOMContentLoaded', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-
-            // Категории
-            const categoryParam = urlParams.get('category_id');
-            if (categoryParam) {
-                const categories = categoryParam.split(',');
-                categories.forEach(cat => {
-                    const checkbox = document.querySelector(`input[name="category"][value="${cat}"]`);
-                    if (checkbox) checkbox.checked = true;
-                });
-            }
-
-            // Цвета
-            const colorParam = urlParams.get('colors');
-            if (colorParam) {
-                const colors = colorParam.split(',');
-                colors.forEach(color => {
-                    const checkbox = document.querySelector(`input[name="color"][value="${color}"]`);
-                    if (checkbox) checkbox.checked = true;
-                });
-            }
-
-            // Память
-            const memoryParam = urlParams.get('built_in_memory');
-            if (memoryParam) {
-                const memories = memoryParam.split(',');
-                memories.forEach(mem => {
-                    const checkbox = document.querySelector(`input[name="built_in_memory"][value="${mem}"]`);
-                    if (checkbox) checkbox.checked = true;
-                });
-            }
-
+        const memories = memoryParam.split(',');
+        memories.forEach(mem => {
+            const checkbox = document.querySelector(`input[name="built_in_memory"][value="${mem}"]`);
+            if (checkbox) checkbox.checked = true;
         });
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
+    initFiltersFromUrl();
+
     const userIcon = document.getElementById('userIcon');
     const dropdown = document.getElementById('userDropdown');
 
@@ -267,5 +305,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+async function toggleFavorite(element, productId) {
 
+    try {
+        const response = await fetch(`/favorites/toggle/${productId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include'  // Важно для отправки кук
+        });
 
+        if (response.ok) {
+            const data = await response.json();
+            element.querySelector('.heart-icon').classList.toggle('active');
+        } else {
+            console.error('Ошибка при обновлении избранного:', response.status);
+            if (response.status === 401) {
+                showAuthModal();
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка сети:', error);
+    }
+}

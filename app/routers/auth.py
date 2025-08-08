@@ -9,10 +9,8 @@ from typing import Annotated
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 import jwt
-import httpx
 
 from app.models.users import User
-from app.schemas import CreateUser
 from app.backend.db_depends import get_db
 from app.config import Config
 
@@ -253,11 +251,12 @@ async def login(request: Request,
             key="token",
             value=token,
             httponly=True,
-            max_age=1200,
-            secure=True,  # Для HTTPS
+            max_age=3600,
+            secure=False,
             samesite='lax',
             path='/'
         )
+
         return response
 
     except HTTPException as e:
@@ -287,8 +286,3 @@ async def get_current_user_from_cookie(request: Request):
             detail="Not authenticated"
         )
     return await get_current_user(token.replace("Bearer", ""))
-
-
-@router.get('/favorites', response_class=HTMLResponse)
-async def favorites_page(request: Request):
-    return {"message": "It`s favorites"}

@@ -1,16 +1,16 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Request
-from typing import Annotated, List
+from typing import Optional
+import jwt
+from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
 from fastapi.templating import Jinja2Templates
 
 from app.routers.auth import get_current_user
 from app.backend.db_depends import get_db
 from app.models.favorites import Favorites
 from app.models.users import User
-from app.models.products import Product
+from app.routers.auth import SECRET_KEY, ALGORITHM
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 templates = Jinja2Templates(directory="app/templates")
@@ -18,27 +18,26 @@ templates = Jinja2Templates(directory="app/templates")
 
 @router.get('/')
 async def get_favorites(
+        user_id: int,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(get_current_user)
 ):
     result = await db.execute(
         select(Favorites)
-        .where(Favorites.user_id == current_user['id'])
+        .where(Favorites.user_id == user_id)
     )
 
     favorites = result.scalars().all()
     return favorites
 
-
 @router.post('/', status_code=status.HTTP_201_CREATED)
 async def create_favorites(
         product_id: int,
-        current_user: User = Depends(get_current_user),
+        user_id: int,
         db: AsyncSession = Depends(get_db)
 ):
     try:
         new_favorite = Favorites(
-            user_id=current_user['id'],
+            user_id=user_id,
             product_id=product_id
         )
 
@@ -62,12 +61,12 @@ async def create_favorites(
 
 @router.delete('/', status_code=status.HTTP_204_NO_CONTENT)
 async def del_favorite_product(product_id: int,
-                               current_user: User = Depends(get_current_user),
+                               user_id: int,
                                db: AsyncSession = Depends(get_db)):
     try:
         stmt = (
             delete(Favorites).where(
-                Favorites.user_id == current_user['id'],
+                Favorites.user_id == user_id,
                 Favorites.product_id == product_id,
             )
         )
@@ -87,3 +86,32 @@ async def del_favorite_product(product_id: int,
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f'Ошибка при удалении из избранного: {str(e)}'
         )
+
+
+@router.post('/toggle/{product_id}')
+async def toggle_favorite(
+        request: Request,
+        product_id: int,
+        token: Optional[str] = Cookie(None, alias='token'),
+        db: AsyncSession = Depends(get_db)
+):
+
+    print(f'Request: {request.json()}')
+    print(f'Token: {token}')
+
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    user_id = payload.get("id")
+    print(f'user_id: {user_id}')
+    existing_favorite = await db.execute(
+        select(Favorites)
+        .where(
+            Favorites.user_id == user_id,
+            Favorites.product_id == product_id
+        )
+    )
+    existing_favorite = existing_favorite.scalar_one_or_none()
+
+    if existing_favorite:
+        await del_favorite_product(product_id, user_id, db)
+    else:
+        await create_favorites(product_id, user_id, db)

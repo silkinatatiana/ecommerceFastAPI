@@ -2,7 +2,7 @@ import asyncio
 import logging
 import httpx
 import jwt
-from fastapi import FastAPI, Request, HTTPException, Query, Depends, Cookie
+from fastapi import FastAPI, Request, HTTPException, Query, Depends, Cookie, Response
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -12,6 +12,8 @@ from loguru import logger
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional, Annotated
 
+from starlette.middleware.cors import CORSMiddleware
+
 from app.routers import category, products, auth, permission, reviews, favorites
 from app.backend.db_depends import get_db
 from app.backend.db import Base, engine
@@ -20,6 +22,7 @@ from app.models import *
 from app.routers.auth import SECRET_KEY, ALGORITHM
 
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -50,6 +53,15 @@ app.include_router(permission.router)
 app.include_router(category.router)
 app.include_router(reviews.router)
 app.include_router(favorites.router)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['http://127.0.0.1:8000'],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 shop_info = {
     'shop_name': 'PEAR',
@@ -113,27 +125,35 @@ async def get_main_page(
         token: Optional[str] = Cookie(None, alias='token'),
         category_id: Optional[str] = Query(None),
         colors: Optional[str] = Query(None),
-        built_in_memory: Optional[str] = Query(None)
+        built_in_memory: Optional[str] = Query(None),
+        is_favorite: bool = Query(False),
 ):
     is_authenticated = False
     user_id = None
+    favorite_product_ids = []
 
     if token:
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             is_authenticated = True
-            user_id = payload.get("user_id")
+            user_id = payload.get("id")
+
+            if is_authenticated:
+                favorite_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
+                favorite_result = await db.execute(favorite_query)
+                favorite_product_ids = favorite_result.scalars().all()
         except Exception as e:
             print(f"Ошибка декодирования токена: {e}")
 
-    # Запросы к API каталога
     try:
         products_url = f"{Config.url}/products/"
         params = {
-            "user_id": user_id,  # Передаем ID пользователя (если есть)
+            "user_id": user_id,
             **({"category_id": category_id} if category_id else {}),
             **({"colors": colors} if colors else {}),
-            **({"built_in_memory": built_in_memory} if built_in_memory else {})
+            **({"built_in_memory": built_in_memory} if built_in_memory else {}),
+            **({"product_ids": ",".join(map(str, favorite_product_ids))}
+               if is_favorite and is_authenticated else {})
         }
 
         async with httpx.AsyncClient() as client:
@@ -149,11 +169,9 @@ async def get_main_page(
     except Exception as e:
         raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}")
 
-    # Обработка данных
     categories_data = categories.json()
     products_data = products.json()
 
-    # Фильтрация и обработка товаров
     categories_products = {}
     selected_category_ids = [int(cid) for cid in category_id.split(',')] if category_id else []
 
@@ -211,8 +229,10 @@ async def get_main_page(
             "current_categories": selected_category_ids,
             "filters": filters,
             "has_products": any(c["products"] for c in categories_products.values()),
+            "is_favorite": is_favorite,
             "is_authenticated": is_authenticated,
-            "user_id": user_id
+            "user_id": user_id,
+            "favorite_product_ids": favorite_product_ids
         }
     )
 
