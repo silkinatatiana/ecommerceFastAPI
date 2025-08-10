@@ -256,7 +256,7 @@ async def login(request: Request,
             samesite='lax',
             path='/'
         )
-
+        print(f"Выдан токен: {token}")
         return response
 
     except HTTPException as e:

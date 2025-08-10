@@ -12,7 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initReviewGalleries();
 });
 
-// Галерея товара
 function initGallery() {
     const thumbnails = document.querySelectorAll('.thumbnail');
     productImages = Array.from(thumbnails).map(thumb => thumb.src);
@@ -216,7 +215,7 @@ function closeFullscreenReviewImage() {
 function initReviewForm() {
     const reviewForm = document.getElementById('reviewForm');
     const newReviewForm = document.getElementById('newReviewForm');
-    
+
     if (newReviewForm) {
         newReviewForm.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -270,10 +269,10 @@ function removeImageUrlField(button) {
 async function submitReview() {
     const form = document.getElementById('newReviewForm');
     if (!form) return;
-    
+
     const formData = new FormData(form);
     const productId = window.location.pathname.split('/').pop();
-    
+
     try {
         const response = await fetch(`/reviews/create_by/${productId}`, {
             method: 'POST',
@@ -285,7 +284,7 @@ async function submitReview() {
                 photo_urls: Array.from(formData.getAll('photo_urls')).filter(url => url.trim() !== '')
             })
         });
-        
+
         if (response.ok) {
             alert('Отзыв успешно добавлен!');
             location.reload();
@@ -342,26 +341,66 @@ function toggleSpecs() {
 }
 
 async function toggleFavorite(button, productId) {
-    const isFavorite = button.classList.contains('active');
-    const url = '/favorites';
-    const method = isFavorite ? 'DELETE' : 'POST';
+    console.log('[DEBUG] Начало toggleFavorite', {
+        button: button,
+        productId: productId,
+        currentState: button.classList.contains('active') ? 'active' : 'inactive'
+    });
 
     try {
+        const url = `/favorites/toggle/${productId}`;
+        console.log('[DEBUG] Подготовка запроса:', { url });
+
         const response = await fetch(url, {
-            method: method,
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-Token': 'YOUR_CSRF_TOKEN_HERE' // если используете CSRF защиту
             },
-            body: JSON.stringify({ product_id: productId })
+            credentials: 'include'
+        });
+
+        console.log('[DEBUG] Получен ответ:', {
+            status: response.status,
+            ok: response.ok,
+            headers: [...response.headers.entries()]
         });
 
         if (response.ok) {
-            button.classList.toggle('active');
+            const result = await response.json();
+            console.log('[DEBUG] Успешный ответ:', result);
+
+            // Обновляем состояние кнопки
+            const newState = !button.classList.contains('active');
+            button.classList.toggle('active', newState);
+
+            console.log('[DEBUG] Новое состояние кнопки:',
+                newState ? 'active (в избранном)' : 'inactive (не в избранном)');
+
+            // Анимация
+            button.style.transform = 'scale(1.2)';
+            setTimeout(() => {
+                button.style.transform = 'scale(1)';
+            }, 300);
+
+            // Обновляем подсказку
+            button.title = newState ? 'Удалить из избранного' : 'Добавить в избранное';
+            console.log('[DEBUG] Обновлен title кнопки:', button.title);
         } else {
-            console.error('Ошибка при обновлении избранного');
+            const error = await response.json().catch(e => ({ detail: 'Не удалось разобрать ответ' }));
+            console.error('[DEBUG] Ошибка ответа:', {
+                status: response.status,
+                error: error
+            });
+            alert(error.detail || `Ошибка: ${response.status}`);
         }
     } catch (error) {
-        console.error('Ошибка сети:', error);
+        console.error('[DEBUG] Ошибка выполнения запроса:', {
+            error: error,
+            message: error.message,
+            stack: error.stack
+        });
+        alert('Ошибка соединения с сервером. Проверьте консоль для подробностей.');
+    } finally {
+        console.log('[DEBUG] Завершение toggleFavorite');
     }
 }

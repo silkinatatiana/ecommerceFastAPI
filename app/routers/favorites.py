@@ -95,13 +95,8 @@ async def toggle_favorite(
         token: Optional[str] = Cookie(None, alias='token'),
         db: AsyncSession = Depends(get_db)
 ):
-
-    print(f'Request: {request.json()}')
-    print(f'Token: {token}')
-
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     user_id = payload.get("id")
-    print(f'user_id: {user_id}')
     existing_favorite = await db.execute(
         select(Favorites)
         .where(

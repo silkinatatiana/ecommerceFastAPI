@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Request, Query
+import jwt
+from fastapi import APIRouter, Depends, status, HTTPException, Request, Query, Cookie
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from typing import Annotated, Optional, List
@@ -138,7 +139,33 @@ async def product_detail_page(
         request: Request,
         product_id: int,
         db: AsyncSession = Depends(get_db),
+        token: Optional[str] = Cookie(default=None, alias="token")
 ):
+    current_user = None
+    is_authenticated = False
+    is_favorite = False
+
+    if token and token != "None" and token != "undefined":
+        try:
+            current_user = await get_current_user(token)
+            is_authenticated = True
+
+            favorite = await db.scalar(
+                select(Favorites).where(
+                    Favorites.user_id == current_user['id'],
+                    Favorites.product_id == product_id
+                )
+            )
+            is_favorite = favorite is not None
+            print(f"Favorite status: {is_favorite}")
+
+        except jwt.ExpiredSignatureError:
+            print("Токен истёк")
+        except jwt.InvalidTokenError as e:
+            print(f"Невалидный токен: {e}")
+        except Exception as e:
+            print(f"Ошибка при проверке авторизации: {e}")
+
     product = await db.scalar(
         select(Product)
         .options(joinedload(Product.category))
@@ -180,6 +207,7 @@ async def product_detail_page(
         "products/product.html",
         {
             "request": request,
+            "is_authenticated": is_authenticated,
             "product": {
                 "id": product.id,
                 "name": name,
@@ -196,7 +224,8 @@ async def product_detail_page(
                 "cpu": product.cpu,
                 "number_of_processor_cores": product.number_of_processor_cores,
                 "number_of_graphics_cores": product.number_of_graphics_cores,
-                "color": product.color
+                "color": product.color,
+                "is_favorite": is_favorite
             },
             "reviews": formatted_reviews,
             "review_count": review_count,
