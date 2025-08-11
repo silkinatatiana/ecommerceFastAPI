@@ -240,3 +240,10 @@ async def get_main_page(
         response.delete_cookie("token")
 
     return response
+
+#
+# if name == "__main__":
+#     uvicorn.run(app, host=API_HOST, port=API_PORT, reload=True)
+
+    # TODO  API_HOST = "ipconfig getifaddr en0" и API_PORT=8000 добавить в конфиг и импортировать сюда
+    # в config добавляем все переменные из .env

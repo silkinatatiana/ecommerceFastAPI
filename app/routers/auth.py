@@ -16,6 +16,7 @@ from app.config import Config
 
 SECRET_KEY = 'a7c3da68e483259507f3857aa85a9379e0cde15a7e4aebd846f957651c748628'
 ALGORITHM = 'HS256'
+# TODO перенести в config
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app/templates/')

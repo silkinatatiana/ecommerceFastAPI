@@ -6,10 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from fastapi.templating import Jinja2Templates
 
-from app.routers.auth import get_current_user
 from app.backend.db_depends import get_db
 from app.models.favorites import Favorites
-from app.models.users import User
 from app.routers.auth import SECRET_KEY, ALGORITHM
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
