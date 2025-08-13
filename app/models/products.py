@@ -26,6 +26,8 @@ class Product(Base):
     supplier_id = Column(Integer, ForeignKey(User.id))
     supplier = relationship("User", back_populates="products")
     reviews = relationship("Review", back_populates="product")
+    carts = relationship('Cart', back_populates='product')
+
 
     class Config:
         json_schema_extra = {

@@ -650,3 +650,87 @@ header {
 .view-all:hover {
   background-color: var(--primary-hover);
 }
+
+.cart-icon-container {
+    margin-left: auto;
+    margin-right: 20px;
+}
+
+.cart-icon {
+    display: block;
+    width: 32px;
+    height: 32px;
+}
+
+.cart-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transition: transform 0.2s;
+}
+
+.cart-icon:hover img {
+    transform: scale(1.1);
+}
+
+/* Стили для сообщения о пустой корзине */
+.empty-cart-message {
+    text-align: center;
+    padding: 2rem;
+    margin: 2rem 0;
+    background: #f9f9f9;
+    border-radius: 8px;
+}
+
+.empty-cart-message p {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: #666;
+}
+
+.browse-products {
+    display: inline-block;
+    padding: 0.8rem 1.5rem;
+    background: #4CAF50;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background 0.3s;
+}
+
+.browse-products:hover {
+    background: #3e8e41;
+}
+
+/* Стили для описания товара */
+.description {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0.5rem 0;
+}
+
+/* Стили для суммы по товару */
+.item-total {
+    font-weight: bold;
+    margin-top: 0.5rem;
+    color: #333;
+}
+
+/* Стили для строк итоговой суммы */
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.summary-row .total-price {
+    font-weight: bold;
+    color: #d32f2f;
+}
+
+/* Стили для кнопки оформления заказа */
+.checkout-btn:disabled {
+    background: #9e9e9e;
+    cursor: not-allowed;
+}

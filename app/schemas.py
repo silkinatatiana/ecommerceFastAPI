@@ -81,15 +81,15 @@ class Cart(BaseModel):
     class Config:
         from_attributes = True
 
-# TODO проверить/ исправить
 
-# class Orders(BaseModel):
-#     id: int
-#     user_id: int
-#     products: dict
-#     summa: int
-#     date: datetime
-#     status: str
-#
-#     class Config:
-#         from_attributes = True
+
+class Orders(BaseModel):
+    id: int
+    user_id: int
+    products: dict
+    summa: int
+    date: datetime
+    status: str
+
+    class Config:
+        from_attributes = True

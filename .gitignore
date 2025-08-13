@@ -13,9 +13,7 @@ __pycache__/
 .venv/
 venv/
 
-# Environment variables
 .env
-*.env
 
 # Database
 *.sqlite

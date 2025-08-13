@@ -12,11 +12,9 @@ class User(Base):
     username = Column(String, unique=True)
     email = Column(String, unique=True)
     hashed_password = Column(String)
-    is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
-    is_supplier = Column(Boolean, default=False)
-    is_customer = Column(Boolean, default=True)
+    role = Column(String, default='customer')
 
     products = relationship("Product", back_populates="supplier")
     reviews = relationship("Review", back_populates="user")
-    # favorites = relationship("Favorites", back_populates="user")
+    cart = relationship('Cart', uselist=False, back_populates='user')

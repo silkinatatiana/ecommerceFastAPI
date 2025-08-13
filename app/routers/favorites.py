@@ -27,6 +27,7 @@ async def get_favorites(
     favorites = result.scalars().all()
     return favorites
 
+
 @router.post('/', status_code=status.HTTP_201_CREATED)
 async def create_favorites(
         product_id: int,
@@ -88,7 +89,6 @@ async def del_favorite_product(product_id: int,
 
 @router.post('/toggle/{product_id}')
 async def toggle_favorite(
-        request: Request,
         product_id: int,
         token: Optional[str] = Cookie(None, alias='token'),
         db: AsyncSession = Depends(get_db)

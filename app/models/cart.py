@@ -1,5 +1,7 @@
+from sqlalchemy.orm import relationship
+
 from app.backend.db import Base
-from sqlalchemy import Column, Integer, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, ForeignKey
 
 
 class Cart(Base):
@@ -10,6 +12,5 @@ class Cart(Base):
     product_id = Column(Integer, ForeignKey("products.id"))
     count = Column(Integer)
 
-    __table_args__ = (
-        UniqueConstraint('user_id', 'product_id', name='_user_product_uc'),
-    )
+    product = relationship('Product', back_populates='carts')
+    user = relationship('User', back_populates='cart')

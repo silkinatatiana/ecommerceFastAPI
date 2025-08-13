@@ -1,2 +1,19 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
 class Config:
-    url = 'http://127.0.0.1:8000'
+    url = os.getenv('URL')
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    ALGORITHM = os.getenv('ALGORITHM')
+
+
+class Statuses:
+    DESIGNED = 'Оформлен'
+    ON_ASSEMBLY = 'На сборке'
+    SENT = 'Отправлен'
+    DELIVERED = 'Доставлен'
+    COMPLETED = 'Завершен'
+    CANCELLED = 'Отменен'

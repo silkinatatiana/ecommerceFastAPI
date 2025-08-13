@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Корзина - {{ shop_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles/cart.css') }}?v=1.0">
+
+</head>
+<body>
+    <div class="cart-container">
+        <div class="cart-header">
+            <a href="{{ url_for('get_main_page') }}" class="back-to-catalog">← Вернуться в каталог</a>
+            <h1>Корзина</h1>
+        </div>
+
+        {% if not products %}
+            <div class="empty-cart-message">
+                <p>Корзина пуста</p>
+                <a href="{{ url_for('get_main_page') }}" class="browse-products">Перейти к покупкам</a>
+            </div>
+        {% else %}
+            <div class="cart-items">
+                {% for product in products %}
+                <div class="cart-item" data-product-id="{{ product.id }}">
+                    <a href="{{ url_for('product_detail_page', product_id=product.id) }}" class="product-link">
+                        <div class="product-image">
+                            {% if product.image_urls %}
+                            <img src="{{ product.image_urls[0] }}" alt="{{ product.name }}" loading="lazy">
+                            {% else %}
+                            <div class="no-image">Нет изображения</div>
+                            {% endif %}
+                        </div>
+                        <div class="product-info">
+                            <h3>{{ product.name }}</h3>
+                            <p class="description">{{ product.description | truncate(100) }}</p>
+                            <p class="price">{{ product.price }} ₽</p>
+
+                            <div class="quantity-control">
+                                <button class="quantity-btn minus"
+                                        onclick="event.stopPropagation(); updateQuantity({{ product.id }}, -1)">-</button>
+                                <span class="quantity">{{ product.count }}</span>
+                                <button class="quantity-btn plus"
+                                        onclick="event.stopPropagation(); updateQuantity({{ product.id }}, 1)">+</button>
+                            </div>
+
+                            <p class="item-total">Сумма: {{ product.price * product.count }} ₽</p>
+                        </div>
+                    </a>
+                    <div class="product-actions">
+                        <button class="remove-from-cart" title="Удалить из корзины"
+                                onclick="event.stopPropagation(); removeFromCart({{ product.id }})">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+                                <path d="M3 6h18"></path>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="cart-summary">
+                <div class="summary-row">
+                    <span>Товаров:</span>
+                    <span>{{ products | sum(attribute='count') }} шт.</span>
+                </div>
+                <div class="summary-row">
+                    <span>Общая сумма:</span>
+                    <span class="total-price">
+                        {{ products | sum(attribute='price_mult_count') }} ₽
+                    </span>
+                </div>
+                <button class="checkout-btn" >
+                    Оформить заказ
+                </button>
+            </div>
+        {% endif %}
+    </div>
+<script src="{{ url_for('static', path='/js/cart.js') }}?v=1.0"></script>
+</body>
+</html>

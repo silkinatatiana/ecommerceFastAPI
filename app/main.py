@@ -14,12 +14,11 @@ from typing import AsyncGenerator, Optional, Annotated
 
 from starlette.middleware.cors import CORSMiddleware
 
-from app.routers import category, products, auth, permission, reviews, favorites
+from app.routers import category, products, auth, permission, reviews, favorites, cart, orders
 from app.backend.db_depends import get_db
 from app.backend.db import Base, engine
-from app.config import Config
 from app.models import *
-from app.routers.auth import SECRET_KEY, ALGORITHM
+from app.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +52,8 @@ app.include_router(permission.router)
 app.include_router(category.router)
 app.include_router(reviews.router)
 app.include_router(favorites.router)
+app.include_router(cart.router)
+app.include_router(orders.router)
 
 
 app.add_middleware(
@@ -131,12 +132,14 @@ async def get_main_page(
     is_authenticated = False
     user_id = None
     favorite_product_ids = []
+    role = None
 
     if token:
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
             is_authenticated = True
             user_id = payload.get("id")
+            role = payload.get("role")
 
             if is_authenticated:
                 favorite_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
@@ -232,7 +235,8 @@ async def get_main_page(
             "is_favorite": is_favorite,
             "is_authenticated": is_authenticated,
             "user_id": user_id,
-            "favorite_product_ids": favorite_product_ids
+            "favorite_product_ids": favorite_product_ids,
+            "role": role
         }
     )
 

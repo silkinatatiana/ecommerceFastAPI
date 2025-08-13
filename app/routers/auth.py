@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Form, status, Cookie
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy import select, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,9 +14,8 @@ from app.models.users import User
 from app.backend.db_depends import get_db
 from app.config import Config
 
-SECRET_KEY = 'a7c3da68e483259507f3857aa85a9379e0cde15a7e4aebd846f957651c748628'
-ALGORITHM = 'HS256'
-# TODO перенести в config
+SECRET_KEY = Config.SECRET_KEY
+ALGORITHM = Config.ALGORITHM
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app/templates/')
@@ -24,14 +23,13 @@ bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
 
 
-async def create_access_token(username: str, user_id: int, is_admin: bool, is_supplier: bool, is_customer: bool,
+async def create_access_token(username: str, user_id: int, is_admin: bool, role: str,
                               expires_delta: timedelta):
     payload = {
         'sub': username,
         'id': user_id,
         'is_admin': is_admin,
-        'is_supplier': is_supplier,
-        'is_customer': is_customer,
+        'role': role,
         'exp': datetime.now(timezone.utc) + expires_delta
     }
 
@@ -45,8 +43,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         username: str | None = payload.get('sub')
         user_id: int | None = payload.get('id')
         is_admin: bool | None = payload.get('is_admin')
-        is_supplier: bool | None = payload.get('is_supplier')
-        is_customer: bool | None = payload.get('is_customer')
+        role: str = payload.get('role')
         expire: int | None = payload.get('exp')
 
         if username is None or user_id is None:
@@ -78,8 +75,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
             'username': username,
             'id': user_id,
             'is_admin': is_admin,
-            'is_supplier': is_supplier,
-            'is_customer': is_customer,
+            'role': role
         }
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -103,8 +99,8 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
                 form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     user = await authenticate_user(db, form_data.username, form_data.password)
 
-    token = await create_access_token(user.username, user.id, user.is_admin, user.is_supplier, user.is_customer,
-                                      expires_delta=timedelta(minutes=20))
+    token = await create_access_token(user.username, user.id, user.is_admin, user.role,
+                                      expires_delta=timedelta(minutes=20)) # TODO исправить - минуты вынести в config
     return {
         'access_token': token,
         'token_type': 'bearer'
@@ -131,7 +127,6 @@ async def personal_account(
         db: AsyncSession = Depends(get_db)
 ):
     try:
-        print(token)
         if not token:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -187,12 +182,8 @@ def create_auth_form(request: Request):
     )
 
 
-from fastapi.responses import JSONResponse
-
-
 @router.post('/register')
 async def register(
-        request: Request,
         db: AsyncSession = Depends(get_db),
         first_name: str = Form(...),
         last_name: str = Form(...),
@@ -242,8 +233,7 @@ async def login(request: Request,
             user.username,
             user.id,
             user.is_admin,
-            user.is_supplier,
-            user.is_customer,
+            user.role,
             timedelta(minutes=20)
         )
 
