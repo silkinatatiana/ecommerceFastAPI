@@ -73,6 +73,11 @@
                         {{ products | sum(attribute='price_mult_count') }} ₽
                     </span>
                 </div>
+                {% if products %}
+                <button class="clear-cart-btn" onclick="clearCart()">
+                    Очистить корзину
+                </button>
+                {% endif %}
                 <button class="checkout-btn" >
                     Оформить заказ
                 </button>

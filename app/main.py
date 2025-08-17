@@ -2,7 +2,7 @@ import asyncio
 import logging
 import httpx
 import jwt
-from fastapi import FastAPI, Request, HTTPException, Query, Depends, Cookie, Response
+from fastapi import FastAPI, Request, HTTPException, Query, Depends, Cookie
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -19,6 +19,7 @@ from app.backend.db_depends import get_db
 from app.backend.db import Base, engine
 from app.models import *
 from app.config import Config
+
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,6 @@ app.include_router(reviews.router)
 app.include_router(favorites.router)
 app.include_router(cart.router)
 app.include_router(orders.router)
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -245,9 +245,11 @@ async def get_main_page(
 
     return response
 
-#
-# if name == "__main__":
-#     uvicorn.run(app, host=API_HOST, port=API_PORT, reload=True)
 
-    # TODO  API_HOST = "ipconfig getifaddr en0" и API_PORT=8000 добавить в конфиг и импортировать сюда
-    # в config добавляем все переменные из .env
+# if __name__ == "__main__":
+#     uvicorn.run(
+#         app,
+#         host=Config.API_HOST,
+#         port=Config.API_PORT,
+#         reload=True
+#     )

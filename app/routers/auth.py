@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Request, Form, status, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Cookie
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy import select, insert
 from sqlalchemy.ext.asyncio import AsyncSession
+import jwt
+from jwt import PyJWTError, ExpiredSignatureError, decode
+
 
 from typing import Annotated
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
-import jwt
 
 from app.models.users import User
 from app.backend.db_depends import get_db
@@ -37,56 +39,40 @@ async def create_access_token(username: str, user_id: int, is_admin: bool, role:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str | None = payload.get('sub')
-        user_id: int | None = payload.get('id')
-        is_admin: bool | None = payload.get('is_admin')
-        role: str = payload.get('role')
-        expire: int | None = payload.get('exp')
+        payload = decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
+        username: str = payload.get("sub")
+        user_id: int = payload.get("id")
         if username is None or user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Could not validate user'
-            )
-        if expire is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No access token supplied"
-            )
+            raise credentials_exception
 
-        if not isinstance(expire, int):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid token format"
-            )
-
-        current_time = datetime.now(timezone.utc).timestamp()
-
-        if expire < current_time:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token expired!"
-            )
+        expire = payload.get("exp")
+        if expire is None or datetime.utcnow() > datetime.utcfromtimestamp(expire):
+            raise credentials_exception
 
         return {
-            'username': username,
-            'id': user_id,
-            'is_admin': is_admin,
-            'role': role
+            "username": username,
+            "id": user_id,
+            "is_admin": payload.get("is_admin", False),
+            "role": payload.get("role", "user")
         }
-    except jwt.ExpiredSignatureError:
+
+    except ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired!"
+            detail="Token expired",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.exceptions:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Could not validate user'
-        )
+    except PyJWTError:
+        raise credentials_exception
 
 
 @router.get('/read_current_user')
@@ -100,7 +86,7 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
     user = await authenticate_user(db, form_data.username, form_data.password)
 
     token = await create_access_token(user.username, user.id, user.is_admin, user.role,
-                                      expires_delta=timedelta(minutes=20)) # TODO исправить - минуты вынести в config
+                                      expires_delta=timedelta(minutes=Config.minutes))
     return {
         'access_token': token,
         'token_type': 'bearer'
@@ -247,7 +233,6 @@ async def login(request: Request,
             samesite='lax',
             path='/'
         )
-        print(f"Выдан токен: {token}")
         return response
 
     except HTTPException as e:
@@ -277,3 +262,10 @@ async def get_current_user_from_cookie(request: Request):
             detail="Not authenticated"
         )
     return await get_current_user(token.replace("Bearer", ""))
+
+
+def get_user_id_by_token(token: str):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    user_id = payload.get("id")
+    print("get_user_id_by_token function")
+    return user_id

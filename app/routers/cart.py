@@ -4,18 +4,18 @@ from typing import Optional, List
 import httpx
 import jwt
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi.templating import Jinja2Templates
-from starlette.responses import HTMLResponse
+from starlette.responses import HTMLResponse, Response, JSONResponse
 
 from app.backend.db_depends import get_db
 from app.config import Config
 from app.models import Product
 from app.models.cart import Cart
 from app.models.users import User
-from app.schemas import Cart as cart_schema
+from app.routers.auth import get_user_id_by_token, get_current_user
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 templates = Jinja2Templates(directory="app/templates")
@@ -46,33 +46,49 @@ async def get_cart_by_user(user_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post('/add', status_code=status.HTTP_201_CREATED)
-async def add_product_to_cart(product_id: int,
-                              user_id: int,
-                              count: int,
-                              db: AsyncSession = Depends(get_db)):
+async def add_product_to_cart(
+        product_id: int,
+        count: int = 1,
+        db: AsyncSession = Depends(get_db),
+        current_user: dict = Depends(get_current_user)
+):
     try:
-        product = await db.scalar(select(Cart).where(Cart.user_id == user_id).where(Cart.product_id == product_id))
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Не авторизован")
 
-        if product:
-            result = update_count_cart(product_id=product_id,
-                                       user_id=user_id,
-                                       count=count,
-                                       db=db)
-            return result
+        user_id = current_user.get('id')
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Неверные данные пользователя")
 
-        result = Cart(user_id=user_id,
-                      product_id=product_id,
-                      count=count)
-        db.add(result)
+        product = await db.get(Product, product_id)
+        if not product:
+            raise HTTPException(status_code=404, detail="Товар не найден")
+
+        cart_item = await db.execute(
+            select(Cart)
+            .where(Cart.user_id == user_id)
+            .where(Cart.product_id == product_id)
+        )
+        cart_item = cart_item.scalar_one_or_none()
+
+        if cart_item:
+            cart_item.count += count
+        else:
+            cart_item = Cart(
+                user_id=user_id,
+                product_id=product_id,
+                count=count
+            )
+            db.add(cart_item)
+
         await db.commit()
-        await db.refresh(result)
+        return {"message": "Товар добавлен в корзину"}
 
+    except HTTPException:
+        raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Ошибка при добавлении в корзину: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.patch('/update')
@@ -118,9 +134,7 @@ async def delete_product_from_cart(product_id: int,
                                    token: Optional[str] = Cookie(None, alias='token'),
                                    db: AsyncSession = Depends(get_db)):
     try:
-
-        payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
-        user_id = payload.get("id")
+        user_id = get_user_id_by_token(token)
 
         cart_item = await db.scalar(
             select(Cart)
@@ -144,23 +158,35 @@ async def delete_product_from_cart(product_id: int,
 
 
 @router.delete('/clear', status_code=status.HTTP_204_NO_CONTENT)
-async def clear_cart(user_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Cart).where(Cart.user_id == user_id))
-    products_for_clear = result.scalars().all()
+async def clear_cart(token: Optional[str] = Cookie(None, alias='token'),
+                     db: AsyncSession = Depends(get_db)):
+    print("clear_cart function")
+    try:
+        user_id = get_user_id_by_token(token)
+        print(f"user_id: {user_id}")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Токен неверный или отсутствует'
+            )
 
-    if not products_for_clear:
-        return {'message': 'Корзина пуста'}
+        result = await db.execute(delete(Cart).where(Cart.user_id == user_id))
+        if result.rowcount == 0:
+            return {'message': 'Корзина пуста'}
+        await db.commit()
 
-    for product in products_for_clear:  # TODO удалить все разом а не в цикле (воспользоваться методом получения всех товаров из корзины и по ним все удалить одной командой)
-        await db.delete(product)
+    except Exception:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to clear cart"
+        )
 
-    await db.commit()
-    return None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get('/', response_class=HTMLResponse)
 async def get_cart_html(request: Request,
-                        db: AsyncSession = Depends(get_db),
                         token: Optional[str] = Cookie(default=None, alias='token')):
     is_authenticated = False
     cart_products = []

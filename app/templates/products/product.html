@@ -8,8 +8,40 @@
 </head>
 <body>
     <header>
-        <h1>{{ shop_name }}</h1>
-        <p>{{ descr }}</p>
+        <div class="header-container">
+            <div class="header-text">
+                <h1>{{ shop_name }}</h1>
+                <p>{{ descr }}</p>
+            </div>
+            <div class="cart-icon-container">
+                {% if is_authenticated %}
+                <a href="{{ url_for('get_cart_html') }}" class="cart-icon">
+                    <img src="{{ url_for('static', path='/images/cart.png') }}"
+                         alt="Корзина"
+                         title="Корзина">
+                </a>
+                {% endif %}
+            </div>
+            <div class="user-icon-container">
+                {% if is_authenticated %}
+                    <div class="user-icon" id="userIcon">
+                        <img src="{{ url_for('static', path='/images/user_auth.png') }}"
+                             alt="Меню пользователя"
+                             title="Меню пользователя">
+                        <div class="user-dropdown" id="userDropdown">
+                            <a href="{{ url_for('personal_account') }}">Профиль</a>
+                            <a href="{{ url_for('logout') }}" class="logout">Выйти</a>
+                        </div>
+                    </div>
+                {% else %}
+                    <a href="{{ url_for('create_auth_form') }}" class="user-icon">
+                        <img src="{{ url_for('static', path='/images/user.png') }}"
+                             alt="Войти"
+                             title="Войти">
+                    </a>
+                {% endif %}
+            </div>
+        </div>
     </header>
 
     <nav>
@@ -83,8 +115,8 @@
                 </div>
 
                 <div class="product-actions">
-                    <button class="btn btn-primary">Добавить в корзину</button>
                     {% if is_authenticated %}
+                        <button class="btn btn-primary" onclick="addToCart('{{ product.id }}')">Добавить в корзину</button>
                         <button class="btn-favorite {% if is_favorite %}active{% endif %}"
                                 onclick="toggleFavorite(this, '{{ product.id }}')">
                             <svg viewBox="0 0 24 24" class="heart-icon">
@@ -92,7 +124,12 @@
                             </svg>
                         </button>
                     {% else %}
-                        <button class="btn-favorite" disabled title="Войдите, чтобы добавить в избранное">
+                        <button class="btn btn-primary"
+                                onclick="showLoginPrompt('Для добавления товаров в корзину необходимо войти в систему')">
+                            Добавить в корзину
+                        </button>
+                        <button class="btn-favorite"
+                                onclick="showLoginPrompt('Для добавления товаров в избранное необходимо войти в систему')">
                             <svg viewBox="0 0 24 24" class="heart-icon">
                                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                             </svg>

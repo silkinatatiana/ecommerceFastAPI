@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initReviewForm();
     initReviewsSection();
     initReviewGalleries();
+    initUserDropdown();
 });
 
 function initGallery() {
@@ -59,7 +60,26 @@ function initGallery() {
     });
 }
 
-// Управление основной галереей
+function initUserDropdown() {
+    const userIcon = document.getElementById('userIcon');
+    const userDropdown = document.getElementById('userDropdown');
+
+    if (userIcon && userDropdown) {
+        userIcon.addEventListener('click', function(e) {
+            e.stopPropagation();
+            userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
+        });
+
+        document.addEventListener('click', function() {
+            userDropdown.style.display = 'none';
+        });
+
+        userDropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+}
+
 function changeMainImage(thumbnail, index) {
     const mainImage = document.getElementById('mainProductImage');
     if (mainImage) {
@@ -402,5 +422,59 @@ async function toggleFavorite(button, productId) {
         alert('Ошибка соединения с сервером. Проверьте консоль для подробностей.');
     } finally {
         console.log('[DEBUG] Завершение toggleFavorite');
+    }
+}
+
+async function addToCart(productId, count = 1) {
+    try {
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            const loginConfirmed = confirm('Для добавления товаров в корзину необходимо войти в систему. Перейти на страницу входа?');
+            if (loginConfirmed) {
+                window.location.href = '/auth/create';
+            }
+            return;
+        }
+
+        const response = await fetch('/cart/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                product_id: productId,
+                count: count
+            })
+        });
+
+        if (response.status === 401) {
+            localStorage.removeItem('token');
+            const loginConfirmed = confirm('Сессия истекла. Войдите снова.');
+            if (loginConfirmed) {
+                window.location.href = '/login';
+            }
+            return;
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Ошибка при добавлении в корзину');
+        }
+
+        const result = await response.json();
+        alert(result.message || 'Товар успешно добавлен в корзину!');
+
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert(error.message || 'Произошла ошибка при добавлении в корзину');
+    }
+}
+
+function showLoginPrompt(message) {
+    const loginConfirmed = confirm(`${message}. Перейти на страницу входа?`);
+    if (loginConfirmed) {
+        window.location.href = '/auth/create';
     }
 }

@@ -157,7 +157,6 @@ async def product_detail_page(
                 )
             )
             is_favorite = favorite is not None
-            print(f"Favorite status: {is_favorite}")
 
         except jwt.ExpiredSignatureError:
             print("Токен истёк")
