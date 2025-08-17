@@ -141,9 +141,9 @@ async def product_detail_page(
         db: AsyncSession = Depends(get_db),
         token: Optional[str] = Cookie(default=None, alias="token")
 ):
-    current_user = None
     is_authenticated = False
     is_favorite = False
+    in_cart = False
 
     if token and token != "None" and token != "undefined":
         try:
@@ -157,6 +157,14 @@ async def product_detail_page(
                 )
             )
             is_favorite = favorite is not None
+
+            cart = await db.scalar(
+                select(Cart).where(
+                    Cart.user_id == current_user['id'],
+                    Cart.product_id == product_id
+                )
+            )
+            in_cart = cart is not None
 
         except jwt.ExpiredSignatureError:
             print("Токен истёк")
@@ -224,7 +232,8 @@ async def product_detail_page(
                 "number_of_processor_cores": product.number_of_processor_cores,
                 "number_of_graphics_cores": product.number_of_graphics_cores,
                 "color": product.color,
-                "is_favorite": is_favorite
+                "is_favorite": is_favorite,
+                "in_cart": in_cart
             },
             "reviews": formatted_reviews,
             "review_count": review_count,

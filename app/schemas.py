@@ -82,6 +82,10 @@ class Cart(BaseModel):
         from_attributes = True
 
 
+class CartItem(BaseModel):
+    product_id: int
+    count: int = 1
+
 
 class Orders(BaseModel):
     id: int

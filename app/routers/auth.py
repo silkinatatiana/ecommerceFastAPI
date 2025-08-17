@@ -75,6 +75,32 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
 
 
+def get_user_id_by_token(token: str):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    user_id = payload.get("id")
+    return user_id
+
+
+async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], username: str, password: str):
+    user = await db.scalar(select(User).where(User.username == username))
+    if not user or not bcrypt_context.verify(password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+
+async def get_current_user_from_cookie(request: Request):
+    token = request.cookies.get("token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+    return await get_current_user(token.replace("Bearer", ""))
+
 @router.get('/read_current_user')
 async def read_current_user(user: dict = Depends(get_current_user)):
     return {'User': user}
@@ -144,17 +170,6 @@ async def personal_account(
     except HTTPException as e:
         response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
         return response
-
-
-async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], username: str, password: str):
-    user = await db.scalar(select(User).where(User.username == username))
-    if not user or not bcrypt_context.verify(password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
 
 
 @router.get("/create", response_class=HTMLResponse)
@@ -252,20 +267,3 @@ async def logout():
     response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
     response.delete_cookie("token")
     return response
-
-
-async def get_current_user_from_cookie(request: Request):
-    token = request.cookies.get("token")
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
-    return await get_current_user(token.replace("Bearer", ""))
-
-
-def get_user_id_by_token(token: str):
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    user_id = payload.get("id")
-    print("get_user_id_by_token function")
-    return user_id

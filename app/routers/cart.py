@@ -16,6 +16,7 @@ from app.models import Product
 from app.models.cart import Cart
 from app.models.users import User
 from app.routers.auth import get_user_id_by_token, get_current_user
+from app.schemas import CartItem
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 templates = Jinja2Templates(directory="app/templates")
@@ -47,37 +48,36 @@ async def get_cart_by_user(user_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post('/add', status_code=status.HTTP_201_CREATED)
 async def add_product_to_cart(
-        product_id: int,
-        count: int = 1,
+        cart_data: CartItem,
         db: AsyncSession = Depends(get_db),
-        current_user: dict = Depends(get_current_user)
+        token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
-        if not current_user:
+        if not token:
             raise HTTPException(status_code=401, detail="Не авторизован")
 
-        user_id = current_user.get('id')
+        user_id = get_user_id_by_token(token)
         if not user_id:
             raise HTTPException(status_code=400, detail="Неверные данные пользователя")
 
-        product = await db.get(Product, product_id)
+        product = await db.get(Product, cart_data.product_id)
         if not product:
             raise HTTPException(status_code=404, detail="Товар не найден")
 
         cart_item = await db.execute(
             select(Cart)
             .where(Cart.user_id == user_id)
-            .where(Cart.product_id == product_id)
+            .where(Cart.product_id == cart_data.product_id)
         )
         cart_item = cart_item.scalar_one_or_none()
 
         if cart_item:
-            cart_item.count += count
+            cart_item.count += cart_data.count
         else:
             cart_item = Cart(
                 user_id=user_id,
-                product_id=product_id,
-                count=count
+                product_id=cart_data.product_id,
+                count=cart_data.count
             )
             db.add(cart_item)
 
@@ -157,32 +157,35 @@ async def delete_product_from_cart(product_id: int,
         )
 
 
-@router.delete('/clear', status_code=status.HTTP_204_NO_CONTENT)
-async def clear_cart(token: Optional[str] = Cookie(None, alias='token'),
-                     db: AsyncSession = Depends(get_db)):
-    print("clear_cart function")
+@router.post('/clear') # TODO переписать вместе на delete(422)
+async def clear_cart(
+    token: Optional[str] = Cookie(None, alias='token'),
+    db: AsyncSession = Depends(get_db)
+):
     try:
         user_id = get_user_id_by_token(token)
-        print(f"user_id: {user_id}")
         if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Токен неверный или отсутствует'
+                detail="Необходимо авторизоваться"
             )
 
-        result = await db.execute(delete(Cart).where(Cart.user_id == user_id))
-        if result.rowcount == 0:
-            return {'message': 'Корзина пуста'}
+        result = await db.execute(
+            delete(Cart).where(Cart.user_id == user_id)
+        )
         await db.commit()
 
-    except Exception:
+        if result.rowcount == 0:
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    except Exception as e:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to clear cart"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ошибка при очистке корзины: {str(e)}"
         )
-
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get('/', response_class=HTMLResponse)
@@ -231,3 +234,8 @@ async def get_cart_html(request: Request,
             "descr": "Интернет-магазин электроники"
         }
     )
+
+
+# TODO доделать счетчик, при  нуле удалять товар из корзины.
+# при оформлении заказа добавлять запись в таблицу orders и удалять из таблицы Cart и уменьшать Products.stok
+# при успешном оформлении заказа перенаправлять на вкладку этого заказа ( отдельная html страница)

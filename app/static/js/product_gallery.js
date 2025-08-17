@@ -427,25 +427,16 @@ async function toggleFavorite(button, productId) {
 
 async function addToCart(productId, count = 1) {
     try {
-        const token = localStorage.getItem('token');
-
-        if (!token) {
-            const loginConfirmed = confirm('Для добавления товаров в корзину необходимо войти в систему. Перейти на страницу входа?');
-            if (loginConfirmed) {
-                window.location.href = '/auth/create';
-            }
-            return;
-        }
-
         const response = await fetch('/cart/add', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'X-Requested-With': 'XMLHttpRequest'
             },
+            credentials: 'include',
             body: JSON.stringify({
-                product_id: productId,
-                count: count
+                product_id: parseInt(productId),
+                count: parseInt(count)
             })
         });
 
@@ -464,7 +455,8 @@ async function addToCart(productId, count = 1) {
         }
 
         const result = await response.json();
-        alert(result.message || 'Товар успешно добавлен в корзину!');
+//        alert(result.message || 'Товар успешно добавлен в корзину!');
+        location.reload();
 
     } catch (error) {
         console.error('Ошибка:', error);
