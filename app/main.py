@@ -20,7 +20,6 @@ from app.backend.db import Base, engine
 from app.models import *
 from app.config import Config
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -132,6 +131,7 @@ async def get_main_page(
     is_authenticated = False
     user_id = None
     favorite_product_ids = []
+    in_cart_product_ids = []
     role = None
 
     if token:
@@ -145,6 +145,11 @@ async def get_main_page(
                 favorite_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
                 favorite_result = await db.execute(favorite_query)
                 favorite_product_ids = favorite_result.scalars().all()
+
+                cart_query = select(Cart.product_id).where(Cart.user_id == user_id)
+                cart_result = await db.execute(cart_query)
+                in_cart_product_ids = cart_result.scalars().all()
+
         except Exception as e:
             print(f"Ошибка декодирования токена: {e}")
 
@@ -236,6 +241,7 @@ async def get_main_page(
             "is_authenticated": is_authenticated,
             "user_id": user_id,
             "favorite_product_ids": favorite_product_ids,
+            "in_cart_product_ids": in_cart_product_ids,
             "role": role
         }
     )
@@ -244,7 +250,6 @@ async def get_main_page(
         response.delete_cookie("token")
 
     return response
-
 
 # if __name__ == "__main__":
 #     uvicorn.run(
