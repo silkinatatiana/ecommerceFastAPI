@@ -335,13 +335,11 @@ function selectReviewImage(thumbnail, imageUrl) {
   }
 }
 
-// Используем существующую функцию openFullscreen для отзывов
 function openReviewFullscreen(imgElement) {
   const gallery = imgElement.closest('.review-gallery');
   const images = Array.from(gallery.querySelectorAll('.review-image-thumbnail')).map(img => img.src);
   const currentIndex = images.indexOf(imgElement.src);
   
-  // Устанавливаем текущее изображение и открываем полноэкранный режим
   document.getElementById('fullscreenImage').src = imgElement.src;
   currentImageIndex = currentIndex;
   productImages = images; // Используем существующую переменную
@@ -470,3 +468,27 @@ function showLoginPrompt(message) {
         window.location.href = '/auth/create';
     }
 }
+
+async function removeFromCart(productId) {
+        if (!confirm('Вы уверены, что хотите удалить товар из корзины?')) return;
+        console.log(productId)
+        try {
+            const response = await fetch(`/cart/${productId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                location.reload();
+            } else {
+                const error = await response.json();
+                alert(error.detail || 'Не удалось удалить товар из корзины');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Произошла ошибка при удалении товара');
+        }
+    }
