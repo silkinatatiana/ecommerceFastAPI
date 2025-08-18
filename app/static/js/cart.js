@@ -1,5 +1,4 @@
 async function updateCart(productId, isAdd, count = 1) {
-    console.log(productId, typeof productId, parseInt(productId));
     try {
         const response = await fetch('/cart/update', {
             method: 'PATCH',
@@ -14,7 +13,16 @@ async function updateCart(productId, isAdd, count = 1) {
 
         if (response.ok) {
             const result = await response.json();
-            updateCartUI(productId, isAdd, count);
+
+            if (result.removed) {
+                const itemToRemove = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
+                if (itemToRemove) {
+                    itemToRemove.remove();
+                }
+                showToast('Товар удалён из корзины');
+            } else {
+                updateCartUI(productId, isAdd, count);
+            }
         } else if (response.status === 401) {
             showLoginPrompt('Необходимо авторизоваться');
         } else {
@@ -25,6 +33,17 @@ async function updateCart(productId, isAdd, count = 1) {
         console.error('Error:', error);
         alert('Произошла ошибка при обновлении корзины');
     }
+}
+
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
 }
 
 function updateCartUI(productId, isAdd, count) {

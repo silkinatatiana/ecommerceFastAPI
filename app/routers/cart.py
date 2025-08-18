@@ -98,7 +98,6 @@ async def update_count_cart(
         db: AsyncSession = Depends(get_db),
         token: Optional[str] = Cookie(None, alias='token')
 ):
-    print("start update_count_cart function")
     try:
         if not token:
             raise HTTPException(status_code=401, detail="Не авторизован")
@@ -131,17 +130,29 @@ async def update_count_cart(
             cart_item.count += cart_data.count
             await db.commit()
             await db.refresh(cart_item)
-            return cart_item
+            return {
+                "product_id": cart_item.product_id,
+                "new_count": cart_item.count,
+                "removed": False
+            }
 
         else:
             if cart_item.count - cart_data.count <= 0:
                 await db.delete(cart_item)
-                message = "Товар удален из корзины"
+                await db.commit()
+                return {
+                    "product_id": cart_item.product_id,
+                    "new_count": 0,
+                    "removed": True
+                }
             else:
                 cart_item.count -= cart_data.count
-                message = f"Количество уменьшено до {cart_item.count}"
-            await db.commit()
-            return {message: "message"}
+                await db.commit()
+                return {
+                    "product_id": cart_item.product_id,
+                    "new_count": 0,
+                    "removed": False
+                }
 
     except SQLAlchemyError as e:
         await db.rollback()
