@@ -119,7 +119,7 @@
                         {% if product.in_cart %}
                             <button class="btn btn-primary" onclick="removeFromCart('{{ product.id }}')">Удалить из корзины</button>
                         {% else %}
-                            <button class="btn btn-primary" onclick="addToCart('{{ product.id }}')">Добавить в корзину</button>
+                            <button class="btn btn-primary" onclick="addProduct('{{ product.id }}')">Добавить в корзину</button>
                         {% endif %}
 
                         <button class="btn-favorite {% if is_favorite %}active{% endif %}"
@@ -372,7 +372,7 @@
     <footer>
         <p>&copy; 2025 {{ shop_name }}. Все права защищены.</p>
     </footer>
-<script src="{{ url_for('static', path='/js/product_gallery.js') }}?v=1.0"></script>
+<script src="{{ url_for('static', path='/js/product_page.js') }}?v=1.0"></script>
 <script src="{{ url_for('static', path='/js/cart.js') }}?v=1.0"></script>
 </body>
 </html>

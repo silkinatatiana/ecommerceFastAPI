@@ -36,12 +36,10 @@
                             <p class="description">{{ product.description | truncate(100) }}</p>
                             <p class="price">{{ product.price }} ₽</p>
 
-                            <div class="quantity-control">
-                                <button class="quantity-btn minus"
-                                        onclick="event.stopPropagation(); updateQuantity({{ product.id }}, -1)">-</button>
+                            <div class="quantity-control" data-product-id="{{ product.id }}">
+                                <button class="quantity-btn minus">-</button>
                                 <span class="quantity">{{ product.count }}</span>
-                                <button class="quantity-btn plus"
-                                        onclick="event.stopPropagation(); updateQuantity({{ product.id }}, 1)">+</button>
+                                <button class="quantity-btn plus">+</button>
                             </div>
 
                             <p class="item-total">Сумма: {{ product.price * product.count }} ₽</p>

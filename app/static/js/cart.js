@@ -1,58 +1,78 @@
-async function removeFromCart(productId) {
-        if (!confirm('Вы уверены, что хотите удалить товар из корзины?')) return;
-        console.log(productId)
-        try {
-            const response = await fetch(`/cart/${productId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include'
-            });
-
-            if (response.ok) {
-                location.reload();
-            } else {
-                const error = await response.json();
-                alert(error.detail || 'Не удалось удалить товар из корзины');
-            }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            alert('Произошла ошибка при удалении товара');
-        }
-    }
-
-async function updateQuantity(productId, change) {
+async function updateCart(productId, isAdd, count = 1) {
+    console.log(productId, typeof productId, parseInt(productId));
     try {
-        const response = await fetch(`/cart/${productId}/quantity`, {
+        const response = await fetch('/cart/update', {
             method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ change }),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                product_id: Number(productId),
+                add: Boolean(isAdd),
+                count: Number(count) || 1
+            }),
             credentials: 'include'
         });
 
         if (response.ok) {
-            location.reload();
+            const result = await response.json();
+            updateCartUI(productId, isAdd, count);
+        } else if (response.status === 401) {
+            showLoginPrompt('Необходимо авторизоваться');
         } else {
             const error = await response.json();
-            alert(error.detail || 'Не удалось изменить количество');
+            alert(error.detail || 'Ошибка при обновлении корзины');
         }
     } catch (error) {
-        console.error('Ошибка:', error);
-        alert('Произошла ошибка при изменении количества');
+        console.error('Error:', error);
+        alert('Произошла ошибка при обновлении корзины');
     }
 }
 
-document.querySelector('.checkout-btn')?.addEventListener('click', function() {
-    if (this.disabled) {
-        alert('Для оформления заказа необходимо авторизоваться');
-        window.location.href = "{{ url_for('create_auth_form') }}";
+function updateCartUI(productId, isAdd, count) {
+    console.log(productId)
+    console.log(isAdd)
+    console.log(count)
+    const control = document.querySelector(`.quantity-control[data-product-id="${productId}"]`);
+    if (!control) return;
+
+    const quantityElement = control.querySelector('.quantity');
+    if (!quantityElement) return;
+
+    const currentCount = parseInt(quantityElement.textContent);
+
+    if (isAdd) {
+        quantityElement.textContent = currentCount + count;
     } else {
-        window.location.href = "{{ url_for('checkout_page') }}";
+        const newCount = currentCount - count;
+        if (newCount <= 0) {
+            control.remove();
+        } else {
+            quantityElement.textContent = newCount;
+        }
     }
-});
+}
+
+function setupCartControls() {
+    document.querySelectorAll('.quantity-control').forEach(control => {
+        const productId = control.dataset.productId;
+        const minusBtn = control.querySelector('.minus');
+        const plusBtn = control.querySelector('.plus');
+
+        const handleClick = async (e, isAdd) => {
+            e.preventDefault();
+            e.stopPropagation();
+            await updateCart(productId, isAdd);
+        };
+
+        minusBtn.addEventListener('click', (e) => handleClick(e, false));
+        plusBtn.addEventListener('click', (e) => handleClick(e, true));
+    });
+}
+
+function showLoginPrompt(message) {
+    if (confirm(`${message}. Перейти на страницу входа?`)) {
+        window.location.href = '/auth/create';
+    }
+}
 
 async function clearCart() {
     if (!confirm('Вы уверены, что хотите очистить всю корзину?')) return;
@@ -66,8 +86,7 @@ async function clearCart() {
         if (response.status === 204) {
             location.reload();
         } else if (response.status === 401) {
-            alert('Необходимо авторизоваться');
-            window.location.href = '/login';
+            showLoginPrompt('Необходимо авторизоваться');
         } else {
             const error = await response.json();
             alert(error.detail || 'Не удалось очистить корзину');
@@ -78,3 +97,14 @@ async function clearCart() {
     }
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+    setupCartControls();
+
+    document.querySelector('.checkout-btn')?.addEventListener('click', function() {
+        if (this.disabled) {
+            showLoginPrompt('Для оформления заказа необходимо авторизоваться');
+        } else {
+            window.location.href = "{{ url_for('checkout_page') }}";
+        }
+    });
+});

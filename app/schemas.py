@@ -87,6 +87,12 @@ class CartItem(BaseModel):
     count: int = 1
 
 
+class CartUpdate(BaseModel):
+    product_id: int
+    add: bool
+    count: int = 1
+
+
 class Orders(BaseModel):
     id: int
     user_id: int

@@ -16,7 +16,8 @@ from app.models import Product
 from app.models.cart import Cart
 from app.models.users import User
 from app.routers.auth import get_user_id_by_token, get_current_user
-from app.schemas import CartItem
+from app.schemas import CartItem, CartUpdate
+from app.functions import check_stock
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 templates = Jinja2Templates(directory="app/templates")
@@ -93,16 +94,23 @@ async def add_product_to_cart(
 
 @router.patch('/update')
 async def update_count_cart(
-        product_id: int,
-        user_id: int,
-        count: int,
-        db: AsyncSession = Depends(get_db)
+        cart_data: CartUpdate,
+        db: AsyncSession = Depends(get_db),
+        token: Optional[str] = Cookie(None, alias='token')
 ):
+    print("start update_count_cart function")
     try:
+        if not token:
+            raise HTTPException(status_code=401, detail="Не авторизован")
+
+        user_id = get_user_id_by_token(token)
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Неверные данные пользователя")
+
         cart_item = await db.scalar(
             select(Cart)
             .where(Cart.user_id == user_id)
-            .where(Cart.product_id == product_id)
+            .where(Cart.product_id == cart_data.product_id)
         )
 
         if not cart_item:
@@ -111,22 +119,42 @@ async def update_count_cart(
                 detail="Товар не найден в корзине"
             )
 
-        if count > 0:
-            cart_item.count = count
+        if cart_data.add:
+            stock_product = await check_stock(product_id=cart_data.product_id, db=db)
+
+            if cart_item.count + cart_data.count > stock_product:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Доступно только {stock_product} единиц товара"
+                )
+
+            cart_item.count += cart_data.count
             await db.commit()
             await db.refresh(cart_item)
             return cart_item
+
         else:
-            await db.delete(cart_item)
+            if cart_item.count - cart_data.count <= 0:
+                await db.delete(cart_item)
+                message = "Товар удален из корзины"
+            else:
+                cart_item.count -= cart_data.count
+                message = f"Количество уменьшено до {cart_item.count}"
             await db.commit()
-            return {"message": "Товар удален из корзины"}
+            return {message: "message"}
 
     except SQLAlchemyError as e:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка базы данных: {str(e)}"
         )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        return f"Ошибка в обновлении количества товара в корзине: {e}"
 
 
 @router.delete('/{product_id}')
@@ -157,10 +185,10 @@ async def delete_product_from_cart(product_id: int,
         )
 
 
-@router.post('/clear') # TODO переписать вместе на delete(422)
+@router.post('/clear')  # TODO переписать вместе на delete(422)
 async def clear_cart(
-    token: Optional[str] = Cookie(None, alias='token'),
-    db: AsyncSession = Depends(get_db)
+        token: Optional[str] = Cookie(None, alias='token'),
+        db: AsyncSession = Depends(get_db)
 ):
     try:
         user_id = get_user_id_by_token(token)
@@ -235,7 +263,6 @@ async def get_cart_html(request: Request,
         }
     )
 
-
 # TODO доделать счетчик, при  нуле удалять товар из корзины.
-# при оформлении заказа добавлять запись в таблицу orders и удалять из таблицы Cart и уменьшать Products.stok
+# при оформлении заказа добавлять запись в таблицу orders и удалять из таблицы Cart и уменьшать Products.stoсk
 # при успешном оформлении заказа перенаправлять на вкладку этого заказа ( отдельная html страница)

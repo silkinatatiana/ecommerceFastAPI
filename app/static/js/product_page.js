@@ -425,7 +425,7 @@ async function toggleFavorite(button, productId) {
     }
 }
 
-async function addToCart(productId, count = 1) {
+async function addProduct(productId, count = 1) {
     try {
         const response = await fetch('/cart/add', {
             method: 'POST',
