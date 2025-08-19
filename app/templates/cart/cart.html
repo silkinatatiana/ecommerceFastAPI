@@ -62,7 +62,7 @@
 
             <div class="cart-summary">
                 <div class="summary-row">
-                    <span>Товаров:</span>
+                    <span>Общее количество товаров:</span>
                     <span>{{ products | sum(attribute='count') }} шт.</span>
                 </div>
                 <div class="summary-row">
@@ -71,14 +71,15 @@
                         {{ products | sum(attribute='price_mult_count') }} ₽
                     </span>
                 </div>
+
+                <button class="checkout-btn" >
+                    Оформить заказ
+                </button>
                 {% if products %}
                 <button class="clear-cart-btn" onclick="clearCart()">
                     Очистить корзину
                 </button>
                 {% endif %}
-                <button class="checkout-btn" >
-                    Оформить заказ
-                </button>
             </div>
         {% endif %}
     </div>
