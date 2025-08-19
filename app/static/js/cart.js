@@ -18,10 +18,18 @@ async function updateCart(productId, isAdd, count = 1) {
                 const itemToRemove = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
                 if (itemToRemove) {
                     itemToRemove.remove();
+                    updateTotalPrice();
                 }
                 showToast('Товар удалён из корзины');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 800);
             } else {
                 updateCartUI(productId, isAdd, count);
+                updateTotalPrice();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 300);
             }
         } else if (response.status === 401) {
             showLoginPrompt('Необходимо авторизоваться');
@@ -32,6 +40,22 @@ async function updateCart(productId, isAdd, count = 1) {
     } catch (error) {
         console.error('Error:', error);
         alert('Произошла ошибка при обновлении корзины');
+    }
+}
+
+function updateTotalPrice() {
+    const priceElements = document.querySelectorAll('.cart-item-price');
+    let total = 0;
+
+    priceElements.forEach(el => {
+        const price = parseFloat(el.textContent.replace(/[^\d.,]/g, '').replace(',', '.'));
+        const quantity = parseInt(el.closest('.cart-item').querySelector('.quantity').textContent);
+        total += price * quantity;
+    });
+
+    const totalElement = document.querySelector('.cart-total-price');
+    if (totalElement) {
+        totalElement.textContent = total.toFixed(2) + ' ₽';
     }
 }
 
