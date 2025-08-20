@@ -1,23 +1,21 @@
-import asyncio
-from typing import Optional, List
+from typing import Optional
 
-import httpx
-import jwt
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
+from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
-from fastapi.templating import Jinja2Templates
-from starlette.responses import HTMLResponse, Response, JSONResponse
+from starlette.responses import HTMLResponse, Response
+import httpx
+import jwt
 
 from app.backend.db_depends import get_db
 from app.config import Config
 from app.models import Product
 from app.models.cart import Cart
 from app.models.users import User
-from app.routers.auth import get_user_id_by_token, get_current_user
 from app.schemas import CartItem, CartUpdate
-from app.functions import check_stock
+from app.functions import check_stock, get_user_id_by_token, get_current_user
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 templates = Jinja2Templates(directory="app/templates")

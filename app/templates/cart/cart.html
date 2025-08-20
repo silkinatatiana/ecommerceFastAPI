@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Корзина - {{ shop_name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/styles/cart.css') }}?v=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles/cart/cart.css') }}?v=1.0">
 
 </head>
 <body>
@@ -72,7 +72,7 @@
                     </span>
                 </div>
 
-                <button class="checkout-btn" >
+                <button class="checkout-btn" onclick="proceedToCheckout()">
                     Оформить заказ
                 </button>
                 {% if products %}
@@ -83,6 +83,6 @@
             </div>
         {% endif %}
     </div>
-<script src="{{ url_for('static', path='/js/cart.js') }}?v=1.0"></script>
+<script src="{{ url_for('static', path='/js/cart/cart.js') }}?v=1.0"></script>
 </body>
 </html>

@@ -1,14 +1,15 @@
 from typing import Optional
-import jwt
-from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
+
+from fastapi import APIRouter, Depends, status, HTTPException, Cookie
+from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
-from fastapi.templating import Jinja2Templates
+import jwt
 
 from app.backend.db_depends import get_db
 from app.models.favorites import Favorites
-from app.routers.auth import SECRET_KEY, ALGORITHM
+from app.functions import SECRET_KEY, ALGORITHM
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 templates = Jinja2Templates(directory="app/templates")

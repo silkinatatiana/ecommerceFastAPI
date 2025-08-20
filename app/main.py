@@ -1,7 +1,5 @@
-import asyncio
-import logging
-import httpx
-import jwt
+from typing import AsyncGenerator, Optional, Annotated
+
 from fastapi import FastAPI, Request, HTTPException, Query, Depends, Cookie
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -10,9 +8,11 @@ from sqlalchemy import select, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional, Annotated
-
 from starlette.middleware.cors import CORSMiddleware
+import asyncio
+import logging
+import httpx
+import jwt
 
 from app.routers import category, products, auth, permission, reviews, favorites, cart, orders
 from app.backend.db_depends import get_db

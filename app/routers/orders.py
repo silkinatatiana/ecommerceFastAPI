@@ -1,22 +1,28 @@
 from typing import Optional
-import jwt
+
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
-from sqlalchemy import select, delete
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
+from sqlalchemy import select, insert, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
-from fastapi.templating import Jinja2Templates
+import jwt
+from starlette.responses import HTMLResponse
 
 from app.backend.db_depends import get_db
-from app.models.favorites import Favorites
-from app.routers.auth import SECRET_KEY, ALGORITHM
-
+from app.models import User
+from app.models.cart import Cart
+from app.models.orders import Orders
+from app.models.products import Product
+from app.functions import get_user_id_by_token, check_stock
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get('/{user_id}')
-async def get_orders_by_user_id():
+async def get_orders_by_user_id(user_id: int,
+                                db: AsyncSession = Depends(get_db)):
     pass
 
 
@@ -25,9 +31,79 @@ async def get_order_by_id():
     pass
 
 
-@router.post('/create')
-async def create_order():
-    pass
+@router.post('/create', status_code=status.HTTP_201_CREATED)
+async def create_order(token: Optional[str] = Cookie(None, alias='token'),
+                       db: AsyncSession = Depends(get_db)) -> dict:
+    try:
+        if not token:
+            raise HTTPException(status_code=401, detail="Пользователь не авторизован")
+
+        user_id = get_user_id_by_token(token)
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Неверные данные пользователя")
+
+        user = await db.scalar(select(User).where(User.id == user_id))
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail='Пользователь не найден')
+
+        query = select(Cart).where(Cart.user_id == user_id)
+        result = await db.execute(query)
+        products = result.scalars().all()
+
+        if not products:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Товары не найдены'
+            )
+
+        products_data = {}
+        total_sum = 0
+
+        for product in products:
+            stock_product = await check_stock(product_id=product.product_id, db=db)
+
+            if product.count > stock_product:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Доступно только {stock_product} единиц товара"
+                )
+
+            update_query = (update(Product).where(Product.id == product.product_id)
+                            .values(stock=Product.stock - product.count))
+            await db.execute(update_query)
+
+            products_data[str(product.product_id)] = {
+                'price': product.price,
+                'count': product.count
+            }
+            total_sum += product.price * product.count
+
+        order = Orders(
+            user_id=user_id,
+            products=products_data,
+            summa=total_sum
+        )
+        db.add(order)
+        await db.flush()
+
+        delete_query = delete(Cart).where(Cart.user_id == user_id)
+        await db.execute(delete_query)
+        await db.commit()
+        return {'message': 'Заказ оформлен!',
+                'order_id': order.id,
+                'redirect_url': f'/orders/'}
+
+    except Exception as e:
+        await db.rollback()
+
+        if isinstance(e, HTTPException):
+            raise
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ошибка базы данных: {str(e)}"
+        )
 
 
 @router.patch('/cancel{order_id}')
@@ -35,6 +111,77 @@ async def cancel_order():
     pass
 
 
-@router.get('/')
-async def get_orders_html():
-    pass
+@router.get('/', response_class=HTMLResponse)
+async def order_page(request: Request,
+                     order_id: int,
+                     token: Optional[str] = Cookie(default=None, alias='token'),
+                     db: AsyncSession = Depends(get_db)
+                     ):
+    try:
+        if not token:
+            raise HTTPException(status_code=401, detail="Пользователь не авторизован")
+
+        user_id = get_user_id_by_token(token)
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Неверные данные пользователя")
+
+        order_query = select(Orders).where(
+            (Orders.id == order_id) &
+            (Orders.user_id == user_id)
+        )
+        order_result = await db.execute(order_query)
+        order = order_result.scalar_one_or_none()
+
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Заказ не найден'
+            )
+
+        order_products = []
+        total_amount = 0
+
+        for product_id, product_data in order.products.items():
+            product_query = select(Product).where(Product.id == product_id)
+            product_result = await db.execute(product_query)
+            product = product_result.scalar_one_or_none()
+
+            if product:
+                item_total = product_data['count'] * product_data['price']
+                order_products.append({
+                    'id': product.id,
+                    'name': product.name,
+                    'price': product_data['price'],
+                    'count': product_data['count'],
+                    'image_url': product.image_urls[0],
+                    'item_total': item_total
+                })
+                total_amount += item_total
+
+        user = await db.scalar(select(User).where(User.id == user_id))
+
+        context = {
+            'request': request,
+            'order': {
+                'id': order.id,
+                'created_at': order.date,
+                'status': order.status,
+                'total_sum': order.summa
+            },
+            'products': order_products,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name
+            }
+        }
+        return templates.TemplateResponse("orders/orders.html", context)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка при загрузке страницы заказа: {str(e)}"
+        )

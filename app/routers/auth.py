@@ -1,105 +1,24 @@
+from typing import Annotated
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Cookie
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from sqlalchemy import select, insert
+from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-import jwt
-from jwt import PyJWTError, ExpiredSignatureError, decode
-
-
-from typing import Annotated
 from passlib.context import CryptContext
-from datetime import datetime, timedelta, timezone
 
+from app.functions import get_current_user, authenticate_user, create_access_token
 from app.models.users import User
 from app.backend.db_depends import get_db
 from app.config import Config
 
-SECRET_KEY = Config.SECRET_KEY
-ALGORITHM = Config.ALGORITHM
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app/templates/')
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
 
-
-async def create_access_token(username: str, user_id: int, is_admin: bool, role: str,
-                              expires_delta: timedelta):
-    payload = {
-        'sub': username,
-        'id': user_id,
-        'is_admin': is_admin,
-        'role': role,
-        'exp': datetime.now(timezone.utc) + expires_delta
-    }
-
-    payload['exp'] = int(payload['exp'].timestamp())
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-
-
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    try:
-        payload = decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-
-        username: str = payload.get("sub")
-        user_id: int = payload.get("id")
-        if username is None or user_id is None:
-            raise credentials_exception
-
-        expire = payload.get("exp")
-        if expire is None or datetime.utcnow() > datetime.utcfromtimestamp(expire):
-            raise credentials_exception
-
-        return {
-            "username": username,
-            "id": user_id,
-            "is_admin": payload.get("is_admin", False),
-            "role": payload.get("role", "user")
-        }
-
-    except ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except PyJWTError:
-        raise credentials_exception
-
-
-def get_user_id_by_token(token: str):
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    user_id = payload.get("id")
-    return user_id
-
-
-async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], username: str, password: str):
-    user = await db.scalar(select(User).where(User.username == username))
-    if not user or not bcrypt_context.verify(password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
-
-
-async def get_current_user_from_cookie(request: Request):
-    token = request.cookies.get("token")
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
-    return await get_current_user(token.replace("Bearer", ""))
 
 @router.get('/read_current_user')
 async def read_current_user(user: dict = Depends(get_current_user)):
@@ -119,19 +38,6 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
     }
 
 
-# @router.post('/')
-# async def create_user(db: Annotated[AsyncSession, Depends(get_db)], create_user: CreateUser):
-#     await db.execute(insert(User).values(first_name=create_user.first_name,
-#                                          last_name=create_user.last_name,
-#                                          username=create_user.username,
-#                                          email=create_user.email,
-#                                          hashed_password=bcrypt_context.hash(create_user.password),
-#                                          ))
-#     await db.commit()
-#     return {
-#         'status_code': status.HTTP_201_CREATED,
-#         'transaction': 'Successful'
-#     }
 @router.get('/account', response_class=HTMLResponse)
 async def personal_account(
         request: Request,

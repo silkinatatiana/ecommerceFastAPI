@@ -220,3 +220,29 @@ function showLoginPrompt(message) {
         window.location.href = '/auth/create';
     }
 }
+
+async function proceedToCheckout() {
+    try {
+        // Проверяем, что корзина не пуста
+        const response = await fetch('/cart', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Не удалось проверить корзину');
+        }
+
+        const cartData = await response.json();
+
+        if (!cartData.products || cartData.products.length === 0) {
+            alert('Корзина пуста');
+            return;
+        }
+
+        window.location.href = '/orders';
+
+    } catch (error) {
+        console.error('Error proceeding to checkout:', error);
+        alert('Ошибка при переходе к оформлению заказа');
+    }
+}

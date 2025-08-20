@@ -10,7 +10,6 @@ async function loadAllProducts(categoryId, button) {
     try {
         const params = new URLSearchParams();
 
-        // Базовые параметры
         if (Array.isArray(categoryId)) {
             categoryId.forEach(id => params.append('categoryId', id));
         } else {
@@ -18,7 +17,6 @@ async function loadAllProducts(categoryId, button) {
         }
         params.append('skip', skip);
 
-        // Параметры избранного
         const favoritesOnly = document.getElementById('favoritesOnlyCheckbox');
         if (favoritesOnly && favoritesOnly.checked) {
             params.append('is_favorite', 'true');
@@ -35,8 +33,7 @@ async function loadAllProducts(categoryId, button) {
             }
         }
 
-        // Добавляем другие активные фильтры
-        const activeFilters = getActiveFilters(); // Функция собирает все активные фильтры
+        const activeFilters = getActiveFilters();
         Object.entries(activeFilters).forEach(([key, value]) => {
             params.append(key, value);
         });
@@ -46,7 +43,7 @@ async function loadAllProducts(categoryId, button) {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            credentials: 'include' // Для передачи кук
+            credentials: 'include'
         });
 
         if (!response.ok) {
@@ -56,14 +53,12 @@ async function loadAllProducts(categoryId, button) {
 
         const additionalProducts = await response.json();
 
-        // Обработка пустого результата
         if (additionalProducts.length === 0) {
             container.innerHTML = '<p class="no-products">Нет дополнительных товаров</p>';
             button.style.display = 'none';
             return;
         }
 
-        // Отрисовка товаров
         additionalProducts.forEach(product => {
             const productCard = document.createElement('div');
             productCard.className = 'product-card additional-product';
@@ -83,6 +78,7 @@ async function loadAllProducts(categoryId, button) {
                     </p>
                     ${product.is_favorite ? '<div class="favorite-badge">★</div>' : ''}
                 </div>
+
             `;
 
             productCard.addEventListener('click', (e) => {
@@ -94,7 +90,6 @@ async function loadAllProducts(categoryId, button) {
             mainGrid.appendChild(productCard);
         });
 
-        // Обновляем состояние кнопок
         button.dataset.skip = skip + additionalProducts.length;
         hideBtn.style.display = 'inline-block';
 

@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Request
 from typing import Annotated
-from sqlalchemy import insert, select, update
-from slugify import slugify
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.routers.auth import get_current_user
-from fastapi.templating import Jinja2Templates
 
+from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from slugify import slugify
+
+from app.functions import get_current_user
 from app.backend.db_depends import get_db
 from app.schemas import CreateCategory
 from app.models.category import Category
@@ -19,6 +20,7 @@ async def get_all_categories(db: Annotated[AsyncSession, Depends(get_db)]):
     result = await db.execute(select(Category))
     categories = result.scalars().all()
     return categories
+
 
 @router.post('/')
 async def create_category(

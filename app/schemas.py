@@ -103,3 +103,9 @@ class Orders(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class OrderItem(BaseModel):
+    user_id: int
+    products_data: dict
+    summa: int

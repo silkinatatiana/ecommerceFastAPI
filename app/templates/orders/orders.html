@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детали заказа #{{ order.id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles/orders/orders.css') }}?v=1.0">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1 class="logo">Магазин</h1>
+                <nav class="nav">
+                    <a href="/" class="nav-link">Главная</a>
+                    <a href="/cart" class="nav-link">Корзина</a>
+                    <a href="/orders" class="nav-link">Мои заказы</a>
+                    <a href="/profile" class="nav-link">Профиль</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="order-header">
+                <h1>Заказ #{{ order.id }}</h1>
+                <div class="order-status order-status-{{ order.status|lower }}">
+                    {{ order.status }}
+                </div>
+            </div>
+
+            <div class="order-info">
+                <div class="info-card">
+                    <h3>Информация о заказе</h3>
+                    <p><strong>Дата создания:</strong> {{ order.created_at }}</p>
+                    <p><strong>Статус:</strong> {{ order.status }}</p>
+                    <p><strong>Общая сумма:</strong> <span class="price">{{ order.total_sum }} руб.</span></p>
+                </div>
+
+                <div class="info-card">
+                    <h3>Информация о покупателе</h3>
+                    <p><strong>Имя:</strong> {{ user.first_name }} {{ user.last_name }}</p>
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                </div>
+            </div>
+
+            <div class="products-section">
+                <h2>Товары в заказе</h2>
+                <div class="products-list" id="productsList">
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-primary" onclick="window.location.href='/orders'">Вернуться к списку заказов</button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2023 Магазин. Все права защищены.</p>
+        </div>
+    </footer>
+<script src="{{ url_for('static', path='/js/orders/orders.js') }}?v=1.0"></script>
+</body>
+</html>

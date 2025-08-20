@@ -1,19 +1,20 @@
-import jwt
+from typing import Annotated, Optional
+
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Query, Cookie
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from typing import Annotated, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, insert, or_, and_, not_
+from sqlalchemy import select
 import httpx
+import jwt
 from loguru import logger
 
 from app.backend.db_depends import get_db
 from app.schemas import CreateProduct, ProductOut
 from app.models import *
-from app.models import Review, User
-from app.routers.auth import get_current_user
+from app.models import Review
+from app.functions import get_current_user
 from app.config import Config
 
 router = APIRouter(prefix='/products', tags=['products'])
