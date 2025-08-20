@@ -764,3 +764,31 @@ header {
     color: #007bff;
 }
 
+.load-more-container {
+    width: 100%;
+    text-align: center;
+    margin: 20px 0;
+}
+
+.view-all-btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.view-all-btn:hover {
+    background: #0056b3;
+}
+
+.view-all-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+
+

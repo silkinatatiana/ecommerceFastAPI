@@ -20,13 +20,13 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 templates = Jinja2Templates(directory="app/templates")
 
 
-@router.get('/{user_id}')
+@router.get('/{user_id}') # возвращает список из словарей-заказов
 async def get_orders_by_user_id(user_id: int,
                                 db: AsyncSession = Depends(get_db)):
     pass
 
 
-@router.get('/{order_id}')
+@router.get('/{order_id}') # возвращает словарь с данными заказа
 async def get_order_by_id():
     pass
 
@@ -46,7 +46,7 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail='Пользователь не найден')
-
+        # TODO получать корзину из ручки get cart
         query = select(Cart).where(Cart.user_id == user_id)
         result = await db.execute(query)
         products = result.scalars().all()
@@ -92,7 +92,7 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         await db.commit()
         return {'message': 'Заказ оформлен!',
                 'order_id': order.id,
-                'redirect_url': f'/orders/'}
+                'redirect_url': f'/orders/{order.id}'}
 
     except Exception as e:
         await db.rollback()
@@ -111,7 +111,7 @@ async def cancel_order():
     pass
 
 
-@router.get('/', response_class=HTMLResponse)
+@router.get('/{order_id}', response_class=HTMLResponse)
 async def order_page(request: Request,
                      order_id: int,
                      token: Optional[str] = Cookie(default=None, alias='token'),

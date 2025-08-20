@@ -1,0 +1,43 @@
+<div class="product-card"
+     onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', '_blank')">
+    <img
+        src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}"
+        alt="{{ product.name }}"
+        loading="lazy"
+        onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+
+    <h3>{{ product.name }}</h3>
+    <p class="product-price">{{ product.price|default("Цена не указана", true) }} ₽</p>
+    <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
+        {{product.stock}} шт. в наличии
+    </p>
+    {% if is_authenticated %}
+        <div class="product-actions">
+            <div class="favorite-heart"
+                 data-product-id="{{ product.id }}"
+                 onclick="event.stopPropagation(); toggleFavorite(this, {{ product.id }})">
+                <svg class="heart-icon {% if product.id in favorite_product_ids %}active{% endif %}"
+                     viewBox="0 0 24 24"
+                     fill="{% if product.id in favorite_product_ids %}#ff4081{% else %}none{% endif %}"
+                     stroke="{% if product.id in favorite_product_ids %}#ff4081{% else %}#bdbdbd{% endif %}"
+                     stroke-width="2">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+            </div>
+
+            {% if product.id in in_cart_product_ids %}
+                <button class="btn-cart remove"
+                        onclick="event.stopPropagation(); removeFromCart('{{ product.id }}')"
+                        title="Удалить из корзины">
+                    <i class="fas fa-shopping-cart"></i>
+                </button>
+            {% else %}
+                <button class="btn-cart add"
+                        onclick="event.stopPropagation(); addProduct('{{ product.id }}')"
+                        title="Добавить в корзину">
+                    <i class="fas fa-shopping-cart"></i>
+                </button>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>

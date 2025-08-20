@@ -127,6 +127,9 @@ async def get_main_page(
         colors: Optional[str] = Query(None),
         built_in_memory: Optional[str] = Query(None),
         is_favorite: bool = Query(False),
+        skip: int = Query(3),  # Пропустить товары
+        limit: int = Query(3),  # Ограничить показ (6 товаров initially)
+        partial: bool = Query(False),  # Флаг для AJAX-запросов
 ):
     is_authenticated = False
     user_id = None
@@ -157,6 +160,8 @@ async def get_main_page(
         products_url = f"{Config.url}/products/"
         params = {
             "user_id": user_id,
+            "skip": skip,  # Добавляем пагинацию
+            "limit": limit,  # Ограничиваем количество
             **({"category_id": category_id} if category_id else {}),
             **({"colors": colors} if colors else {}),
             **({"built_in_memory": built_in_memory} if built_in_memory else {}),
@@ -183,7 +188,28 @@ async def get_main_page(
     categories_products = {}
     selected_category_ids = [int(cid) for cid in category_id.split(',')] if category_id else []
 
+    category_counts = {}
     for category in categories_data:
+        if selected_category_ids and category['id'] not in selected_category_ids:
+            continue
+
+        count_params = {"category_id": category['id']}
+        if colors:
+            count_params["colors"] = colors
+        if built_in_memory:
+            count_params["built_in_memory"] = built_in_memory
+
+        try:
+            async with httpx.AsyncClient() as client:
+                count_response = await client.get(f"{Config.url}/products/count/", params=count_params)
+                category_counts[category['id']] = count_response.json().get('count', 0)
+        except:
+            category_counts[category['id']] = 0
+
+    for category in categories_data:
+        if selected_category_ids and category['id'] not in selected_category_ids:
+            continue
+
         category_products = [
             {
                 **p,
@@ -203,10 +229,24 @@ async def get_main_page(
             if p['category_id'] == category['id']
         ]
 
+        total_count = category_counts.get(category['id'], 0)
+        has_more = (skip + len(category_products)) < total_count
+
+        # ВАЖНО: Ограничиваем показ только limit товарами
+        displayed_products = category_products[:limit] if not partial else category_products
+
         categories_products[category['name']] = {
             "id": category['id'],
-            "products": category_products[:6] if not selected_category_ids else category_products
+            "products": displayed_products,
+            "has_more": has_more,
+            "total_count": total_count,
+            "current_skip": skip
         }
+
+    if partial:
+        template_name = 'products/products_fragment.html'
+    else:
+        template_name = 'index.html'
 
     filters = await get_filters(db)
 
@@ -221,35 +261,38 @@ async def get_main_page(
         memory_query = memory_query.where(Product.category_id.in_(selected_category_ids))
     all_built_in_memory = sorted((await db.execute(memory_query)).scalars().all(), key=sort_func)
 
-    response = templates.TemplateResponse(
-        'index.html',
-        {
-            "request": request,
-            "shop_name": "PEAR",
-            "descr": "Магазин техники и электроники",
-            "categories": list(categories_products.keys()),
-            "colors": all_colors,
-            "selected_colors": colors.split(",") if colors else [],
-            "all_built_in_memory": all_built_in_memory,
-            "selected_built_in_memory": built_in_memory.split(",") if built_in_memory else [],
-            "categories_products": categories_products,
-            "url": Config.url,
-            "current_categories": selected_category_ids,
-            "filters": filters,
-            "has_products": any(c["products"] for c in categories_products.values()),
-            "is_favorite": is_favorite,
-            "is_authenticated": is_authenticated,
-            "user_id": user_id,
-            "favorite_product_ids": favorite_product_ids,
-            "in_cart_product_ids": in_cart_product_ids,
-            "role": role
-        }
-    )
+    context = {
+        "request": request,
+        "shop_name": "PEAR",
+        "descr": "Магазин техники и электроники",
+        "categories": list(categories_products.keys()),
+        "colors": all_colors,
+        "selected_colors": colors.split(",") if colors else [],
+        "all_built_in_memory": all_built_in_memory,
+        "selected_built_in_memory": built_in_memory.split(",") if built_in_memory else [],
+        "categories_products": categories_products,
+        "url": Config.url,
+        "current_categories": selected_category_ids,
+        "filters": filters,
+        "has_products": any(c["products"] for c in categories_products.values()),
+        "is_favorite": is_favorite,
+        "is_authenticated": is_authenticated,
+        "user_id": user_id,
+        "favorite_product_ids": favorite_product_ids,
+        "in_cart_product_ids": in_cart_product_ids,
+        "role": role,
+        "current_skip": skip,
+        "current_limit": limit
+    }
+
+    response = templates.TemplateResponse(template_name, context)
 
     if token and not is_authenticated:
         response.delete_cookie("token")
 
     return response
+
+
 
 # if __name__ == "__main__":
 #     uvicorn.run(

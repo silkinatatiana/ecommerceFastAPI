@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select
+from sqlalchemy import select, func
 import httpx
 import jwt
 from loguru import logger
@@ -382,3 +382,115 @@ async def get_products_by_category(
             status_code=400,
             detail=f"Request processing error: {str(e)}"
         )
+
+
+@router.get("/load-more/", response_class=HTMLResponse)
+async def load_more_products(
+        request: Request,
+        db: AsyncSession = Depends(get_db),
+        category_id: str = Query(...),
+        skip: int = Query(0),  # Уже загруженное количество
+        limit: int = Query(10),
+        colors: Optional[str] = Query(None),
+        built_in_memory: Optional[str] = Query(None),
+        is_favorite: bool = Query(False),
+        token: Optional[str] = Cookie(None, alias='token'),
+):
+    try:
+        products_url = f"{Config.url}/products/"
+        params = {
+            "category_id": category_id,
+            "skip": skip,  # Пропускаем уже загруженные товары
+            "limit": limit,
+            **({"colors": colors} if colors else {}),
+            **({"built_in_memory": built_in_memory} if built_in_memory else {}),
+        }
+
+        if is_favorite and token:
+            try:
+                payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
+                user_id = payload.get("id")
+                favorite_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
+                favorite_result = await db.execute(favorite_query)
+                favorite_product_ids = favorite_result.scalars().all()
+                if favorite_product_ids:
+                    params["product_ids"] = ",".join(map(str, favorite_product_ids))
+            except:
+                pass
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(products_url, params=params)
+            response.raise_for_status()
+            products_data = response.json()
+
+    except Exception as e:
+        raise HTTPException(500, detail=f"Ошибка при загрузке товаров: {str(e)}")
+
+    # Получаем общее количество для проверки has_more
+    try:
+        count_params = {"category_id": category_id}
+        if colors:
+            count_params["colors"] = colors
+        if built_in_memory:
+            count_params["built_in_memory"] = built_in_memory
+
+        async with httpx.AsyncClient() as client:
+            count_response = await client.get(f"{Config.url}/products/count/", params=count_params)
+            total_count = count_response.json().get('count', 0)
+    except:
+        total_count = skip + len(products_data)  # Если не получилось, используем текущие данные
+
+    has_more = (skip + len(products_data)) < total_count
+
+    # Форматируем названия товаров
+    formatted_products = []
+    for product in products_data:
+        formatted_products.append({
+            **product,
+            'name': ', '.join(
+                str(s) for s in [
+                    product.get('name'),
+                    product.get('RAM_capacity'),
+                    product.get('built_in_memory_capacity'),
+                    product.get('screen'),
+                    product.get('cpu'),
+                    product.get('color')
+                ]
+                if s is not None
+            )
+            })
+
+    is_authenticated = False
+    favorite_product_ids = []
+    in_cart_product_ids = []
+
+    if token:
+        try:
+            payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
+            is_authenticated = True
+            user_id = payload.get("id")
+
+            if is_authenticated:
+                favorite_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
+                favorite_result = await db.execute(favorite_query)
+                favorite_product_ids = favorite_result.scalars().all()
+
+                cart_query = select(Cart.product_id).where(Cart.user_id == user_id)
+                cart_result = await db.execute(cart_query)
+                in_cart_product_ids = cart_result.scalars().all()
+        except:
+            pass
+
+    return templates.TemplateResponse(
+        "products/products_fragment.html",
+        {
+            "request": request,
+            "products": formatted_products,
+            "category_id": category_id,
+            "has_more": has_more,
+            "next_skip": skip + len(products_data),
+            "is_authenticated": is_authenticated,
+            "favorite_product_ids": favorite_product_ids,
+            "in_cart_product_ids": in_cart_product_ids
+        }
+    )

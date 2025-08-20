@@ -1,120 +1,81 @@
-async function loadAllProducts(categoryId, button) {
-    const skip = parseInt(button.dataset.skip);
-    const container = document.getElementById(`products-${Array.isArray(categoryId) ? categoryId[0] : categoryId}`);
-    const mainGrid = button.closest('.category').querySelector('.products-grid');
-    const hideBtn = button.parentElement.querySelector('.hide-btn');
+async function loadMoreProducts(categoryId, button) {
+    const currentSkip = parseInt(button.dataset.skip); // Уже загруженное количество
+    const categoryElement = button.closest('.category');
+    const productsGrid = categoryElement.querySelector('.products-grid');
 
-    container.innerHTML = '<p>Загрузка...</p>';
     button.disabled = true;
+    button.textContent = 'Загрузка...';
 
     try {
-        const params = new URLSearchParams();
+        const params = new URLSearchParams({
+            category_id: categoryId,
+            skip: currentSkip, // Передаем уже загруженное количество
+            limit: 10
+        });
 
-        if (Array.isArray(categoryId)) {
-            categoryId.forEach(id => params.append('categoryId', id));
-        } else {
-            params.append('categoryId', categoryId);
-        }
-        params.append('skip', skip);
-
-        const favoritesOnly = document.getElementById('favoritesOnlyCheckbox');
-        if (favoritesOnly && favoritesOnly.checked) {
-            params.append('is_favorite', 'true');
-
-            // Получаем user_id из мета-тега или куки
-            const userMeta = document.querySelector('meta[name="user-id"]');
-            const user_id = userMeta ? userMeta.content : getCookie('user_id');
-
-            if (user_id) {
-                params.append('user_id', user_id);
-            } else {
-                console.warn('User ID not found for favorites filter');
-                throw new Error('Требуется авторизация для просмотра избранного');
-            }
-        }
-
+        // Добавляем активные фильтры
         const activeFilters = getActiveFilters();
         Object.entries(activeFilters).forEach(([key, value]) => {
-            params.append(key, value);
+            if (value) params.append(key, value);
         });
 
-        const response = await fetch(`/products/by_category/?${params.toString()}`, {
+        const response = await fetch(`/products/load-more/?${params.toString()}`, {
             headers: {
-                'Accept': 'application/json',
+                'Accept': 'text/html',
                 'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'include'
+            }
         });
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Ошибка загрузки');
-        }
+        if (!response.ok) throw new Error('Ошибка загрузки');
 
-        const additionalProducts = await response.json();
+        const html = await response.text();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
 
-        if (additionalProducts.length === 0) {
-            container.innerHTML = '<p class="no-products">Нет дополнительных товаров</p>';
-            button.style.display = 'none';
-            return;
-        }
-
-        additionalProducts.forEach(product => {
-            const productCard = document.createElement('div');
-            productCard.className = 'product-card additional-product';
-            productCard.dataset.category = product.category_id;
-            productCard.dataset.id = product.id;
-
-            productCard.innerHTML = `
-                <img src="${product.image_urls?.[0] || '/static/images/default_image.png'}"
-                    alt="${product.name}"
-                    loading="lazy"
-                    onerror="this.onerror=null;this.src='/static/images/default_image.png'">
-                <div class="product-info">
-                    <h3>${product.name}</h3>
-                    <p class="product-price">${product.price ? `${product.price} ₽` : 'Цена не указана'}</p>
-                    <p class="product-stock ${product.stock <= 0 ? 'out-of-stock' : ''}">
-                        ${product.stock} шт. в наличии
-                    </p>
-                    ${product.is_favorite ? '<div class="favorite-badge">★</div>' : ''}
-                </div>
-
-            `;
-
-            productCard.addEventListener('click', (e) => {
-                if (!e.target.closest('.favorite-toggle')) {
-                    window.location.href = `/products/${product.id}`;
-                }
+        // Добавляем только новые товары
+        const productCards = tempDiv.querySelectorAll('.product-card');
+        if (productCards.length === 0) {
+            button.style.display = 'none'; // Нет больше товаров
+        } else {
+            productCards.forEach(card => {
+                productsGrid.appendChild(card);
             });
 
-            mainGrid.appendChild(productCard);
-        });
+            // Обновляем счетчик загруженных товаров
+            button.dataset.skip = currentSkip + productCards.length;
+        }
 
-        button.dataset.skip = skip + additionalProducts.length;
-        hideBtn.style.display = 'inline-block';
-
-        if (additionalProducts.length < 6) {
-            button.style.display = 'none';
+        // Проверяем, есть ли еще товары
+        const hasMorePlaceholder = tempDiv.querySelector('.load-more-placeholder');
+        if (!hasMorePlaceholder) {
+            button.style.display = 'none'; // Скрываем кнопку если больше нет товаров
         }
 
     } catch (error) {
-        console.error('Ошибка:', error);
-        container.innerHTML = `
-            <div class="load-error">
-                <p>${error.message}</p>
-                <button onclick="window.location.reload()">Попробовать снова</button>
-            </div>
-        `;
-
-        if (error.message.includes('авторизация')) {
-            // Перенаправляем на страницу входа, если требуется авторизация
-            setTimeout(() => window.location.href = '/login', 2000);
-        }
+        console.error('Ошибка загрузки:', error);
+        button.textContent = 'Ошибка, попробовать снова';
+        setTimeout(() => {
+            button.textContent = 'Показать еще товары';
+        }, 2000);
     } finally {
         button.disabled = false;
-        container.innerHTML = '';
+        button.textContent = 'Показать еще товары';
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.view-all-btn').forEach(button => {
+        const categoryId = button.dataset.categoryId;
+        const skip = parseInt(button.dataset.skip);
+
+        const loadMoreContainer = document.createElement('div');
+        loadMoreContainer.className = 'load-more-container';
+        loadMoreContainer.dataset.categoryId = categoryId;
+        loadMoreContainer.dataset.skip = skip;
+
+        button.parentElement.appendChild(loadMoreContainer);
+    });
+});
 
 function getActiveFilters() {
     const filters = {};
