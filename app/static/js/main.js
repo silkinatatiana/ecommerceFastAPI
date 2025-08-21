@@ -1,5 +1,5 @@
 async function loadMoreProducts(categoryId, button) {
-    const currentSkip = parseInt(button.dataset.skip); // Уже загруженное количество
+    const currentSkip = parseInt(button.dataset.skip);
     const categoryElement = button.closest('.category');
     const productsGrid = categoryElement.querySelector('.products-grid');
 
@@ -9,11 +9,10 @@ async function loadMoreProducts(categoryId, button) {
     try {
         const params = new URLSearchParams({
             category_id: categoryId,
-            skip: currentSkip, // Передаем уже загруженное количество
+            skip: currentSkip,
             limit: 10
         });
 
-        // Добавляем активные фильтры
         const activeFilters = getActiveFilters();
         Object.entries(activeFilters).forEach(([key, value]) => {
             if (value) params.append(key, value);
@@ -32,34 +31,39 @@ async function loadMoreProducts(categoryId, button) {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
 
-        // Добавляем только новые товары
         const productCards = tempDiv.querySelectorAll('.product-card');
         if (productCards.length === 0) {
-            button.style.display = 'none'; // Нет больше товаров
+            button.style.display = 'none';
         } else {
             productCards.forEach(card => {
+                // Добавляем класс для идентификации дополнительных товаров
+                card.classList.add('additional-product');
                 productsGrid.appendChild(card);
             });
 
-            // Обновляем счетчик загруженных товаров
             button.dataset.skip = currentSkip + productCards.length;
+
+            const collapseBtn = categoryElement.querySelector('.collapse-btn');
+            if (collapseBtn) {
+                collapseBtn.style.display = 'inline-flex';
+            }
         }
 
-        // Проверяем, есть ли еще товары
         const hasMorePlaceholder = tempDiv.querySelector('.load-more-placeholder');
         if (!hasMorePlaceholder) {
-            button.style.display = 'none'; // Скрываем кнопку если больше нет товаров
+            button.style.display = 'none';
         }
 
     } catch (error) {
         console.error('Ошибка загрузки:', error);
         button.textContent = 'Ошибка, попробовать снова';
         setTimeout(() => {
-            button.textContent = 'Показать еще товары';
+            button.textContent = 'Показать еще';
+            button.disabled = false;
         }, 2000);
     } finally {
         button.disabled = false;
-        button.textContent = 'Показать еще товары';
+        button.textContent = 'Показать еще';
     }
 }
 
@@ -99,18 +103,6 @@ function getCookie(name) {
     if (parts.length === 2) return parts.pop().split(';').shift();
 }
 
-function hideProducts(categoryId, button) {
-    const viewAllBtn = button.parentElement.querySelector('.view-all-btn');
-    const mainGrid = button.closest('.category').querySelector('.products-grid');
-
-    const additionalProducts = mainGrid.querySelectorAll(`.additional-product[data-category="${categoryId}"]`);
-    additionalProducts.forEach(product => product.remove());
-
-    viewAllBtn.style.display = 'inline-block';
-    viewAllBtn.dataset.skip = 6;
-    button.style.display = 'none';
-}
-
 function toggleFilter() {
     const dropdown = document.getElementById('categoryDropdown');
     dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
@@ -119,6 +111,25 @@ function toggleFilter() {
 function updateFilterButton(categoryName) {
     const button = document.getElementById('categoryFilterButton');
     button.textContent = categoryName;
+}
+
+function collapseProducts(categoryId, button) {
+    const categoryElement = button.closest('.category');
+    const productsGrid = categoryElement.querySelector('.products-grid');
+    const loadMoreBtn = categoryElement.querySelector('.load-more-btn');
+
+    // Удаляем все дополнительные товары
+    const additionalProducts = productsGrid.querySelectorAll('.additional-product');
+    additionalProducts.forEach(product => product.remove());
+
+    // Показываем кнопку "Показать еще"
+    if (loadMoreBtn) {
+        loadMoreBtn.style.display = 'inline-flex';
+        loadMoreBtn.dataset.skip = "6"; // Возвращаем начальное значение
+    }
+
+    // Скрываем кнопку "Свернуть"
+    button.style.display = 'none';
 }
 
 function applyFilters() {

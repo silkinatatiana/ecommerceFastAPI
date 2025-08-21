@@ -771,24 +771,90 @@ header {
 }
 
 .view-all-btn {
-    background: #007bff;
+    background: linear-gradient(135deg, rgba(44, 62, 80, 0.7) 0%, rgba(52, 152, 219, 0.7) 100%);
     color: white;
     border: none;
-    padding: 12px 24px;
+    padding: 10px 20px;
     border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
-    transition: background-color 0.3s;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.15);
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100px;
+    height: 38px;
 }
 
 .view-all-btn:hover {
-    background: #0056b3;
+    background: linear-gradient(135deg, rgba(52, 73, 94, 0.8) 0%, rgba(41, 128, 185, 0.8) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.25);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.view-all-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(52, 152, 219, 0.1);
 }
 
 .view-all-btn:disabled {
-    background: #6c757d;
+    background: rgba(189, 195, 199, 0.6);
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    color: rgba(236, 240, 241, 0.6);
+    border-color: rgba(255, 255, 255, 0.03);
 }
 
+.view-all-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+    transition: left 0.5s ease;
+}
 
+.view-all-btn:hover::before {
+    left: 100%;
+}
 
+.category-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.product-card.additional-product {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.load-more-btn, .collapse-btn {
+    margin: 5px;
+}
+
+.additional-product {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}

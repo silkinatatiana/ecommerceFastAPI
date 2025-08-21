@@ -140,10 +140,17 @@
 
                             <div class="category-actions">
                                 <button onclick="loadMoreProducts('{{ category_data.id }}', this)"
-                                        class="view-all-btn"
+                                        class="view-all-btn load-more-btn"
                                         data-skip="{{ category_data.current_skip }}"
                                         data-category-id="{{ category_data.id }}">
-                                    Показать еще товары в категории "{{ category_name | title }}"
+                                    Показать еще
+                                </button>
+
+                                <button onclick="collapseProducts('{{ category_data.id }}', this)"
+                                        class="view-all-btn collapse-btn"
+                                        style="display: none;"
+                                        data-category-id="{{ category_data.id }}">
+                                    Свернуть
                                 </button>
                             </div>
                         </div>
