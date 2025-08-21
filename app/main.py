@@ -19,6 +19,7 @@ from app.backend.db_depends import get_db
 from app.backend.db import Base, engine
 from app.models import *
 from app.config import Config
+from app.functions import get_favorite_product_ids, get_in_cart_product_ids
 
 logger = logging.getLogger(__name__)
 
@@ -127,9 +128,9 @@ async def get_main_page(
         colors: Optional[str] = Query(None),
         built_in_memory: Optional[str] = Query(None),
         is_favorite: bool = Query(False),
-        skip: int = Query(3),  # Пропустить товары
-        limit: int = Query(3),  # Ограничить показ (6 товаров initially)
-        partial: bool = Query(False),  # Флаг для AJAX-запросов
+        skip: int = Query(3),
+        limit: int = Query(3),
+        partial: bool = Query(False),
 ):
     is_authenticated = False
     user_id = None
@@ -145,13 +146,8 @@ async def get_main_page(
             role = payload.get("role")
 
             if is_authenticated:
-                favorite_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
-                favorite_result = await db.execute(favorite_query)
-                favorite_product_ids = favorite_result.scalars().all()
-
-                cart_query = select(Cart.product_id).where(Cart.user_id == user_id)
-                cart_result = await db.execute(cart_query)
-                in_cart_product_ids = cart_result.scalars().all()
+                favorite_product_ids = await get_favorite_product_ids(user_id=user_id, db=db)
+                in_cart_product_ids = await get_in_cart_product_ids(user_id=user_id, db=db)
 
         except Exception as e:
             print(f"Ошибка декодирования токена: {e}")
@@ -160,8 +156,8 @@ async def get_main_page(
         products_url = f"{Config.url}/products/"
         params = {
             "user_id": user_id,
-            "skip": skip,  # Добавляем пагинацию
-            "limit": limit,  # Ограничиваем количество
+            "skip": skip,
+            "limit": limit,
             **({"category_id": category_id} if category_id else {}),
             **({"colors": colors} if colors else {}),
             **({"built_in_memory": built_in_memory} if built_in_memory else {}),
@@ -232,7 +228,6 @@ async def get_main_page(
         total_count = category_counts.get(category['id'], 0)
         has_more = (skip + len(category_products)) < total_count
 
-        # ВАЖНО: Ограничиваем показ только limit товарами
         displayed_products = category_products[:limit] if not partial else category_products
 
         categories_products[category['name']] = {

@@ -14,7 +14,7 @@ from app.backend.db_depends import get_db
 from app.schemas import CreateProduct, ProductOut
 from app.models import *
 from app.models import Review
-from app.functions import get_current_user
+from app.functions import get_current_user, get_favorite_product_ids, get_in_cart_product_ids
 from app.config import Config
 
 router = APIRouter(prefix='/products', tags=['products'])
@@ -145,27 +145,19 @@ async def product_detail_page(
     is_authenticated = False
     is_favorite = False
     in_cart = False
+    favorite_product_ids = []
+    in_cart_product_ids = []
 
     if token and token != "None" and token != "undefined":
         try:
             current_user = await get_current_user(token)
             is_authenticated = True
 
-            favorite = await db.scalar(
-                select(Favorites).where(
-                    Favorites.user_id == current_user['id'],
-                    Favorites.product_id == product_id
-                )
-            )
-            is_favorite = favorite is not None
+            favorite_product_ids = await get_favorite_product_ids(user_id=current_user['id'], db=db)
+            is_favorite = product_id in favorite_product_ids
 
-            cart = await db.scalar(
-                select(Cart).where(
-                    Cart.user_id == current_user['id'],
-                    Cart.product_id == product_id
-                )
-            )
-            in_cart = cart is not None
+            in_cart_product_ids = await get_in_cart_product_ids(user_id=current_user['id'], db=db)
+            in_cart = product_id in in_cart_product_ids
 
         except jwt.ExpiredSignatureError:
             print("Токен истёк")
@@ -247,6 +239,8 @@ async def product_detail_page(
                     "image_urls": p.image_urls
                 } for p in recommended_products
             ],
+            "favorite_product_ids": favorite_product_ids,
+            "in_cart_product_ids": in_cart_product_ids,
             "shop_name": "PEAR",
             "url": Config.url,
             "descr": "Интернет-магазин электроники"

@@ -4,13 +4,15 @@ from typing import Annotated
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from passlib.context import CryptContext
 
 from app.backend.db_depends import get_db
 from app.config import Config
-from app.models import Product, User
+from app.main import logger
+from app.models import Product, User, Favorites, Cart
 
 SECRET_KEY = Config.SECRET_KEY
 ALGORITHM = Config.ALGORITHM
@@ -105,3 +107,35 @@ async def get_current_user_from_cookie(request: Request):
             detail="Not authenticated"
         )
     return await get_current_user(token.replace("Bearer", ""))
+
+
+async def get_favorite_product_ids(user_id: int,
+                                   db: Annotated[AsyncSession, Depends(get_db)]):
+    try:
+        favorite_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
+        favorite_result = await db.execute(favorite_query)
+        favorite_product_ids = favorite_result.scalars().all()
+        return favorite_product_ids
+
+    except SQLAlchemyError as e:
+        logger.error(f"Database error getting favorites for user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось получить список избранных товаров"
+        )
+
+
+async def get_in_cart_product_ids(user_id: int,
+                              db: Annotated[AsyncSession, Depends(get_db)]):
+    try:
+        cart_query = select(Cart.product_id).where(Cart.user_id == user_id)
+        cart_result = await db.execute(cart_query)
+        in_cart_product_ids = cart_result.scalars().all()
+        return in_cart_product_ids
+
+    except SQLAlchemyError as e:
+        logger.error(f"Database error getting products in the cart for user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось получить список товаров в корзине"
+        )

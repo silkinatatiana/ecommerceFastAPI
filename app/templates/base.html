@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ shop_name }}{% endblock %}</title>
+    {% if is_authenticated %}
+    <meta name="user-id" content="{{ user_id }}">
+    {% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', path='styles/base.css') }}?v=1.1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <div class="header-text">
+                <h1>{{ shop_name }}</h1>
+                <p>{{ descr }}</p>
+            </div>
+            <div class="cart-icon-container">
+                {% if is_authenticated %}
+                <a href="{{ url_for('get_cart_html') }}" class="cart-icon">
+                    <img src="{{ url_for('static', path='/images/cart.png') }}"
+                         alt="Корзина"
+                         title="Корзина">
+                </a>
+                {% endif %}
+            </div>
+            <div class="user-icon-container">
+                {% if is_authenticated %}
+                    <div class="user-icon" id="userIcon">
+                        <img src="{{ url_for('static', path='/images/user_auth.png') }}"
+                             alt="Меню пользователя"
+                             title="Меню пользователя">
+                        <div class="user-dropdown" id="userDropdown">
+                            <a href="{{ url_for('personal_account') }}">Профиль</a>
+                            <a href="{{ url_for('logout') }}" class="logout">Выйти</a>
+                        </div>
+                    </div>
+                {% else %}
+                    <a href="{{ url_for('create_auth_form') }}" class="user-icon">
+                        <img src="{{ url_for('static', path='/images/user.png') }}"
+                             alt="Войти"
+                             title="Войти">
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <a href="{{ url }}">Главная</a> |
+        {% if role == 'seller' %}
+            <a href="{{ url_for('create_product_form') }}">Добавить товар</a>
+        {% endif %}
+    </nav>
+
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2025 {{ shop_name }}. Все права защищены.</p>
+    </footer>
+
+    {% block scripts %}
+    {% endblock %}
+
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/cart/cart.js"></script>
+</body>
+</html>

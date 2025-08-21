@@ -1,377 +1,360 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ product.name }} | {{ shop_name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/styles/product/product.css') }}?v=1.0">
-</head>
-<body>
-    <header>
-        <div class="header-container">
-            <div class="header-text">
-                <h1>{{ shop_name }}</h1>
-                <p>{{ descr }}</p>
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} | {{ shop_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/product/product.css') }}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumbs">
+    <a href="{{ url }}">Главная</a> >
+    <a href="/?category_id={{ product.category_id }}">{{ product.category_name }}</a> >
+    {{ product.name }}
+</div>
+
+<div class="product-container">
+    <div class="gallery-section">
+        <div class="gallery-container">
+            <div class="main-image-container">
+                <img src="{{ product.image_urls[0] if product.image_urls else 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzY2NiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMyAxOWEyIDIgMCAwIDEtMiAySDNhMiAyIDAgMCAxLTItMlY1YTIgMiAwIDAgMSAyLTJoNGwyIDJoMTBsMi0yaDRhMiAyIDAgMCAxIDIgMnoiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEwIiByPSIzIi8+PHBhdGggZD0iTTE5IDIxYTIgMiAwIDAgMS0yLTJWNyAyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYxMmEyIDIgMCAwIDEtMiAyeiIvPjwvc3ZnPg==' }}"
+                     alt="{{ product.name }}"
+                     class="product-main-image"
+                     id="mainProductImage">
+                <button class="nav-button prev" onclick="navigate(-1)">❮</button>
+                <button class="nav-button next" onclick="navigate(1)">❯</button>
             </div>
-            <div class="cart-icon-container">
-                {% if is_authenticated %}
-                <a href="{{ url_for('get_cart_html') }}" class="cart-icon">
-                    <img src="{{ url_for('static', path='/images/cart.png') }}"
-                         alt="Корзина"
-                         title="Корзина">
-                </a>
-                {% endif %}
+            <div class="thumbnails">
+                {% for url in product.image_urls %}
+                <img src="{{ url }}"
+                     class="thumbnail {% if loop.first %}active{% endif %}"
+                     alt="Thumbnail {{ loop.index }}"
+                     onclick="changeMainImage(this, {{ loop.index0 }})">
+                {% endfor %}
             </div>
-            <div class="user-icon-container">
-                {% if is_authenticated %}
-                    <div class="user-icon" id="userIcon">
-                        <img src="{{ url_for('static', path='/images/user_auth.png') }}"
-                             alt="Меню пользователя"
-                             title="Меню пользователя">
-                        <div class="user-dropdown" id="userDropdown">
-                            <a href="{{ url_for('personal_account') }}">Профиль</a>
-                            <a href="{{ url_for('logout') }}" class="logout">Выйти</a>
-                        </div>
-                    </div>
+        </div>
+    </div>
+
+    <div class="product-info">
+        <h1>{{ product.name }}</h1>
+
+        <div class="product-rating">
+            <span class="rating-stars">
+                {% if review_count > 0 %}
+                    {% for i in range(1, 6) %}
+                        {% if i <= product.rating %}
+                            ★
+                        {% elif (i - 0.5) <= product.rating < i %}
+                            <span class="half-star">★</span>
+                        {% else %}
+                            ☆
+                        {% endif %}
+                    {% endfor %}
                 {% else %}
-                    <a href="{{ url_for('create_auth_form') }}" class="user-icon">
-                        <img src="{{ url_for('static', path='/images/user.png') }}"
-                             alt="Войти"
-                             title="Войти">
-                    </a>
+                    ☆☆☆☆☆
+                {% endif %}
+            </span>
+            <a href="#reviews-section" class="rating-link">
+                <span>Отзывы({{ review_count }})</span>
+            </a>
+        </div>
+
+        <div class="product-price">
+            {{ "{:,.0f}".format(product.price).replace(",", " ") }} ₽
+        </div>
+
+        <div class="product-stock {% if product.stock <= 0 %}out-of-stock{% else %}in-stock{% endif %}">
+            {% if product.stock <= 0 %}
+                Нет в наличии
+            {% else %}
+                В наличии: {{ product.stock }} шт.
+            {% endif %}
+        </div>
+
+        <div class="product-actions">
+            {% if is_authenticated %}
+                {% if product.in_cart %}
+                    <button class="btn btn-primary" onclick="removeFromCart('{{ product.id }}')">Удалить из корзины</button>
+                {% else %}
+                    <button class="btn btn-primary" onclick="addProduct('{{ product.id }}')">Добавить в корзину</button>
+                {% endif %}
+
+                <button class="btn-favorite {% if is_favorite %}active{% endif %}"
+                        onclick="toggleFavorite(this, '{{ product.id }}')">
+                    <svg viewBox="0 0 24 24" class="heart-icon">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                </button>
+            {% else %}
+                <button class="btn btn-primary"
+                        onclick="showLoginPrompt('Для добавления товаров в корзину необходимо войти в систему')">
+                    Добавить в корзину
+                </button>
+                <button class="btn-favorite"
+                        onclick="showLoginPrompt('Для добавления товаров в избранное необходимо войти в систему')">
+                    <svg viewBox="0 0 24 24" class="heart-icon">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                </button>
+            {% endif %}
+        </div>
+
+        <div class="product-description">
+            <h3>Описание</h3>
+            <p>{{ product.description or 'Описание отсутствует' }}</p>
+        </div>
+
+        <div class="product-specs">
+            <div class="specs-header" onclick="toggleSpecs()">
+                <h3>Характеристики</h3>
+                <button class="specs-toggle">▼</button>
+            </div>
+            <div class="specs-content">
+                {% if product.RAM_capacity and product.RAM_capacity != 'none' %}
+                <div class="spec-row">
+                    <span class="spec-name">Оперативная память:</span>
+                    <span class="spec-value">{{ product.RAM_capacity }}</span>
+                </div>
+                {% endif %}
+                {% if product.built_in_memory_capacity and product.built_in_memory_capacity != 'none' %}
+                <div class="spec-row">
+                    <span class="spec-name">Встроенная память:</span>
+                    <span class="spec-value">{{ product.built_in_memory_capacity }}</span>
+                </div>
+                {% endif %}
+                {% if product.screen and product.screen != 'none' %}
+                <div class="spec-row">
+                    <span class="spec-name">Экран:</span>
+                    <span class="spec-value">{{ product.screen }}</span>
+                </div>
+                {% endif %}
+                {% if product.cpu and product.cpu != 'none' %}
+                <div class="spec-row">
+                    <span class="spec-name">Процессор:</span>
+                    <span class="spec-value">{{ product.cpu }}</span>
+                </div>
+                {% endif %}
+                {% if product.number_of_processor_cores and product.number_of_processor_cores != 'none' %}
+                <div class="spec-row">
+                    <span class="spec-name">Количество ядер:</span>
+                    <span class="spec-value">{{ product.number_of_processor_cores }}</span>
+                </div>
+                {% endif %}
+                {% if product.number_of_graphics_cores and product.number_of_graphics_cores != 'none' %}
+                <div class="spec-row">
+                    <span class="spec-name">Графические ядра:</span>
+                    <span class="spec-value">{{ product.number_of_graphics_cores }}</span>
+                </div>
+                {% endif %}
+                {% if product.color %}
+                <div class="spec-row">
+                    <span class="spec-name">Цвет:</span>
+                    <span class="spec-value">{{ product.color }}</span>
+                </div>
                 {% endif %}
             </div>
         </div>
-    </header>
+    </div>
+</div>
 
-    <nav>
-        <a href="{{ url }}">Главная</a>
-        <a href="{{ url_for('create_product_form') }}">Добавить товар</a>
-    </nav>
+<div class="fullscreen-gallery" id="fullscreenGallery">
+    <span class="close-fullscreen">&times;</span>
+    <div class="fullscreen-content">
+        <img src="" class="fullscreen-image" id="fullscreenImage">
+        <button class="fullscreen-nav fullscreen-prev" onclick="navigateFullscreen(-1)">❮</button>
+        <button class="fullscreen-nav fullscreen-next" onclick="navigateFullscreen(1)">❯</button>
+        <div class="image-counter" id="imageCounter"></div>
+    </div>
+</div>
 
-    <main>
-        <div class="breadcrumbs">
-            <a href="{{ url }}">Главная</a> > 
-            <a href="/?category_id={{ product.category_id }}">{{ product.category_name }}</a> >
-            {{ product.name }}
-        </div>
+<div class="reviews-section" id="reviews-section">
+    <h2>Отзывы ({{ review_count }})</h2>
 
-        <div class="product-container">
-            <div class="gallery-section">
-                <div class="gallery-container">
-                    <div class="main-image-container">
-                        <img src="{{ product.image_urls[0] if product.image_urls else 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzY2NiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMyAxOWEyIDIgMCAwIDEtMiAySDNhMiAyIDAgMCAxLTItMlY1YTIgMiAwIDAgMSAyLTJoNGwyIDJoMTBsMi0yaDRhMiAyIDAgMCAxIDIgMnoiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEwIiByPSIzIi8+PHBhdGggZD0iTTE5IDIxYTIgMiAwIDAgMS0yLTJWNyAyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYxMmEyIDIgMCAwIDEtMiAyeiIvPjwvc3ZnPg==' }}" 
-                             alt="{{ product.name }}" 
-                             class="product-main-image"
-                             id="mainProductImage">
-                        <button class="nav-button prev" onclick="navigate(-1)">❮</button>
-                        <button class="nav-button next" onclick="navigate(1)">❯</button>
+    {% if review_count > 0 %}
+        <div class="reviews-list">
+            {% for review in reviews[:3] %}
+            <div class="review-item">
+                <div class="review-header">
+                    <span class="review-author">{{ review.author }}</span>
+                    <span class="review-date">{{ review.date }}</span>
+                    <span class="review-rating">
+                        {% for i in range(1, 6) %}
+                            {% if i <= review.rating %}
+                                ★
+                            {% else %}
+                                ☆
+                            {% endif %}
+                        {% endfor %}
+                    </span>
+                </div>
+                <div class="review-text">
+                    {{ review.text }}
+                </div>
+                {% if review.images and review.images|length > 0 %}
+                <div class="review-gallery">
+                    <div class="review-main-image-container">
+                        <img src="{{ review.images[0] }}"
+                             class="review-main-image"
+                             alt="Отзыв {{ loop.index }}"
+                             onclick="openReviewFullscreen(this)">
                     </div>
-                    <div class="thumbnails">
-                        {% for url in product.image_urls %}
-                        <img src="{{ url }}" 
-                             class="thumbnail {% if loop.first %}active{% endif %}" 
-                             alt="Thumbnail {{ loop.index }}"
-                             onclick="changeMainImage(this, {{ loop.index0 }})">
+                    {% if review.images|length > 1 %}
+                    <div class="review-thumbnails">
+                        {% for image in review.images %}
+                        <img src="{{ image }}"
+                             class="review-thumbnail {% if loop.first %}active{% endif %}"
+                             alt="Миниатюра {{ loop.index }}"
+                             onclick="changeReviewMainImage(this, '{{ image }}', {{ loop.index0 }}, {{ review.images|length }})">
                         {% endfor %}
                     </div>
+                    {% endif %}
                 </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            {% if review_count > 3 %}
+            <div class="more-reviews-toggle" id="moreReviewsToggle">
+                Показать все отзывы
             </div>
 
-            <div class="product-info">
-                <h1>{{ product.name }}</h1>
-                
-                <div class="product-rating">
-                    <span class="rating-stars">
-                        {% if review_count > 0 %}
+            <div class="more-reviews" id="moreReviews">
+                {% for review in reviews[3:] %}
+                <div class="review-item">
+                    <div class="review-header">
+                        <span class="review-author">{{ review.author }}</span>
+                        <span class="review-date">{{ review.date }}</span>
+                        <span class="review-rating">
                             {% for i in range(1, 6) %}
-                                {% if i <= product.rating %}
+                                {% if i <= review.rating %}
                                     ★
-                                {% elif (i - 0.5) <= product.rating < i %}
-                                    <span class="half-star">★</span>
                                 {% else %}
                                     ☆
                                 {% endif %}
                             {% endfor %}
-                        {% else %}
-                            ☆☆☆☆☆
-                        {% endif %}
-                    </span>
-                    <a href="#reviews-section" class="rating-link">
-                        <span>Отзывы({{ review_count }})</span>
-                    </a>
-                </div>
-
-                <div class="product-price">
-                    {{ "{:,.0f}".format(product.price).replace(",", " ") }} ₽
-                </div>
-
-                <div class="product-stock {% if product.stock <= 0 %}out-of-stock{% else %}in-stock{% endif %}">
-                    {% if product.stock <= 0 %}
-                        Нет в наличии
-                    {% else %}
-                        В наличии: {{ product.stock }} шт.
-                    {% endif %}
-                </div>
-
-                <div class="product-actions">
-                    {% if is_authenticated %}
-                        {% if product.in_cart %}
-                            <button class="btn btn-primary" onclick="removeFromCart('{{ product.id }}')">Удалить из корзины</button>
-                        {% else %}
-                            <button class="btn btn-primary" onclick="addProduct('{{ product.id }}')">Добавить в корзину</button>
-                        {% endif %}
-
-                        <button class="btn-favorite {% if is_favorite %}active{% endif %}"
-                                onclick="toggleFavorite(this, '{{ product.id }}')">
-                            <svg viewBox="0 0 24 24" class="heart-icon">
-                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                            </svg>
-                        </button>
-                    {% else %}
-                        <button class="btn btn-primary"
-                                onclick="showLoginPrompt('Для добавления товаров в корзину необходимо войти в систему')">
-                            Добавить в корзину
-                        </button>
-                        <button class="btn-favorite"
-                                onclick="showLoginPrompt('Для добавления товаров в избранное необходимо войти в систему')">
-                            <svg viewBox="0 0 24 24" class="heart-icon">
-                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                            </svg>
-                        </button>
-                    {% endif %}
-                </div>
-
-                <div class="product-description">
-                    <h3>Описание</h3>
-                    <p>{{ product.description or 'Описание отсутствует' }}</p>
-                </div>
-
-                <div class="product-specs">
-                    <div class="specs-header" onclick="toggleSpecs()">
-                        <h3>Характеристики</h3>
-                        <button class="specs-toggle">▼</button>
+                        </span>
                     </div>
-                    <div class="specs-content">
-                        {% if product.RAM_capacity and product.RAM_capacity != 'none' %}
-                        <div class="spec-row">
-                            <span class="spec-name">Оперативная память:</span>
-                            <span class="spec-value">{{ product.RAM_capacity }}</span>
-                        </div>
-                        {% endif %}
-                        {% if product.built_in_memory_capacity and product.built_in_memory_capacity != 'none' %}
-                        <div class="spec-row">
-                            <span class="spec-name">Встроенная память:</span>
-                            <span class="spec-value">{{ product.built_in_memory_capacity }}</span>
-                        </div>
-                        {% endif %}
-                        {% if product.screen and product.screen != 'none' %}
-                        <div class="spec-row">
-                            <span class="spec-name">Экран:</span>
-                            <span class="spec-value">{{ product.screen }}</span>
-                        </div>
-                        {% endif %}
-                        {% if product.cpu and product.cpu != 'none' %}
-                        <div class="spec-row">
-                            <span class="spec-name">Процессор:</span>
-                            <span class="spec-value">{{ product.cpu }}</span>
-                        </div>
-                        {% endif %}
-                        {% if product.number_of_processor_cores and product.number_of_processor_cores != 'none' %}
-                        <div class="spec-row">
-                            <span class="spec-name">Количество ядер:</span>
-                            <span class="spec-value">{{ product.number_of_processor_cores }}</span>
-                        </div>
-                        {% endif %}
-                        {% if product.number_of_graphics_cores and product.number_of_graphics_cores != 'none' %}
-                        <div class="spec-row">
-                            <span class="spec-name">Графические ядра:</span>
-                            <span class="spec-value">{{ product.number_of_graphics_cores }}</span>
-                        </div>
-                        {% endif %}
-                        {% if product.color %}
-                        <div class="spec-row">
-                            <span class="spec-name">Цвет:</span>
-                            <span class="spec-value">{{ product.color }}</span>
-                        </div>
-                        {% endif %}
+                    <div class="review-text">
+                        {{ review.text }}
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="fullscreen-gallery" id="fullscreenGallery">
-            <span class="close-fullscreen">&times;</span>
-            <div class="fullscreen-content">
-                <img src="" class="fullscreen-image" id="fullscreenImage">
-                <button class="fullscreen-nav fullscreen-prev" onclick="navigateFullscreen(-1)">❮</button>
-                <button class="fullscreen-nav fullscreen-next" onclick="navigateFullscreen(1)">❯</button>
-                <div class="image-counter" id="imageCounter"></div>
-            </div>
-        </div>
-
-        <div class="reviews-section" id="reviews-section">
-            <h2>Отзывы ({{ review_count }})</h2>
-            
-            {% if review_count > 0 %}
-                <div class="reviews-list">
-                    {% for review in reviews[:3] %}
-                    <div class="review-item">
-                        <div class="review-header">
-                            <span class="review-author">{{ review.author }}</span>
-                            <span class="review-date">{{ review.date }}</span>
-                            <span class="review-rating">
-                                {% for i in range(1, 6) %}
-                                    {% if i <= review.rating %}
-                                        ★
-                                    {% else %}
-                                        ☆
-                                    {% endif %}
-                                {% endfor %}
-                            </span>
+                    {% if review.images and review.images|length > 0 %}
+                    <div class="review-gallery">
+                        <div class="review-main-image-container">
+                            <img src="{{ review.images[0] }}"
+                                 class="review-main-image"
+                                 alt="Отзыв {{ loop.index + 3 }}"
+                                 onclick="openFullscreenReviewImage('{{ review.images[0] }}', {{ loop.index0 }}, {{ review.images|length }})">
                         </div>
-                        <div class="review-text">
-                            {{ review.text }}
-                        </div>
-                          {% if review.images and review.images.length > 0 %}
-                        <div class="review-gallery">
-                            <div class="review-main-image-container">
-                                <img src="{{ review.images[0] }}" 
-                                     class="review-main-image" 
-                                     alt="Отзыв {{ loop.index }}"
-                                     onclick="openReviewFullscreen(this)">
-                            </div>
-                            {% if review.images|length > 1 %}
-                            <div class="review-images-container"></div>
-                                {% for image in review.images %}
-                                <img src="{{ image }}" 
-                                    class="review-image-thumbnail {% if loop.first %}selected{% endif %}"
-                                    onclick="selectReviewImage(this, '{{ image }}')">
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-
-                    {% if review_count > 3 %}
-                    <div class="more-reviews-toggle" id="moreReviewsToggle">
-                        Показать все отзывы
-                    </div>
-                    
-                    <div class="more-reviews" id="moreReviews">
-                        {% for review in reviews[3:] %}
-                        <div class="review-item">
-                            <div class="review-header">
-                                <span class="review-author">{{ review.author }}</span>
-                                <span class="review-date">{{ review.date }}</span>
-                                <span class="review-rating">
-                                    {% for i in range(1, 6) %}
-                                        {% if i <= review.rating %}
-                                            ★
-                                        {% else %}
-                                            ☆
-                                        {% endif %}
-                                    {% endfor %}
-                                </span>
-                            </div>
-                            <div class="review-text">
-                                {{ review.text }}
-                            </div>
-                            {% if review.images and review.images|length > 0 %}
-                            <div class="review-gallery">
-                                <div class="review-main-image-container">
-                                    <img src="{{ review.images[0] }}" 
-                                         class="review-main-image" 
-                                         alt="Отзыв {{ loop.index + 3 }}"
-                                         onclick="openFullscreenReviewImage('{{ review.images[0] }}', {{ loop.index0 }}, {{ review.images|length }})">
-                                </div>
-                                {% if review.images|length > 1 %}
-                                <div class="review-thumbnails">
-                                    {% for image in review.images %}
-                                    <img src="{{ image }}" 
-                                         class="review-thumbnail {% if loop.first %}active{% endif %}" 
-                                         alt="Миниатюра {{ loop.index }}"
-                                         onclick="changeReviewMainImage(this, '{{ image }}', {{ loop.index0 }}, {{ review.images|length }})">
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                </div>
-            {% else %}
-                <p>Пока нет отзывов. Будьте первым!</p>
-            {% endif %}
-            
-            <button class="add-review-btn" onclick="showReviewForm()">Добавить отзыв</button>
-            
-            <div class="review-form" id="reviewForm" style="display: none;">
-                <h3>Оставить отзыв</h3>
-                <form id="newReviewForm" enctype="multipart/form-data">
-                    <div class="form-group">
-                        <label>Оценка:</label>
-                        <div class="rating-stars-input">
-                            {% for i in range(5, 0, -1) %}
-                            <input type="radio" id="star{{i}}" name="rating" value="{{i}}" {% if loop.first %}checked{% endif %}>
-                            <label for="star{{i}}">★</label>
+                        {% if review.images|length > 1 %}
+                        <div class="review-thumbnails">
+                            {% for image in review.images %}
+                            <img src="{{ image }}"
+                                 class="review-thumbnail {% if loop.first %}active{% endif %}"
+                                 alt="Миниатюра {{ loop.index }}"
+                                 onclick="changeReviewMainImage(this, '{{ image }}', {{ loop.index0 }}, {{ review.images|length }})">
                             {% endfor %}
                         </div>
+                        {% endif %}
                     </div>
-                    <div class="form-group">
-                        <label for="reviewText">Ваш отзыв:</label>
-                        <textarea id="reviewText" name="comment" rows="4" required></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Ссы12лки на изображения (максимум 5):</label>
-                        <div class="image-urls-container" id="imageUrlsContainer">
-                            <div class="image-url-input">
-                                <input type="text" class="image-url" name="photo_urls" placeholder="Введите URL изображения">
-                                <button type="button" class="add-url-btn" onclick="addImageUrlField()">+</button>
-                            </div>
-                        </div>
-                    </div>
-                    <button type="submit" class="submit-review-btn">Отправить отзыв</button>
-                </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
             </div>
+            {% endif %}
         </div>
+    {% else %}
+        <p>Пока нет отзывов. Будьте первым!</p>
+    {% endif %}
 
+    <button class="add-review-btn" onclick="showReviewForm()">Добавить отзыв</button>
 
-        {% if recommended_products %}
-        <div class="recommended-products">
-            <h2 class="recommended-title">Рекомендуемые товары</h2>
-            <div class="products-scroll-container">
-                <div class="products-scroll-wrapper">
-                    {% for product in recommended_products %}
-                        <div class="product-card" onclick="window.open    ('{{ url_for('product_detail_page', product_id=product.id) }}', '_blank')" style="cursor: pointer;">
-                            <img src="{{ product.image_urls[0] if product.image_urls else placeholder_image }}" 
-                                alt="{{ product.name }}" 
-                                class="product-image">
-                            <h3>{{ product.name }}</h3>
-                            <div class="product-price">
-                                {{ "{:,.0f}".format(product.price).replace(",", " ") }} ₽
-                            </div>
-                        </a>
-                    </div>
+    <div class="review-form" id="reviewForm" style="display: none;">
+        <h3>Оставить отзыв</h3>
+        <form id="newReviewForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>Оценка:</label>
+                <div class="rating-stars-input">
+                    {% for i in range(5, 0, -1) %}
+                    <input type="radio" id="star{{i}}" name="rating" value="{{i}}" {% if loop.first %}checked{% endif %}>
+                    <label for="star{{i}}">★</label>
                     {% endfor %}
                 </div>
             </div>
-        </div>
-        {% endif %}
-
-        <div class="fullscreen-review-image" id="fullscreenReviewImage">
-        <span class="close-fullscreen" onclick="closeFullscreenReviewImage()">&times;</span>
-        <img src="" id="fullscreenReviewImg">
+            <div class="form-group">
+                <label for="reviewText">Ваш отзыв:</label>
+                <textarea id="reviewText" name="comment" rows="4" required></textarea>
+            </div>
+            <div class="form-group">
+                <label>Ссылки на изображения (максимум 5):</label>
+                <div class="image-urls-container" id="imageUrlsContainer">
+                    <div class="image-url-input">
+                        <input type="text" class="image-url" name="photo_urls" placeholder="Введите URL изображения">
+                        <button type="button" class="add-url-btn" onclick="addImageUrlField()">+</button>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="submit-review-btn">Отправить отзыв</button>
+        </form>
     </div>
-    </main>
+</div>
 
-    <footer>
-        <p>&copy; 2025 {{ shop_name }}. Все права защищены.</p>
-    </footer>
+{% if recommended_products %}
+<div class="recommended-products">
+    <h2 class="recommended-title">Рекомендуемые товары</h2>
+    <div class="products-scroll-container">
+        <div class="products-scroll-wrapper">
+            {% for product in recommended_products %}
+                <div class="product-card" onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', '_blank')" style="cursor: pointer;">
+                    <img src="{{ product.image_urls[0] if product.image_urls else placeholder_image }}"
+                        alt="{{ product.name }}"
+                        class="product-image">
+                    <h3>{{ product.name }}</h3>
+                    <div class="product-price">
+                        {{ "{:,.0f}".format(product.price).replace(",", " ") }} ₽
+                    </div>
+
+                    {% if is_authenticated %}
+                    <div class="product-actions">
+                        <div class="favorite-heart"
+                             data-product-id="{{ product.id }}"
+                             onclick="event.stopPropagation(); toggleFavorite(this, {{ product.id }})">
+                            <svg class="heart-icon {% if product.id in favorite_product_ids %}active{% endif %}"
+                                 viewBox="0 0 24 24"
+                                 fill="{% if product.id in favorite_product_ids %}#ff4081{% else %}none{% endif %}"
+                                 stroke="{% if product.id in favorite_product_ids %}#ff4081{% else %}#bdbdbd{% endif %}"
+                                 stroke-width="2">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                            </svg>
+                        </div>
+
+                        {% if product.id in in_cart_product_ids %}
+                            <button class="btn-cart remove"
+                                    onclick="event.stopPropagation(); removeFromCart('{{ product.id }}')"
+                                    title="Удалить из корзины">
+                                <i class="fas fa-shopping-cart"></i>
+                            </button>
+                        {% else %}
+                            <button class="btn-cart add"
+                                    onclick="event.stopPropagation(); addProduct('{{ product.id }}')"
+                                    title="Добавить в корзину">
+                                <i class="fas fa-shopping-cart"></i>
+                            </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="fullscreen-review-image" id="fullscreenReviewImage">
+    <span class="close-fullscreen" onclick="closeFullscreenReviewImage()">&times;</span>
+    <img src="" id="fullscreenReviewImg">
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script src="{{ url_for('static', path='/js/product/product_page.js') }}?v=1.0"></script>
-</body>
-</html>
+{% endblock %}
