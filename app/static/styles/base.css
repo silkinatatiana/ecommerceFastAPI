@@ -1,6 +1,8 @@
 :root {
-    --primary-color: #4a6fa5;
-    --primary-hover: #3a5a8c;
+    --ocean-deep: #1e466d;          /* Глубокий океанский синий - основной цвет */
+    --ocean-dark: #2c5f8a;          /* Темный океанский для ховера */
+    --ocean-light: #4a7ca5;         /* Светлый океанский */
+    --ocean-accent: #6b8ca6;        /* Акцентный серо-синий */
     --secondary-color: #166088;
     --accent-color: #4fc3f7;
     --dark-color: #2d3142;
@@ -31,7 +33,7 @@ body {
 }
 
 header {
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    background: linear-gradient(135deg, var(--ocean-deep), var(--secondary-color));
     color: white;
     padding: 2rem 1rem;
     text-align: center;
@@ -51,7 +53,7 @@ header p {
 }
 
 nav {
-    background-color: var(--dark-color);
+    background-color: var(--ocean-deep);
     padding: 1rem;
     text-align: center;
 }
@@ -66,7 +68,7 @@ nav a {
 }
 
 nav a:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 main {
@@ -77,7 +79,7 @@ main {
 }
 
 footer {
-    background-color: var(--dark-color);
+    background-color: var(--ocean-deep);
     color: white;
     text-align: center;
     padding: 1.5rem;
@@ -176,4 +178,62 @@ footer {
 
 .show-dropdown {
     display: block !important;
+}
+
+/* Стили для цены - глубокий океанский синий */
+.product-price {
+    color: var(--ocean-deep) !important;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+/* Дополнительные стили для кнопок в океанской гамме */
+.btn-primary {
+    background-color: var(--ocean-deep);
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-primary:hover {
+    background-color: var(--ocean-dark);
+    transform: translateY(-2px);
+}
+
+/* Ссылки в глубоком океанском синем */
+a {
+    color: var(--ocean-deep);
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+a:hover {
+    color: var(--ocean-dark);
+    text-decoration: underline;
+}
+
+/* Для карточек товаров */
+.product-card .product-price {
+    color: var(--ocean-deep) !important;
+}
+
+/* Для рекомендуемых товаров */
+.recommended-products .product-card .product-price {
+    color: var(--ocean-deep) !important;
+}
+
+/* Дополнительные акцентные элементы */
+.rating-stars {
+    color: var(--ocean-deep);
+}
+
+.specs-header h3 {
+    color: var(--ocean-deep);
+}
+
+.product-info h1 {
+    color: var(--ocean-deep);
 }

@@ -1,19 +1,20 @@
 .breadcrumbs {
     padding: 0.5rem 0;
     font-size: 0.9rem;
-    color: var(--dark-color);
+    color: var(--ocean-light);
     background-color: transparent;
     text-align: left;
     margin-left: -0.5rem;
 }
 
 .breadcrumbs a {
-    color: var(--primary-color);
+    color: var(--ocean-light);
     text-decoration: none;
     transition: var(--transition);
 }
 
 .breadcrumbs a:hover {
+    color: var(--ocean-light);
     text-decoration: underline;
 }
 
@@ -122,14 +123,17 @@
 }
 
 .rating-link {
-    color: var(--primary-color);
+    color: var(--ocean-deep);
     text-decoration: none;
     font-size: 0.9rem;
+    transition: var(--transition);
 }
 
 .rating-link:hover {
+    color: var(--ocean-dark);
     text-decoration: underline;
 }
+
 
 .product-price {
     font-size: 1.8rem;
@@ -168,14 +172,22 @@
 }
 
 .btn-primary {
-    background-color: var(--primary-color);
+    background-color: var(--ocean-light);
     color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: var(--transition);
+    font-weight: bold;
 }
 
 .btn-primary:hover {
-    background-color: var(--primary-hover);
+    background-color: var(--ocean-dark);
     transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
+
 
 .btn-favorite {
     background: none;
@@ -205,9 +217,9 @@
 }
 
 .btn-favorite.active .heart-icon {
-    fill: #ff6b6b;
-    stroke: #ff6b6b;
-    transform: scale(1.1);
+    fill: #ff6b6b !important;
+    stroke: #ff6b6b !important;
+    transform: scale(1.1) !important;
 }
 
 .btn-favorite:hover .heart-icon {
@@ -252,7 +264,7 @@
 .specs-toggle {
     background: none;
     border: none;
-    color: var(--primary-color);
+    color: var(--ocean-light);
     cursor: pointer;
     padding: 0.5rem;
     font-size: 1.2rem;
@@ -598,19 +610,6 @@
     background-color: #45a049;
 }
 
-.recommended-products {
-    margin-top: 3rem;
-    padding: 0 1rem;
-    max-width: 1200px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.recommended-title {
-    margin-bottom: 1.5rem;
-    color: var(--secondary-color);
-}
-
 .products-scroll-container {
     overflow-x: auto;
     padding-bottom: 1rem;
@@ -637,42 +636,6 @@
     padding: 0 1rem;
 }
 
-.recommended-products .product-card {
-    flex: 0 0 250px;
-    background: white;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    overflow: hidden;
-    transition: var(--transition);
-    cursor: pointer;
-}
-
-.recommended-products .product-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-}
-
-.recommended-products .product-image {
-    width: 100%;
-    height: 180px;
-    object-fit: contain;
-    padding: 1rem;
-    background: var(--light-gray);
-}
-
-.recommended-products .product-card h3 {
-    padding: 0.8rem 1rem 0;
-    font-size: 1rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.recommended-products .product-price {
-    padding: 0 1rem 1rem;
-    font-weight: bold;
-    color: var(--secondary-color);
-}
 
 .half-star {
     background: linear-gradient(90deg, #ffc107 50%, lightgray 50%);
@@ -711,10 +674,6 @@
         align-items: flex-start;
         gap: 5px;
     }
-
-    .recommended-products .product-card {
-        flex: 0 0 200px;
-    }
 }
 
 @media (max-width: 480px) {
@@ -725,73 +684,7 @@
     .product-price {
         font-size: 1.5rem;
     }
-
-    .recommended-products .product-card {
-        flex: 0 0 150px;
-    }
 }
 
-/* Общие стили для обеих кнопок */
-.btn-cart {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 14px;
-    position: relative;
-}
 
-/* Кнопка "Добавить в корзину" (серая) */
-.btn-cart.add {
-    background: #f8f9fa;
-    color: #6c757d;
-    border: 2px solid #e9ecef;
-}
-
-.btn-cart.add:hover {
-    background: #e9ecef;
-    color: #495057;
-    transform: translateY(-2px);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
-}
-
-.btn-cart.add:active {
-    transform: translateY(0);
-}
-
-/* Кнопка "Удалить из корзины" (серо-синяя) */
-.btn-cart.remove {
-    background: linear-gradient(135deg, #007bff, #0056b3);
-    color: white;
-    border: 2px solid #007bff;
-    box-shadow: 0 3px 8px rgba(0, 123, 255, 0.25);
-}
-
-.btn-cart.remove:hover {
-    background: linear-gradient(135deg, #0056b3, #004494);
-    border-color: #0056b3;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.35);
-}
-
-.btn-cart.remove:active {
-    transform: translateY(0);
-}
-
-.btn-cart {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.btn-cart i {
-    transition: transform 0.3s ease;
-}
-
-.btn-cart:hover i {
-    transform: scale(1.1);
-}
 

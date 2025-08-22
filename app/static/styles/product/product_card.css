@@ -1,0 +1,262 @@
+:root {
+    --primary-color: #007bff;
+    --primary-hover: #0056b3;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --error-color: #dc3545;
+    --dark-color: #343a40;
+    --light-gray: #f8f9fa;
+    --border-radius: 8px;
+    --box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    --transition: all 0.3s ease;
+    --dark-blue: #1e466d;
+}
+
+.product-card {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+    transition: var(--transition);
+    cursor: pointer;
+    margin-bottom: 1rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.product-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: contain;
+    padding: 1rem;
+    background: var(--light-gray);
+    transition: var(--transition);
+}
+
+.product-card:hover img {
+    transform: scale(1.05);
+}
+
+.product-card h3 {
+    padding: 0.8rem 1rem 0;
+    font-size: 1rem;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--dark-color);
+    font-weight: 600;
+}
+
+.product-card .product-price {
+    padding: 0 1rem 0.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.product-card .product-stock {
+    padding: 0 1rem 0.5rem;
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+}
+
+.product-card .product-stock.out-of-stock {
+    color: var(--error-color);
+}
+
+.product-card .product-stock.in-stock {
+    color: var(--success-color);
+}
+
+.product-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0 1rem 1rem;
+    align-items: center;
+    margin-top: auto;
+    justify-content: flex-end;
+}
+
+.favorite-heart {
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    background: none;
+    border: none;
+    position: relative;
+    z-index: 2;
+}
+
+.favorite-heart:hover {
+    background-color: rgba(255, 107, 107, 0.1);
+}
+
+.favorite-heart .heart-icon {
+    width: 24px;
+    height: 24px;
+    transition: all 0.3s ease;
+}
+
+.favorite-heart .heart-icon.active {
+    fill: #ff4081;
+    stroke: #ff4081;
+    transform: scale(1.1);
+}
+
+/* Стили для кнопок корзины - темно-синие */
+.btn-cart {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    position: relative;
+    z-index: 2;
+}
+
+.btn-cart.add {
+    background: #f8f9fa;
+    color: #6c757d;
+    border: 2px solid #e9ecef;
+}
+
+.btn-cart.add:hover {
+    background: #e9ecef;
+    color: #495057;
+    transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Темно-синяя корзинка для товаров в корзине */
+.btn-cart.remove {
+    background: var(--dark-blue);
+    color: white;
+    border: 2px solid var(--dark-blue);
+    box-shadow: 0 3px 8px rgba(26, 54, 93, 0.25);
+}
+
+.btn-cart.remove:hover {
+    background: #2d3748;
+    border-color: #2d3748;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(26, 54, 93, 0.35);
+}
+
+.btn-cart i {
+    transition: transform 0.3s ease;
+}
+
+.btn-cart:hover i {
+    transform: scale(1.1);
+}
+
+/* Стили для рекомендуемых товаров */
+.recommended-products .product-card {
+    flex: 0 0 250px;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+    transition: var(--transition);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+}
+
+.recommended-products .product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.recommended-products .product-card img {
+    width: 100%;
+    height: 180px;
+    object-fit: contain;
+    padding: 1rem;
+    background: var(--light-gray);
+}
+
+.recommended-products .product-card h3 {
+    padding: 0.8rem 1rem 0;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recommended-products .product-card .product-price {
+    padding: 0 1rem 0.5rem;
+    font-weight: bold;
+    color: var(--secondary-color);
+}
+
+.recommended-products .product-card .product-stock {
+    padding: 0 1rem 0.5rem;
+}
+
+.recommended-products .product-actions {
+    margin-top: auto;
+    justify-content: flex-end;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .recommended-products .product-card {
+        flex: 0 0 200px;
+    }
+
+    .product-actions {
+        flex-wrap: nowrap; /* Не переносим на мобильных */
+        justify-content: flex-end;
+    }
+}
+
+@media (max-width: 480px) {
+    .recommended-products .product-card {
+        flex: 0 0 150px;
+    }
+
+    .product-card h3 {
+        font-size: 0.9rem;
+    }
+
+    .product-card .product-price {
+        font-size: 1.1rem;
+    }
+
+    .favorite-heart {
+        width: 36px;
+        height: 36px;
+        padding: 6px;
+    }
+
+    .btn-cart {
+        width: 32px;
+        height: 32px;
+    }
+
+    .favorite-heart .heart-icon {
+        width: 20px;
+        height: 20px;
+    }
+}

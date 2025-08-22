@@ -359,15 +359,23 @@ function toggleSpecs() {
 }
 
 async function toggleFavorite(button, productId) {
-    console.log('[DEBUG] Начало toggleFavorite', {
-        button: button,
-        productId: productId,
-        currentState: button.classList.contains('active') ? 'active' : 'inactive'
-    });
+    console.log('toggleFavorite called');
 
     try {
+        // Проверяем авторизацию с await
+        const authCheck = await fetch('/api/check-auth/', {
+            credentials: 'include'
+        });
+
+        if (!authCheck.ok) {
+            // Пользователь не авторизован
+            showLoginPrompt('Для добавления товаров в избранное необходимо войти в систему');
+            return;
+        }
+
+        // Пользователь авторизован - продолжаем
         const url = `/favorites/toggle/${productId}`;
-        console.log('[DEBUG] Подготовка запроса:', { url });
+        console.log('Fetching:', url);
 
         const response = await fetch(url, {
             method: 'POST',
@@ -377,22 +385,13 @@ async function toggleFavorite(button, productId) {
             credentials: 'include'
         });
 
-        console.log('[DEBUG] Получен ответ:', {
-            status: response.status,
-            ok: response.ok,
-            headers: [...response.headers.entries()]
-        });
-
         if (response.ok) {
             const result = await response.json();
-            console.log('[DEBUG] Успешный ответ:', result);
+            console.log('Server response:', result);
 
-            // Обновляем состояние кнопки
-            const newState = !button.classList.contains('active');
-            button.classList.toggle('active', newState);
-
-            console.log('[DEBUG] Новое состояние кнопки:',
-                newState ? 'active (в избранном)' : 'inactive (не в избранном)');
+            // Переключаем класс
+            button.classList.toggle('active');
+            console.log('Button classes after toggle:', button.classList.toString());
 
             // Анимация
             button.style.transform = 'scale(1.2)';
@@ -400,26 +399,11 @@ async function toggleFavorite(button, productId) {
                 button.style.transform = 'scale(1)';
             }, 300);
 
-            // Обновляем подсказку
-            button.title = newState ? 'Удалить из избранного' : 'Добавить в избранное';
-            console.log('[DEBUG] Обновлен title кнопки:', button.title);
         } else {
-            const error = await response.json().catch(e => ({ detail: 'Не удалось разобрать ответ' }));
-            console.error('[DEBUG] Ошибка ответа:', {
-                status: response.status,
-                error: error
-            });
-            alert(error.detail || `Ошибка: ${response.status}`);
+            console.error('Server error:', response.status);
         }
     } catch (error) {
-        console.error('[DEBUG] Ошибка выполнения запроса:', {
-            error: error,
-            message: error.message,
-            stack: error.stack
-        });
-        alert('Ошибка соединения с сервером. Проверьте консоль для подробностей.');
-    } finally {
-        console.log('[DEBUG] Завершение toggleFavorite');
+        console.error('Error:', error);
     }
 }
 
