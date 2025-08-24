@@ -140,18 +140,6 @@ async function clearCart() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    setupCartControls();
-
-    document.querySelector('.checkout-btn')?.addEventListener('click', function() {
-        if (this.disabled) {
-            showLoginPrompt('Для оформления заказа необходимо авторизоваться');
-        } else {
-            window.location.href = "{{ url_for('checkout_page') }}";
-        }
-    });
-});
-
 async function removeFromCart(productId) {
         try {
             const response = await fetch(`/cart/${productId}`, {
@@ -219,28 +207,38 @@ function showLoginPrompt(message) {
     }
 }
 
-async function proceedToCheckout() {
+async function createOrder() {
     try {
-        // Проверяем, что корзина не пуста
-        const response = await fetch('/cart', {
-            credentials: 'include'
+        const response = await fetch('/orders/create', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+            },
         });
 
+        const data = await response.json();
+
         if (!response.ok) {
-            throw new Error('Не удалось проверить корзину');
+            if (response.status === 401) {
+                throw new Error('Пользователь не авторизован. Пожалуйста, войдите в систему.');
+            } else if (response.status === 404) {
+                throw new Error(data.detail || 'Товары не найдены в корзине');
+            } else if (response.status === 400) {
+                throw new Error(data.detail || 'Неверные данные пользователя');
+            } else {
+                throw new Error(data.detail || `Ошибка сервера: ${response.status}`);
+            }
         }
 
-        const cartData = await response.json();
-
-        if (!cartData.products || cartData.products.length === 0) {
-            alert('Корзина пуста');
-            return;
-        }
-
-        window.location.href = '/orders';
+        return {
+            success: true,
+            message: data.message,
+            orderId: data.order_id,
+            redirectUrl: data.redirect_url
+        };
 
     } catch (error) {
-        console.error('Error proceeding to checkout:', error);
-        alert('Ошибка при переходе к оформлению заказа');
+        console.error('Ошибка при создании заказа:', error);
     }
 }

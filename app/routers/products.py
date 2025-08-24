@@ -386,7 +386,7 @@ async def load_more_products(
         built_in_memory: Optional[List[str]] = Query(None),
         categories: Optional[List[int]] = Query(None),
         is_favorite: bool = Query(False),
-        token: Optional[str] = Cookie(None, alias='token'),
+        token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
         products_url = f"{Config.url}/products/"
@@ -465,15 +465,17 @@ async def load_more_products(
             user_id = payload.get("id")
 
             if is_authenticated:
-                favorite_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
-                favorite_result = await db.execute(favorite_query)
-                favorite_product_ids = favorite_result.scalars().all()
+                favorite_product_ids = await get_favorite_product_ids(user_id=user_id, db=db)
+                in_cart_product_ids = await get_in_cart_product_ids(user_id=user_id, db=db)
 
-                cart_query = select(Cart.product_id).where(Cart.user_id == user_id)
-                cart_result = await db.execute(cart_query)
-                in_cart_product_ids = cart_result.scalars().all()
-        except:
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
             pass
+
+        except HTTPException:
+            raise
+
+        except Exception as e:
+            logger.error(f'Unexpected error in authentication: {str(e)}')
 
     return templates.TemplateResponse(
         "products/more_products.html",

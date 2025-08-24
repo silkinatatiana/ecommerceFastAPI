@@ -1,0 +1,39 @@
+.favorite-heart {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.favorite-heart:hover {
+    transform: scale(1.1);
+}
+
+.heart-icon {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: #bdbdbd;
+    stroke-width: 2;
+    transition: all 0.3s ease;
+}
+
+.heart-icon.active {
+    fill: #ff4081;
+    stroke: #ff4081;
+}
+
+@media (max-width: 480px) {
+    .favorite-heart {
+        width: 36px;
+        height: 36px;
+        padding: 6px;
+    }
+
+    .favorite-heart .heart-icon {
+        width: 20px;
+        height: 20px;
+    }
+}

@@ -86,39 +86,6 @@
     justify-content: flex-end;
 }
 
-.favorite-heart {
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    background: none;
-    border: none;
-    position: relative;
-    z-index: 2;
-}
-
-.favorite-heart:hover {
-    background-color: rgba(255, 107, 107, 0.1);
-}
-
-.favorite-heart .heart-icon {
-    width: 24px;
-    height: 24px;
-    transition: all 0.3s ease;
-}
-
-.favorite-heart .heart-icon.active {
-    fill: #ff4081;
-    stroke: #ff4081;
-    transform: scale(1.1);
-}
-
-/* Стили для кнопок корзины - темно-синие */
 .btn-cart {
     display: flex;
     align-items: center;
@@ -244,19 +211,8 @@
         font-size: 1.1rem;
     }
 
-    .favorite-heart {
-        width: 36px;
-        height: 36px;
-        padding: 6px;
-    }
-
     .btn-cart {
         width: 32px;
         height: 32px;
-    }
-
-    .favorite-heart .heart-icon {
-        width: 20px;
-        height: 20px;
     }
 }

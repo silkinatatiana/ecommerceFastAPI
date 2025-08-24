@@ -126,7 +126,7 @@ async def get_favorite_product_ids(user_id: int,
 
 
 async def get_in_cart_product_ids(user_id: int,
-                              db: Annotated[AsyncSession, Depends(get_db)]):
+                                  db: Annotated[AsyncSession, Depends(get_db)]):
     try:
         cart_query = select(Cart.product_id).where(Cart.user_id == user_id)
         cart_result = await db.execute(cart_query)

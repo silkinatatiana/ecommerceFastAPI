@@ -56,10 +56,9 @@
     cursor: pointer;
 }
 
-/* Добавить стили для активных фильтров */
 .filter-checkbox input:checked + span {
     font-weight: bold;
-    color: var(--primary-color);
+    color: #2c5f8a;
 }
 
 .reset-filters {
@@ -92,7 +91,7 @@
 }
 
 .product-price {
-    color: var(--primary-color);
+    color: #2c5f8a;
     font-weight: bold;
     margin: 1rem 0;
     font-size: 1.1rem;
@@ -106,33 +105,6 @@
 
 .product-stock.out-of-stock {
     color: var(--error-color);
-}
-
-.favorite-heart {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-}
-
-.favorite-heart:hover {
-    transform: scale(1.1);
-}
-
-.heart-icon {
-    width: 22px;
-    height: 22px;
-    fill: none;
-    stroke: #bdbdbd;
-    stroke-width: 2;
-    transition: all 0.3s ease;
-}
-
-.heart-icon.active {
-    fill: #ff4081;
-    stroke: #ff4081;
 }
 
 .btn-cart.add {

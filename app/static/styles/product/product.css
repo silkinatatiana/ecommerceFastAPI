@@ -202,29 +202,6 @@
     transition: all 0.3s ease;
 }
 
-.btn-favorite:hover {
-    background-color: rgba(255, 107, 107, 0.1);
-}
-
-.btn-favorite .heart-icon {
-    width: 24px;
-    height: 24px;
-    fill: none;
-    stroke: #ccc;
-    stroke-width: 2px;
-    transition: all 0.3s ease;
-}
-
-.btn-favorite.active .heart-icon {
-    fill: #ff6b6b !important;
-    stroke: #ff6b6b !important;
-    transform: scale(1.1) !important;
-}
-
-.btn-favorite:hover .heart-icon {
-    stroke: #ff6b6b;
-}
-
 .product-description {
     margin: 2rem 0;
     padding: 1.5rem;

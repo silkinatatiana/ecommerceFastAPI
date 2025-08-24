@@ -1,5 +1,6 @@
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
@@ -10,6 +11,7 @@ import jwt
 from starlette.responses import HTMLResponse
 
 from app.backend.db_depends import get_db
+from app.config import Config
 from app.models import User
 from app.models.cart import Cart
 from app.models.orders import Orders
@@ -46,12 +48,14 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail='Пользователь не найден')
-        # TODO получать корзину из ручки get cart
-        query = select(Cart).where(Cart.user_id == user_id)
-        result = await db.execute(query)
-        products = result.scalars().all()
 
-        if not products:
+        order_products = None
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{Config.url}/cart/{user_id}")
+            order_products = response.json()
+
+        if not order_products:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Товары не найдены'
@@ -60,24 +64,16 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         products_data = {}
         total_sum = 0
 
-        for product in products:
-            stock_product = await check_stock(product_id=product.product_id, db=db)
-
-            if product.count > stock_product:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Доступно только {stock_product} единиц товара"
-                )
-
-            update_query = (update(Product).where(Product.id == product.product_id)
-                            .values(stock=Product.stock - product.count))
+        for product in order_products:
+            update_query = (update(Product).where(Product.id == product['product_id']) # TODO вынести в отдельную ручку
+                            .values(stock=Product.stock - product['count']))
             await db.execute(update_query)
 
-            products_data[str(product.product_id)] = {
-                'price': product.price,
-                'count': product.count
+            products_data[product['product_id']] = {
+                'price': product['product']['price'],
+                'count': product['count']
             }
-            total_sum += product.price * product.count
+            total_sum += product['product']['price'] * product['count']
 
         order = Orders(
             user_id=user_id,
@@ -86,19 +82,18 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         )
         db.add(order)
         await db.flush()
-
-        delete_query = delete(Cart).where(Cart.user_id == user_id)
-        await db.execute(delete_query)
         await db.commit()
+
+        # async with httpx.AsyncClient() as client: # TODO удалять напрямую из БД
+        #     response = await client.post(f"{Config.url}/cart/clear")
+        #     response.raise_for_status()
+
         return {'message': 'Заказ оформлен!',
                 'order_id': order.id,
                 'redirect_url': f'/orders/{order.id}'}
 
     except Exception as e:
         await db.rollback()
-
-        if isinstance(e, HTTPException):
-            raise
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -158,8 +153,6 @@ async def order_page(request: Request,
                 })
                 total_amount += item_total
 
-        user = await db.scalar(select(User).where(User.id == user_id))
-
         context = {
             'request': request,
             'order': {
@@ -169,12 +162,7 @@ async def order_page(request: Request,
                 'total_sum': order.summa
             },
             'products': order_products,
-            'user': {
-                'id': user.id,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name
-            }
+            'total_amount': total_amount
         }
         return templates.TemplateResponse("orders/orders.html", context)
 
