@@ -72,14 +72,16 @@
                     </span>
                 </div>
 
-                <button class="checkout-btn" onclick="proceedToCheckout()">
-                    Оформить заказ
-                </button>
                 {% if products %}
                 <button class="clear-cart-btn" onclick="clearCart()">
                     Очистить корзину
                 </button>
                 {% endif %}
+
+                <button class="checkout-btn" onclick="proceedToCheckout()">
+                    Оформить заказ
+                </button>
+
             </div>
         {% endif %}
     </div>

@@ -37,6 +37,11 @@
                        onchange="applyFilters()">
                 <span>Избранное</span>
             </label>
+            {% if is_favorite and not has_products %}
+            <div class="no-favorites-message" style="color: #666; margin-top: 10px; font-style: italic;">
+                В избранном пока нет товаров
+            </div>
+            {% endif %}
         </div>
         {% endif %}
 
@@ -76,8 +81,13 @@
 
     <div class="content-area">
         <h2>{% if current_category %}Товары категории{% else %}Все товары{% endif %}</h2>
-
-        {% if categories_products and has_products %}
+        {% if is_favorite and not has_products %}
+            <div class="no-products-found">
+                <p>В избранном пока нет товаров</p>
+                <p>Добавьте товары в избранное, чтобы они отображались здесь</p>
+                <button class="reset-filters" onclick="resetFilters()">Сбросить фильтры</button>
+            </div>
+        {% elif categories_products and has_products %}
             {% for category_name, category_data in categories_products.items() %}
                 <div class="category" data-category-id="{{ category_data.id }}">
                     {% if not current_category %}
@@ -94,17 +104,19 @@
                         <button onclick="loadMoreProducts('{{ category_data.id }}', this)"
                                 class="view-all-btn load-more-btn"
                                 data-skip="{{ category_data.current_skip }}"
-                                data-category-id="{{ category_data.id }}">
+                                data-initial-skip="{{ category_data.initial_skip }}"
+                                data-limit="{{ category_data.limit }}"
+                                data-category-id="{{ category_data.id }}"
+                                {% if not category_data.has_more %}style="display: none;"{% endif %}>
                             Показать еще
                         </button>
 
                         <button onclick="collapseProducts('{{ category_data.id }}', this)"
                                 class="view-all-btn collapse-btn"
-                                style="display: none;"
+                                style="display: {% if category_data.current_skip > category_data.initial_skip %}inline-block{% else %}none{% endif %};"
                                 data-category-id="{{ category_data.id }}">
                             Свернуть
                         </button>
-                    </div>
                 </div>
             {% endfor %}
         {% else %}
@@ -119,4 +131,5 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/main.js"></script>
 {% endblock %}

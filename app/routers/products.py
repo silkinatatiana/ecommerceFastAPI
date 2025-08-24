@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
 
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Query, Cookie
 from fastapi.templating import Jinja2Templates
@@ -329,10 +329,8 @@ async def get_products_by_category(
         user_id: Optional[int] = Query(None)
 ):
     try:
-        # Базовые параметры для запроса продуктов
         params = {'category_id': category_id}
 
-        # Если включен фильтр "Избранное" и есть user_id
         if is_favorite and user_id:
             # 1. Получаем все избранные товары пользователя
             fav_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
@@ -355,7 +353,6 @@ async def get_products_by_category(
 
             params['product_ids'] = ','.join(map(str, valid_products))
 
-        # Делаем запрос к основному API продуктов
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{Config.url}/products/",
@@ -383,10 +380,11 @@ async def load_more_products(
         request: Request,
         db: AsyncSession = Depends(get_db),
         category_id: str = Query(...),
-        skip: int = Query(0),  # Уже загруженное количество
-        limit: int = Query(10),
-        colors: Optional[str] = Query(None),
-        built_in_memory: Optional[str] = Query(None),
+        skip: int = Query(0),
+        limit: int = Query(12),
+        colors: Optional[List[str]] = Query(None),
+        built_in_memory: Optional[List[str]] = Query(None),
+        categories: Optional[List[int]] = Query(None),
         is_favorite: bool = Query(False),
         token: Optional[str] = Cookie(None, alias='token'),
 ):
@@ -394,23 +392,25 @@ async def load_more_products(
         products_url = f"{Config.url}/products/"
         params = {
             "category_id": category_id,
-            "skip": skip,  # Пропускаем уже загруженные товары
+            "skip": skip,
             "limit": limit,
-            **({"colors": colors} if colors else {}),
-            **({"built_in_memory": built_in_memory} if built_in_memory else {}),
         }
 
+        if colors:
+            params["colors"] = ",".join(colors)
+        if built_in_memory:
+            params["built_in_memory"] = ",".join(built_in_memory)
+        if categories:
+            params["categories"] = ",".join(map(str, categories))
+
         if is_favorite and token:
-            try:
-                payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
-                user_id = payload.get("id")
-                favorite_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
-                favorite_result = await db.execute(favorite_query)
-                favorite_product_ids = favorite_result.scalars().all()
-                if favorite_product_ids:
-                    params["product_ids"] = ",".join(map(str, favorite_product_ids))
-            except:
-                pass
+            payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
+            user_id = payload.get("id")
+            favorite_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
+            favorite_result = await db.execute(favorite_query)
+            favorite_product_ids = favorite_result.scalars().all()
+            if favorite_product_ids:
+                params["product_ids"] = ",".join(map(str, favorite_product_ids))
 
         async with httpx.AsyncClient() as client:
             response = await client.get(products_url, params=params)
@@ -420,23 +420,23 @@ async def load_more_products(
     except Exception as e:
         raise HTTPException(500, detail=f"Ошибка при загрузке товаров: {str(e)}")
 
-    # Получаем общее количество для проверки has_more
     try:
         count_params = {"category_id": category_id}
         if colors:
-            count_params["colors"] = colors
+            count_params["colors"] = ",".join(colors)
         if built_in_memory:
-            count_params["built_in_memory"] = built_in_memory
+            count_params["built_in_memory"] = ",".join(built_in_memory)
+        if categories:
+            count_params["categories"] = ",".join(map(str, categories))
 
         async with httpx.AsyncClient() as client:
             count_response = await client.get(f"{Config.url}/products/count/", params=count_params)
             total_count = count_response.json().get('count', 0)
     except:
-        total_count = skip + len(products_data)  # Если не получилось, используем текущие данные
+        total_count = skip + len(products_data)
 
     has_more = (skip + len(products_data)) < total_count
 
-    # Форматируем названия товаров
     formatted_products = []
     for product in products_data:
         formatted_products.append({
@@ -452,7 +452,7 @@ async def load_more_products(
                 ]
                 if s is not None
             )
-            })
+        })
 
     is_authenticated = False
     favorite_product_ids = []
@@ -476,7 +476,7 @@ async def load_more_products(
             pass
 
     return templates.TemplateResponse(
-        "products/products_fragment.html",
+        "products/more_products.html",
         {
             "request": request,
             "products": formatted_products,

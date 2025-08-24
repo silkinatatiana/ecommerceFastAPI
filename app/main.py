@@ -128,10 +128,12 @@ async def get_main_page(
         colors: Optional[str] = Query(None),
         built_in_memory: Optional[str] = Query(None),
         is_favorite: bool = Query(False),
-        skip: int = Query(3),
-        limit: int = Query(3),
         partial: bool = Query(False),
 ):
+    # Убрали skip и limit из параметров по умолчанию для главной страницы
+    INITIAL_SKIP = 3  # Количество товаров, показываемых изначально
+    LOAD_LIMIT = 12  # Количество товаров, загружаемых при каждом нажатии
+
     is_authenticated = False
     user_id = None
     favorite_product_ids = []
@@ -156,8 +158,7 @@ async def get_main_page(
         products_url = f"{Config.url}/products/"
         params = {
             "user_id": user_id,
-            "skip": skip,
-            "limit": limit,
+            # Убираем skip и limit для первоначальной загрузки всех товаров категории
             **({"category_id": category_id} if category_id else {}),
             **({"colors": colors} if colors else {}),
             **({"built_in_memory": built_in_memory} if built_in_memory else {}),
@@ -168,7 +169,7 @@ async def get_main_page(
         async with httpx.AsyncClient() as client:
             categories, products = await asyncio.gather(
                 client.get(f"{Config.url}/categories/"),
-                client.get(products_url, params=params)
+                client.get(products_url, params=params)  # Загружаем ВСЕ товары по фильтрам
             )
             categories.raise_for_status()
             products.raise_for_status()
@@ -184,6 +185,7 @@ async def get_main_page(
     categories_products = {}
     selected_category_ids = [int(cid) for cid in category_id.split(',')] if category_id else []
 
+    # Считаем общее количество товаров в каждой категории
     category_counts = {}
     for category in categories_data:
         if selected_category_ids and category['id'] not in selected_category_ids:
@@ -200,13 +202,17 @@ async def get_main_page(
                 count_response = await client.get(f"{Config.url}/products/count/", params=count_params)
                 category_counts[category['id']] = count_response.json().get('count', 0)
         except:
-            category_counts[category['id']] = 0
+            # Если не удалось получить count, считаем вручную
+            category_products = [p for p in products_data if p['category_id'] == category['id']]
+            category_counts[category['id']] = len(category_products)
 
+    # Формируем данные для каждой категории
     for category in categories_data:
         if selected_category_ids and category['id'] not in selected_category_ids:
             continue
 
-        category_products = [
+        # Все товары категории
+        all_category_products = [
             {
                 **p,
                 'name': ', '.join(
@@ -225,21 +231,25 @@ async def get_main_page(
             if p['category_id'] == category['id']
         ]
 
-        total_count = category_counts.get(category['id'], 0)
-        has_more = (skip + len(category_products)) < total_count
+        total_count = category_counts.get(category['id'], len(all_category_products))
 
-        displayed_products = category_products[:limit] if not partial else category_products
+        # Для главной страницы показываем только INITIAL_SKIP товаров
+        displayed_products = all_category_products[:INITIAL_SKIP]
+        has_more = len(all_category_products) > INITIAL_SKIP
 
         categories_products[category['name']] = {
             "id": category['id'],
             "products": displayed_products,
+            "all_products": all_category_products,  # Сохраняем все товары для пагинации
             "has_more": has_more,
             "total_count": total_count,
-            "current_skip": skip
+            "current_skip": INITIAL_SKIP,
+            "initial_skip": INITIAL_SKIP,
+            "limit": LOAD_LIMIT
         }
 
     if partial:
-        template_name = 'products/products_fragment.html'
+        template_name = 'products/more_products.html'
     else:
         template_name = 'index.html'
 
@@ -275,9 +285,7 @@ async def get_main_page(
         "user_id": user_id,
         "favorite_product_ids": favorite_product_ids,
         "in_cart_product_ids": in_cart_product_ids,
-        "role": role,
-        "current_skip": skip,
-        "current_limit": limit
+        "role": role
     }
 
     response = templates.TemplateResponse(template_name, context)

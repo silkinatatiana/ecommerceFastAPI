@@ -1,0 +1,11 @@
+{% for product in products %}
+    {% include 'products/product_card.html' %}
+{% endfor %}
+
+{% if has_more %}
+    <div class="load-more-placeholder"
+         data-category-id="{{ category_id }}"
+         data-skip="{{ next_skip }}"
+         style="display: none;">
+    </div>
+{% endif %}

@@ -1,8 +1,8 @@
 :root {
-    --ocean-deep: #1e466d;          /* Глубокий океанский синий - основной цвет */
-    --ocean-dark: #2c5f8a;          /* Темный океанский для ховера */
-    --ocean-light: #4a7ca5;         /* Светлый океанский */
-    --ocean-accent: #6b8ca6;        /* Акцентный серо-синий */
+    --ocean-deep: #1e466d;
+    --ocean-dark: #2c5f8a;
+    --ocean-light: #4a7ca5;
+    --ocean-accent: #6b8ca6;
     --secondary-color: #166088;
     --accent-color: #4fc3f7;
     --dark-color: #2d3142;

@@ -1,10 +1,8 @@
-// Глобальные переменные
 let currentImageIndex = 0;
 let productImages = [];
 let currentReviewIndex = 0;
 let currentReviewImages = [];
 
-// Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     initGallery();
     initReviewForm();
@@ -101,7 +99,6 @@ function navigate(direction) {
     changeMainImage(document.querySelectorAll('.thumbnail')[currentImageIndex], currentImageIndex);
 }
 
-// Полноэкранный режим
 function openFullscreen(index) {
     const fullscreenGallery = document.getElementById('fullscreenGallery');
     const fullscreenImage = document.getElementById('fullscreenImage');
@@ -148,7 +145,6 @@ function closeFullscreen() {
     }
 }
 
-// Управление отзывами
 function initReviewsSection() {
     const toggleBtn = document.getElementById('moreReviewsToggle');
     const moreReviews = document.getElementById('moreReviews');
@@ -176,7 +172,6 @@ function initReviewsSection() {
     });
 }
 
-// Галерея отзывов
 function initReviewGalleries() {
     document.querySelectorAll('.review-gallery').forEach(gallery => {
         const thumbnails = gallery.querySelectorAll('.review-thumbnail');
@@ -208,7 +203,6 @@ function initReviewGalleries() {
     });
 }
 
-// Полноэкранный режим для отзывов
 function openFullscreenReviewImage(src, index, total) {
     const fullscreen = document.getElementById('fullscreenReviewImage');
     const fullscreenImg = document.getElementById('fullscreenReviewImg');
@@ -231,7 +225,6 @@ function closeFullscreenReviewImage() {
     }
 }
 
-// Форма отзыва
 function initReviewForm() {
     const reviewForm = document.getElementById('reviewForm');
     const newReviewForm = document.getElementById('newReviewForm');
@@ -318,7 +311,6 @@ async function submitReview() {
 }
 
 
-// Управление галереей отзывов
 function selectReviewImage(thumbnail, imageUrl) {
   // Снимаем выделение со всех миниатюр
   document.querySelectorAll('.review-image-thumbnail').forEach(img => {
@@ -347,7 +339,6 @@ function openReviewFullscreen(imgElement) {
   openFullscreen(currentIndex);
 }
 
-// Характеристики товара
 function toggleSpecs() {
     const specsContent = document.querySelector('.specs-content');
     const toggleBtn = document.querySelector('.specs-toggle');
@@ -359,37 +350,44 @@ function toggleSpecs() {
 }
 
 async function toggleFavorite(button, productId) {
-    console.log('toggleFavorite called');
+    console.log('toggleFavorite called for product:', productId);
+    console.log('Initial button classes:', button.classList.toString());
 
     try {
-        // Проверяем авторизацию с await
+        // Проверка аутентификации
         const authCheck = await fetch('/api/check-auth/', {
             credentials: 'include'
         });
 
         if (!authCheck.ok) {
-            // Пользователь не авторизован
             showLoginPrompt('Для добавления товаров в избранное необходимо войти в систему');
             return;
         }
 
-        // Пользователь авторизован - продолжаем
         const url = `/favorites/toggle/${productId}`;
         console.log('Fetching:', url);
+
+        // Получаем CSRF токен
+        const csrfToken = getCookie('csrftoken') || getCSRFTokenFromMeta();
+        console.log('CSRF Token:', csrfToken ? 'Found' : 'Not found');
 
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
             },
             credentials: 'include'
         });
+
+        console.log('Response status:', response.status);
 
         if (response.ok) {
             const result = await response.json();
             console.log('Server response:', result);
 
-            // Переключаем класс
+            // Обновляем UI
             button.classList.toggle('active');
             console.log('Button classes after toggle:', button.classList.toString());
 
@@ -400,16 +398,57 @@ async function toggleFavorite(button, productId) {
             }, 300);
 
         } else {
-            console.error('Server error:', response.status);
+            console.error('Server error:', response.status, response.statusText);
+
+            // Детальная информация об ошибке
+            try {
+                const errorData = await response.json();
+                console.error('Error details:', errorData);
+            } catch (e) {
+                const errorText = await response.text();
+                console.error('Error text:', errorText);
+            }
         }
+
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Network error:', error);
     }
 }
 
+// Функция для получения CSRF токена из cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Функция для получения CSRF токена из meta тега
+function getCSRFTokenFromMeta() {
+    const metaTag = document.querySelector('meta[name="csrf-token"]');
+    return metaTag ? metaTag.getAttribute('content') : '';
+}
+
+// Функция для получения CSRF токена из формы (альтернативный вариант)
+function getCSRFTokenFromForm() {
+    const input = document.querySelector('[name=csrfmiddlewaretoken]');
+    return input ? input.value : '';
+}
+
+function getCSRFTokenFromMeta() {
+    const metaTag = document.querySelector('meta[name="csrf-token"]');
+    return metaTag ? metaTag.getAttribute('content') : '';
+}
+
 async function removeFromCart(productId) {
-        if (!confirm('Вы уверены, что хотите удалить товар из корзины?')) return;
-        console.log(productId)
         try {
             const response = await fetch(`/cart/${productId}`, {
                 method: 'DELETE',

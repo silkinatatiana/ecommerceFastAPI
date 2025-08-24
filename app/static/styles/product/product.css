@@ -188,7 +188,6 @@
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
-
 .btn-favorite {
     background: none;
     border: none;
@@ -494,7 +493,7 @@
 }
 
 .add-review-btn {
-    background-color: #4CAF50;
+    background-color: #4a7ca5; /* Новый океанский синий цвет */
     color: white;
     border: none;
     padding: 12px 20px;
@@ -506,7 +505,9 @@
 }
 
 .add-review-btn:hover {
-    background-color: #45a049;
+    background-color: #3a6a8c; /* Темнее при наведении */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
 .review-form {
@@ -596,7 +597,7 @@
 }
 
 .submit-review-btn {
-    background-color: #4CAF50;
+    background-color: #4a7ca5;
     color: white;
     border: none;
     padding: 12px 20px;
@@ -607,7 +608,9 @@
 }
 
 .submit-review-btn:hover {
-    background-color: #45a049;
+    background-color: #3a6a8c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
 .products-scroll-container {

@@ -153,8 +153,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function removeFromCart(productId) {
-        if (!confirm('Вы уверены, что хотите удалить товар из корзины?')) return;
-        console.log(productId)
         try {
             const response = await fetch(`/cart/${productId}`, {
                 method: 'DELETE',
