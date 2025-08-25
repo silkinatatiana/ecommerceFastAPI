@@ -13,6 +13,7 @@ from app.backend.db_depends import get_db
 from app.config import Config
 from app.main import logger
 from app.models import Product, User, Favorites, Cart
+from app.schemas import CartUpdate
 
 SECRET_KEY = Config.SECRET_KEY
 ALGORITHM = Config.ALGORITHM
@@ -30,6 +31,30 @@ async def check_stock(product_id: int,
         raise ValueError('Товар отсутствует на складе')
 
     return stock_product
+
+
+async def update_stock(product_id: int,
+                       count: int,
+                       add: bool = False,
+                       db: AsyncSession = Depends(get_db)):
+    if not add:
+        current_count = await check_stock(product_id=product_id, db=db)
+
+        if current_count is None:
+            raise ValueError(f"Товар с ID {product_id} не найден")
+
+        if current_count - count < 0:
+            raise ValueError(f'К заказу доступно {current_count} ед. товара')
+
+        update_query = (update(Product).where(Product.id == product_id)
+                        .values(stock=Product.stock - count))
+    else:
+        update_query = (update(Product).where(Product.id == product_id)
+                        .values(stock=Product.stock + count))
+
+    await db.execute(update_query)
+    await db.commit()
+    return {'message': 'Количество товара на складе обновлено'}
 
 
 async def create_access_token(username: str, user_id: int, is_admin: bool, role: str,
@@ -85,6 +110,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 def get_user_id_by_token(token: str):
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     user_id = payload.get("id")
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Необходимо авторизоваться"
+        )
     return user_id
 
 
@@ -141,25 +172,43 @@ async def get_in_cart_product_ids(user_id: int,
         )
 
 
-async def update_stock(product_id: int,
-                       count: int,
-                       add: bool = False,
-                       db: AsyncSession = Depends(get_db)):
-    if not add:
-        current_count = await check_stock(product_id=product_id, db=db)
+async def update_quantity_cart_add(cart_data: CartUpdate,
+                                   cart_item: Cart,
+                                   db: AsyncSession = Depends(get_db)):
+    stock_product = await check_stock(product_id=cart_data.product_id, db=db)
+    if cart_item.count + cart_data.count > stock_product:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Доступно только {stock_product} единиц товара"
+        )
 
-        if current_count is None:
-            raise ValueError(f"Товар с ID {product_id} не найден")
-
-        if current_count - count < 0:
-            raise ValueError(f'К заказу доступно {current_count} ед. товара')
-
-        update_query = (update(Product).where(Product.id == product_id)
-                        .values(stock=Product.stock - count))
-    else:
-        update_query = (update(Product).where(Product.id == product_id)
-                        .values(stock=Product.stock + count))
-
-    await db.execute(update_query)
+    cart_item.count += cart_data.count
     await db.commit()
-    return {'message': 'Количество товара на складе обновлено'}
+    await db.refresh(cart_item)
+
+    return {
+            "product_id": cart_item.product_id,
+            "new_count": cart_item.count,
+            "removed": False
+    }
+
+
+async def update_quantity_cart_reduce(cart_data: CartUpdate,
+                                      cart_item: Cart,
+                                      db: AsyncSession = Depends(get_db)):
+    if cart_item.count - cart_data.count <= 0:
+        await db.delete(cart_item)
+        await db.commit()
+        return {
+            "product_id": cart_item.product_id,
+            "new_count": 0,
+            "removed": True
+        }
+    else:
+        cart_item.count -= cart_data.count
+        await db.commit()
+        return {
+            "product_id": cart_item.product_id,
+            "new_count": cart_item.count,
+            "removed": False
+        }

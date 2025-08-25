@@ -41,8 +41,6 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
             raise HTTPException(status_code=401, detail="Пользователь не авторизован")
 
         user_id = get_user_id_by_token(token)
-        if not user_id:
-            raise HTTPException(status_code=400, detail="Неверные данные пользователя")
 
         user = await db.scalar(select(User).where(User.id == user_id))
         if not user:
@@ -119,8 +117,6 @@ async def order_page(request: Request,
             raise HTTPException(status_code=401, detail="Пользователь не авторизован")
 
         user_id = get_user_id_by_token(token)
-        if not user_id:
-            raise HTTPException(status_code=400, detail="Неверные данные пользователя")
 
         order_query = select(Orders).where(
             (Orders.id == order_id) &

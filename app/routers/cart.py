@@ -15,7 +15,7 @@ from app.models import Product
 from app.models.cart import Cart
 from app.models.users import User
 from app.schemas import CartItem, CartUpdate
-from app.functions import check_stock, get_user_id_by_token, get_current_user
+from app.functions import check_stock, get_user_id_by_token, update_quantity_cart_add, update_quantity_cart_reduce
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 templates = Jinja2Templates(directory="app/templates")
@@ -51,17 +51,18 @@ async def add_product_to_cart(
         db: AsyncSession = Depends(get_db),
         token: Optional[str] = Cookie(None, alias='token')
 ):
+
     try:
         if not token:
             raise HTTPException(status_code=401, detail="Не авторизован")
 
         user_id = get_user_id_by_token(token)
-        if not user_id:
-            raise HTTPException(status_code=400, detail="Неверные данные пользователя")
 
         product = await db.get(Product, cart_data.product_id)
         if not product:
             raise HTTPException(status_code=404, detail="Товар не найден")
+
+        await check_stock(product_id=cart_data.product_id, db=db)
 
         cart_item = await db.execute(
             select(Cart)
@@ -101,8 +102,6 @@ async def update_count_cart(
             raise HTTPException(status_code=401, detail="Не авторизован")
 
         user_id = get_user_id_by_token(token)
-        if not user_id:
-            raise HTTPException(status_code=400, detail="Неверные данные пользователя")
 
         cart_item = await db.scalar(
             select(Cart)
@@ -117,40 +116,11 @@ async def update_count_cart(
             )
 
         if cart_data.add:
-            stock_product = await check_stock(product_id=cart_data.product_id, db=db)
-
-            if cart_item.count + cart_data.count > stock_product:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Доступно только {stock_product} единиц товара"
-                )
-
-            cart_item.count += cart_data.count
-            await db.commit()
-            await db.refresh(cart_item)
-            return {
-                "product_id": cart_item.product_id,
-                "new_count": cart_item.count,
-                "removed": False
-            }
-
+            result = await update_quantity_cart_add(cart_data=cart_data, cart_item=cart_item, db=db)
+            return result
         else:
-            if cart_item.count - cart_data.count <= 0:
-                await db.delete(cart_item)
-                await db.commit()
-                return {
-                    "product_id": cart_item.product_id,
-                    "new_count": 0,
-                    "removed": True
-                }
-            else:
-                cart_item.count -= cart_data.count
-                await db.commit()
-                return {
-                    "product_id": cart_item.product_id,
-                    "new_count": 0,
-                    "removed": False
-                }
+            result = await update_quantity_cart_reduce(cart_data=cart_data, cart_item=cart_item, db=db)
+            return result
 
     except SQLAlchemyError as e:
         await db.rollback()
@@ -201,11 +171,6 @@ async def clear_cart(
 ):
     try:
         user_id = get_user_id_by_token(token)
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Необходимо авторизоваться"
-            )
 
         result = await db.execute(
             delete(Cart).where(Cart.user_id == user_id)
