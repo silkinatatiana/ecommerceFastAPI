@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from passlib.context import CryptContext
 
 from app.backend.db_depends import get_db
@@ -139,3 +139,27 @@ async def get_in_cart_product_ids(user_id: int,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Не удалось получить список товаров в корзине"
         )
+
+
+async def update_stock(product_id: int,
+                       count: int,
+                       add: bool = False,
+                       db: AsyncSession = Depends(get_db)):
+    if not add:
+        current_count = await check_stock(product_id=product_id, db=db)
+
+        if current_count is None:
+            raise ValueError(f"Товар с ID {product_id} не найден")
+
+        if current_count - count < 0:
+            raise ValueError(f'К заказу доступно {current_count} ед. товара')
+
+        update_query = (update(Product).where(Product.id == product_id)
+                        .values(stock=Product.stock - count))
+    else:
+        update_query = (update(Product).where(Product.id == product_id)
+                        .values(stock=Product.stock + count))
+
+    await db.execute(update_query)
+    await db.commit()
+    return {'message': 'Количество товара на складе обновлено'}

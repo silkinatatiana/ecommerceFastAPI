@@ -16,7 +16,7 @@ from app.models import User
 from app.models.cart import Cart
 from app.models.orders import Orders
 from app.models.products import Product
-from app.functions import get_user_id_by_token, check_stock
+from app.functions import get_user_id_by_token, update_stock
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 templates = Jinja2Templates(directory="app/templates")
@@ -65,9 +65,7 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         total_sum = 0
 
         for product in order_products:
-            update_query = (update(Product).where(Product.id == product['product_id'])  # TODO вынести в отдельную ручку
-                            .values(stock=Product.stock - product['count']))
-            await db.execute(update_query)
+            await update_stock(product_id=product['product_id'], count=product['count'], db=db)
 
             products_data[product['product_id']] = {
                 'price': product['product']['price'],
@@ -85,16 +83,12 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         await db.commit()
 
         async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(
-                    f"{Config.url}/cart/clear",
-                    cookies={'token': token}
-                )
-                response.raise_for_status()
-
-            except Exception as e:
-                await db.execute(delete(Cart).where(Cart.user_id == user_id))
-                await db.commit()
+            response = await client.post(
+                f"{Config.url}/cart/clear",
+                cookies={'token': token}
+            )
+            response.raise_for_status()
+            await db.commit()
 
         return {'message': 'Заказ оформлен!',
                 'order_id': order.id,
