@@ -230,6 +230,7 @@ async function createOrder() {
                 throw new Error(data.detail || `Ошибка сервера: ${response.status}`);
             }
         }
+        window.location.href = `/orders/${data.orderId}`;
 
         return {
             success: true,

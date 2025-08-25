@@ -215,8 +215,6 @@ async def clear_cart(
         if result.rowcount == 0:
             return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-
     except Exception as e:
         await db.rollback()
         raise HTTPException(
@@ -271,7 +269,3 @@ async def get_cart_html(request: Request,
             "descr": "Интернет-магазин электроники"
         }
     )
-
-# TODO доделать счетчик, при  нуле удалять товар из корзины.
-# при оформлении заказа добавлять запись в таблицу orders и удалять из таблицы Cart и уменьшать Products.stoсk
-# при успешном оформлении заказа перенаправлять на вкладку этого заказа ( отдельная html страница)

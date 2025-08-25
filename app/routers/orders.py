@@ -22,15 +22,15 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 templates = Jinja2Templates(directory="app/templates")
 
 
-@router.get('/{user_id}') # возвращает список из словарей-заказов
+@router.get('/{user_id}')  # возвращает список из словарей-заказов
 async def get_orders_by_user_id(user_id: int,
                                 db: AsyncSession = Depends(get_db)):
     pass
 
 
-@router.get('/{order_id}') # возвращает словарь с данными заказа
-async def get_order_by_id():
-    pass
+@router.get('/{order_id}')  # возвращает словарь с данными заказа
+async def get_order_by_id(order_id: int):
+    return {'message': f'Страница заказа {order_id}'}
 
 
 @router.post('/create', status_code=status.HTTP_201_CREATED)
@@ -65,7 +65,7 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         total_sum = 0
 
         for product in order_products:
-            update_query = (update(Product).where(Product.id == product['product_id']) # TODO вынести в отдельную ручку
+            update_query = (update(Product).where(Product.id == product['product_id'])  # TODO вынести в отдельную ручку
                             .values(stock=Product.stock - product['count']))
             await db.execute(update_query)
 
@@ -84,9 +84,17 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         await db.flush()
         await db.commit()
 
-        # async with httpx.AsyncClient() as client: # TODO удалять напрямую из БД
-        #     response = await client.post(f"{Config.url}/cart/clear")
-        #     response.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    f"{Config.url}/cart/clear",
+                    cookies={'token': token}
+                )
+                response.raise_for_status()
+
+            except Exception as e:
+                await db.execute(delete(Cart).where(Cart.user_id == user_id))
+                await db.commit()
 
         return {'message': 'Заказ оформлен!',
                 'order_id': order.id,
