@@ -12,7 +12,8 @@ from app.config import Config
 from app.models import User
 from app.models.orders import Orders
 from app.models.products import Product
-from app.functions import get_user_id_by_token, update_stock, not_found
+from app.functions.auth_func import get_user_id_by_token
+from app.functions.product_func import update_stock
 from app.schemas import OrderResponse
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -29,7 +30,10 @@ async def get_order_by_id(order_id: int, request: Request, db: AsyncSession = De
     order = await db.scalar(select(Orders).where(Orders.id == order_id))
 
     if not order:
-        return not_found(request=request)
+        return templates.TemplateResponse(
+            "exceptions/not_found.html",
+            {"request": request}
+        )
     return order
 
 
@@ -126,7 +130,10 @@ async def order_page(request: Request,
         order = order_result.scalar_one_or_none()
 
         if not order:
-            return not_found(request=request)
+            return templates.TemplateResponse(
+                "exceptions/not_found.html",
+                {"request": request}
+            )
 
         order_products = []
         total_amount = 0

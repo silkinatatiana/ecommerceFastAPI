@@ -19,7 +19,8 @@ from app.backend.db_depends import get_db
 from app.backend.db import Base, engine
 from app.models import *
 from app.config import Config
-from app.functions import get_favorite_product_ids, get_in_cart_product_ids
+from app.functions.favorites_func import get_favorite_product_ids
+from app.functions.cart_func import get_in_cart_product_ids
 
 logger = logging.getLogger(__name__)
 

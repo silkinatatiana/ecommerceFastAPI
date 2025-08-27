@@ -14,7 +14,10 @@ from app.backend.db_depends import get_db
 from app.schemas import CreateProduct, ProductOut
 from app.models import *
 from app.models import Review
-from app.functions import get_current_user, get_favorite_product_ids, get_in_cart_product_ids, not_found
+from app.functions.cart_func import get_in_cart_product_ids
+from app.functions.auth_func import get_current_user
+from app.functions.favorites_func import get_favorite_product_ids
+
 from app.config import Config
 
 router = APIRouter(prefix='/products', tags=['products'])
@@ -175,7 +178,10 @@ async def product_detail_page(
     )
 
     if not product:
-        return not_found(request=request)
+        return templates.TemplateResponse(
+            "exceptions/not_found.html",
+            {"request": request}
+        )
 
     review_count = len(product.reviews)
     avg_rating = sum(r.grade for r in product.reviews) / review_count if review_count > 0 else 0

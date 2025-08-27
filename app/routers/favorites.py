@@ -9,7 +9,7 @@ import jwt
 
 from app.backend.db_depends import get_db
 from app.models.favorites import Favorites
-from app.functions import SECRET_KEY, ALGORITHM
+from app.functions.auth_func import SECRET_KEY, ALGORITHM
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 templates = Jinja2Templates(directory="app/templates")

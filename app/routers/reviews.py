@@ -94,7 +94,10 @@ async def delete_review(
 async def product_reviews(request: Request, product_id: int, db: AsyncSession = Depends(get_db)):
     product = await db.get(Product, product_id)
     if not product:
-        return not_found(request=request)
+        return templates.TemplateResponse(
+            "exceptions/not_found.html",
+            {"request": request}
+        )
 
     reviews = await db.execute(
         select(Review)

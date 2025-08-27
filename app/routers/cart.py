@@ -15,7 +15,9 @@ from app.models import Product
 from app.models.cart import Cart
 from app.models.users import User
 from app.schemas import CartItem, CartUpdate
-from app.functions import check_stock, get_user_id_by_token, update_quantity_cart_add, update_quantity_cart_reduce
+from app.functions.product_func import check_stock
+from app.functions.auth_func import get_user_id_by_token
+from app.functions.cart_func import update_quantity_cart_add, update_quantity_cart_reduce
 from app.exception import NotMoreProductsException
 
 router = APIRouter(prefix="/cart", tags=["cart"])

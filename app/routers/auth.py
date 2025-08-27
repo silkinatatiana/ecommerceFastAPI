@@ -9,11 +9,10 @@ from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
-from app.functions import get_current_user, authenticate_user, create_access_token
+from app.functions.auth_func import get_current_user, authenticate_user, create_access_token
 from app.models.users import User
 from app.backend.db_depends import get_db
 from app.config import Config
-
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app/templates/')
