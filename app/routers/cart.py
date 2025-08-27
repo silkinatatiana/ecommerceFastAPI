@@ -16,6 +16,7 @@ from app.models.cart import Cart
 from app.models.users import User
 from app.schemas import CartItem, CartUpdate
 from app.functions import check_stock, get_user_id_by_token, update_quantity_cart_add, update_quantity_cart_reduce
+from app.exception import NotMoreProductsException
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 templates = Jinja2Templates(directory="app/templates")
@@ -26,8 +27,10 @@ async def get_cart_by_user(user_id: int, db: AsyncSession = Depends(get_db)):
     user = await db.scalar(select(User).where(User.id == user_id))
 
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail='Пользователь не зарегистрирован')
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='NOT FOUND'
+        )
 
     query = await db.execute(
         select(Cart, Product)
@@ -51,7 +54,6 @@ async def add_product_to_cart(
         db: AsyncSession = Depends(get_db),
         token: Optional[str] = Cookie(None, alias='token')
 ):
-
     try:
         if not token:
             raise HTTPException(status_code=401, detail="Не авторизован")
@@ -60,7 +62,10 @@ async def add_product_to_cart(
 
         product = await db.get(Product, cart_data.product_id)
         if not product:
-            raise HTTPException(status_code=404, detail="Товар не найден")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='NOT FOUND'
+            )
 
         await check_stock(product_id=cart_data.product_id, db=db)
 
@@ -112,15 +117,14 @@ async def update_count_cart(
         if not cart_item:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Товар не найден в корзине"
+                detail='NOT FOUND'
             )
 
         if cart_data.add:
             result = await update_quantity_cart_add(cart_data=cart_data, cart_item=cart_item, db=db)
-            return result
         else:
             result = await update_quantity_cart_reduce(cart_data=cart_data, cart_item=cart_item, db=db)
-            return result
+        return result
 
     except SQLAlchemyError as e:
         await db.rollback()
@@ -129,11 +133,11 @@ async def update_count_cart(
             detail=f"Ошибка базы данных: {str(e)}"
         )
 
-    except HTTPException:
-        raise
+    except NotMoreProductsException as e:
+        return str(e)
 
     except Exception as e:
-        return f"Ошибка в обновлении количества товара в корзине: {e}"
+        raise f"Ошибка в обновлении количества товара в корзине: {e}"
 
 
 @router.delete('/{product_id}')
@@ -151,8 +155,9 @@ async def delete_product_from_cart(product_id: int,
         if not cart_item:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Товар не найден в корзине"
+                detail='NOT FOUND'
             )
+
         await db.delete(cart_item)
         await db.commit()
 

@@ -1,0 +1,304 @@
+:root {
+    --space-dark: #0a0e17;
+    --space-blue: #0f172a;
+    --neon-blue: #00d9ff;
+    --neon-purple: #a855f7;
+    --neon-pink: #ff2a6d;
+    --planet-orange: #ff7b25;
+    --star-white: #e2e8f0;
+    --astro-suit: #38bdf8;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    background: linear-gradient(135deg, var(--space-dark) 0%, var(--space-blue) 100%);
+    color: var(--star-white);
+    min-height: 100vh;
+    font-family: 'Exo 2', sans-serif;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.space-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    overflow: hidden;
+}
+
+.star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    animation: twinkle 4s infinite ease-in-out;
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 20px;
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+header {
+    padding: 30px 0;
+    position: relative;
+    z-index: 10;
+}
+
+.logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--neon-blue);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-shadow: 0 0 15px rgba(0, 217, 255, 0.5);
+    letter-spacing: 1px;
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding: 20px 0;
+    min-height: 100vh;
+}
+
+.cosmic-scene {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(-50%) rotate(0deg); }
+    33% { transform: translateY(-45%) rotate(3deg); }
+    66% { transform: translateY(-55%) rotate(-3deg); }
+}
+
+.planet {
+    position: absolute;
+    right: 15%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, var(--planet-orange) 0%, #ff5e00 100%);
+    box-shadow: 0 0 60px rgba(255, 123, 37, 0.6);
+    overflow: hidden;
+}
+
+.planet-crater {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+}
+
+.satellite {
+    position: absolute;
+    width: 25px;
+    height: 25px;
+    background: var(--neon-purple);
+    border-radius: 50%;
+    top: 30%;
+    right: 30%;
+    animation: orbit 15s infinite linear;
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+}
+
+@keyframes orbit {
+    0% { transform: rotate(0deg) translateX(70px) rotate(0deg); }
+    100% { transform: rotate(360deg) translateX(70px) rotate(-360deg); }
+}
+
+.error-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 10;
+    width: 100%;
+    max-width: 600px;
+    padding: 0 20px;
+}
+
+.error-code {
+    font-family: 'Orbitron', monospace;
+    font-size: 120px;
+    font-weight: 900;
+    color: transparent;
+    background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple), var(--neon-pink));
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: gradient-shift 3s ease infinite;
+    line-height: 1;
+    margin-bottom: 15px;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+@keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.error-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: var(--star-white);
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+    letter-spacing: 1px;
+}
+
+.error-message {
+    font-size: 16px;
+    color: var(--star-white);
+    max-width: 500px;
+    margin: 0 auto 25px;
+    line-height: 1.4;
+    opacity: 0.9;
+}
+
+.cta-buttons {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.cosmic-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 28px;
+    border-radius: 50px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    letter-spacing: 1px;
+    position: relative;
+    overflow: hidden;
+    border: 2px solid transparent;
+    z-index: 1;
+    cursor: pointer;
+}
+
+.cosmic-btn:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: 0.5s;
+    z-index: -1;
+}
+
+.cosmic-btn:hover:before {
+    left: 100%;
+}
+
+.btn-primary {
+    background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+    color: white;
+    box-shadow: 0 0 25px rgba(0, 217, 255, 0.4);
+}
+
+.btn-primary:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 0 35px rgba(0, 217, 255, 0.6);
+}
+
+@media (max-width: 968px) {
+    .planet {
+        right: 5%;
+        width: 100px;
+        height: 100px;
+    }
+
+    .error-code {
+        font-size: 100px;
+    }
+
+    .error-title {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 640px) {
+    .planet {
+        width: 80px;
+        height: 80px;
+    }
+
+    .satellite {
+        width: 20px;
+        height: 20px;
+    }
+
+    .error-code {
+        font-size: 80px;
+    }
+
+    .error-title {
+        font-size: 18px;
+    }
+
+    .error-message {
+        font-size: 14px;
+    }
+
+    .cosmic-btn {
+        padding: 12px 24px;
+        font-size: 12px;
+    }
+}
+
+@media (max-height: 700px) {
+    .error-code {
+        font-size: 80px;
+    }
+
+    .error-title {
+        font-size: 18px;
+    }
+
+    .error-message {
+        font-size: 14px;
+        margin-bottom: 15px;
+    }
+}

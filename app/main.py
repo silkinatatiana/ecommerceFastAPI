@@ -56,6 +56,7 @@ app.include_router(favorites.router)
 app.include_router(cart.router)
 app.include_router(orders.router)
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['http://127.0.0.1:8000'],
@@ -185,7 +186,6 @@ async def get_main_page(
     categories_products = {}
     selected_category_ids = [int(cid) for cid in category_id.split(',')] if category_id else []
 
-    # Считаем общее количество товаров в каждой категории
     category_counts = {}
     for category in categories_data:
         if selected_category_ids and category['id'] not in selected_category_ids:
@@ -211,7 +211,6 @@ async def get_main_page(
         if selected_category_ids and category['id'] not in selected_category_ids:
             continue
 
-        # Все товары категории
         all_category_products = [
             {
                 **p,
@@ -233,14 +232,13 @@ async def get_main_page(
 
         total_count = category_counts.get(category['id'], len(all_category_products))
 
-        # Для главной страницы показываем только INITIAL_SKIP товаров
         displayed_products = all_category_products[:INITIAL_SKIP]
         has_more = len(all_category_products) > INITIAL_SKIP
 
         categories_products[category['name']] = {
             "id": category['id'],
             "products": displayed_products,
-            "all_products": all_category_products,  # Сохраняем все товары для пагинации
+            "all_products": all_category_products,
             "has_more": has_more,
             "total_count": total_count,
             "current_skip": INITIAL_SKIP,
@@ -294,8 +292,6 @@ async def get_main_page(
         response.delete_cookie("token")
 
     return response
-
-
 
 # if __name__ == "__main__":
 #     uvicorn.run(

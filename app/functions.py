@@ -4,6 +4,7 @@ from typing import Annotated
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -14,11 +15,13 @@ from app.config import Config
 from app.main import logger
 from app.models import Product, User, Favorites, Cart
 from app.schemas import CartUpdate
+from app.exception import NotMoreProductsException
 
 SECRET_KEY = Config.SECRET_KEY
 ALGORITHM = Config.ALGORITHM
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
+templates = Jinja2Templates(directory='app/templates/')
 
 
 async def check_stock(product_id: int,
@@ -177,19 +180,16 @@ async def update_quantity_cart_add(cart_data: CartUpdate,
                                    db: AsyncSession = Depends(get_db)):
     stock_product = await check_stock(product_id=cart_data.product_id, db=db)
     if cart_item.count + cart_data.count > stock_product:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Доступно только {stock_product} единиц товара"
-        )
+        raise NotMoreProductsException()
 
     cart_item.count += cart_data.count
     await db.commit()
     await db.refresh(cart_item)
 
     return {
-            "product_id": cart_item.product_id,
-            "new_count": cart_item.count,
-            "removed": False
+        "product_id": cart_item.product_id,
+        "new_count": cart_item.count,
+        "removed": False
     }
 
 
@@ -212,3 +212,12 @@ async def update_quantity_cart_reduce(cart_data: CartUpdate,
             "new_count": cart_item.count,
             "removed": False
         }
+
+
+def not_found(request: Request):
+    return templates.TemplateResponse(
+        "exceptions/not_found.html",
+        {
+            "request": request
+        }
+    )

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}{{ shop_name }} - Главная{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/orders/order_page.css') }}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="order-header">
+        <h1>Заказ {{ order.id }}</h1>
+    </div>
+
+    <div class="order-info">
+        <div class="info-card">
+            <h3>Информация о заказе</h3>
+            <p><strong>Дата создания:</strong> {{ order.created_at }}</p>
+            <p><strong>Статус:</strong> {{ order.status }}</p>
+            <p><strong>Общая сумма:</strong> <span class="price">{{ order.total_sum }} руб.</span></p>
+            <p><strong>Количество товаров:</strong> {{ products|length }}</p>
+        </div>
+    </div>
+
+    <div class="expandable-section">
+        {% for product in products %}
+        <a href="http://127.0.0.1:8000/products/{{ product.id }}" class="product-item" target="_blank">
+            {% if product.image_url %}
+                <img src="{{ product.image_url }}" alt="{{ product.name }}" class="product-image"
+                     onerror="this.src='/static/images/placeholder-product.jpg'">
+            {% else %}
+                <img src="/static/images/placeholder-product.jpg" alt="Нет изображения" class="product-image">
+            {% endif %}
+
+            <div class="product-info">
+                <div class="product-name">{{ product.name }}</div>
+            </div>
+
+            <div class="product-details">
+                <span class="product-quantity">{{ product.count }} шт.</span>
+                <span class="product-price">{{ product.price }} руб.</span>
+                <span class="product-total">{{ product.item_total }} руб.</span>
+            </div>
+        </a>
+        {% endfor %}
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn btn-primary" onclick="window.location.href='/orders/user{{ user_id }}'">
+            Вернуться к списку заказов
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/orders/order_page.js"></script>
+{% endblock %}

@@ -51,7 +51,7 @@ async def update_category(db: Annotated[AsyncSession, Depends(get_db)], category
         if category is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail='There is no category found'
+                detail='NOT FOUND'
             )
 
         category.name = update_category.name
@@ -75,8 +75,9 @@ async def delete_category(db: Annotated[AsyncSession, Depends(get_db)], category
         if category is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail='There is no category found'
+                detail='NOT FOUND'
             )
+
         category.is_active = False
         await db.commit()
         return {

@@ -1,5 +1,6 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, update
 from starlette import status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +9,7 @@ from app.backend.db_depends import get_db
 from app.models.users import User
 from .auth import get_current_user
 
+templates = Jinja2Templates(directory='app/templates/')
 router = APIRouter(prefix='/permission', tags=['permission'])
 
 
@@ -18,12 +20,10 @@ async def supplier_permission(db: Annotated[AsyncSession, Depends(get_db)],
     if get_user.get('is_admin'):
         user = await db.scalar(select(User).where(User.id == user_id))
 
-        if not user or not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='User not found'
-            )
-        if user.is_supplier:
+        if not user:
+            return templates.TemplateResponse('exceptions/not_found.html', {'request': request})
+
+        if user.role == 'seller':
             await db.execute(update(User).where(User.id == user_id).values(is_supplier=False, is_customer=True))
             await db.commit()
             return {
@@ -52,7 +52,7 @@ async def delete_user(db: Annotated[AsyncSession, Depends(get_db)], get_user: An
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail='User not found'
+                detail='NOT FOUND'
             )
 
         if user.is_admin:
@@ -61,13 +61,6 @@ async def delete_user(db: Annotated[AsyncSession, Depends(get_db)], get_user: An
                 detail="You can't delete admin user"
             )
 
-        if user.is_active:
-            await db.execute(update(User).where(User.id == user_id).values(is_active=False))
-            await db.commit()
-            return {
-                'status_code': status.HTTP_200_OK,
-                'detail': 'User is deleted'
-            }
         else:
             return {
                 'status_code': status.HTTP_200_OK,

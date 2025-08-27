@@ -3,39 +3,39 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse
-from sqlalchemy import select, insert, delete, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
-import jwt
 from starlette.responses import HTMLResponse
 
 from app.backend.db_depends import get_db
 from app.config import Config
 from app.models import User
-from app.models.cart import Cart
 from app.models.orders import Orders
 from app.models.products import Product
-from app.functions import get_user_id_by_token, update_stock
+from app.functions import get_user_id_by_token, update_stock, not_found
+from app.schemas import Orders
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 templates = Jinja2Templates(directory="app/templates")
 
 
-@router.get('/{user_id}')  # возвращает список из словарей-заказов
-async def get_orders_by_user_id(user_id: int,
-                                db: AsyncSession = Depends(get_db)):
+@router.get('/user{user_id}')  # возвращает список из словарей-заказов
+async def get_orders_by_user_id(user_id: int, db: AsyncSession = Depends(get_db)):
     pass
 
 
-@router.get('/{order_id}')  # возвращает словарь с данными заказа
-async def get_order_by_id(order_id: int):
-    return {'message': f'Страница заказа {order_id}'}
+@router.get('/{order_id}', response_model=Orders)
+async def get_order_by_id(order_id: int, request=Request, db: AsyncSession = Depends(get_db)):
+    order = await db.scalar(select(Orders).where(Orders.id == order_id))
+
+    if not order:
+        return not_found(request=request)
+    return order
 
 
 @router.post('/create', status_code=status.HTTP_201_CREATED)
 async def create_order(token: Optional[str] = Cookie(None, alias='token'),
-                       db: AsyncSession = Depends(get_db)) -> dict:
+                       db: AsyncSession = Depends(get_db)):
     try:
         if not token:
             raise HTTPException(status_code=401, detail="Пользователь не авторизован")
@@ -44,8 +44,10 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
 
         user = await db.scalar(select(User).where(User.id == user_id))
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail='Пользователь не найден')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='NOT FOUND'
+            )
 
         order_products = None
 
@@ -56,7 +58,7 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         if not order_products:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail='Товары не найдены'
+                detail='NOT FOUND'
             )
 
         products_data = {}
@@ -106,7 +108,7 @@ async def cancel_order():
     pass
 
 
-@router.get('/{order_id}', response_class=HTMLResponse)
+@router.get('/order/{order_id}', response_class=HTMLResponse)
 async def order_page(request: Request,
                      order_id: int,
                      token: Optional[str] = Cookie(default=None, alias='token'),
@@ -126,16 +128,13 @@ async def order_page(request: Request,
         order = order_result.scalar_one_or_none()
 
         if not order:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='Заказ не найден'
-            )
+            return not_found(request=request)
 
         order_products = []
         total_amount = 0
 
         for product_id, product_data in order.products.items():
-            product_query = select(Product).where(Product.id == product_id)
+            product_query = select(Product).where(Product.id == int(product_id))
             product_result = await db.execute(product_query)
             product = product_result.scalar_one_or_none()
 
@@ -155,14 +154,15 @@ async def order_page(request: Request,
             'request': request,
             'order': {
                 'id': order.id,
-                'created_at': order.date,
+                'created_at': order.date.strftime("%Y-%m-%d %H:%M"),
                 'status': order.status,
                 'total_sum': order.summa
             },
             'products': order_products,
-            'total_amount': total_amount
+            'total_amount': total_amount,
+            'user_id': user_id
         }
-        return templates.TemplateResponse("orders/orders.html", context)
+        return templates.TemplateResponse("orders/order_page.html", context)
 
     except HTTPException:
         raise

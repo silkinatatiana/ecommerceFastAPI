@@ -11,8 +11,6 @@ from app.backend.db_depends import get_db
 from app.schemas import CreateReviews
 from app.models import *
 from app.models import Review
-from app.functions import get_current_user
-
 
 router = APIRouter(prefix='/reviews', tags=['reviews'])
 templates = Jinja2Templates(directory='app/templates/')
@@ -33,7 +31,7 @@ async def product_reviews(
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail='Product not found'
+            detail='NOT FOUND'
         )
 
     reviews = await db.scalars(
@@ -79,7 +77,7 @@ async def delete_review(
     if not review:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail='Review not found'
+            detail='NOT FOUND'
         )
 
     # if not current_user.get('is_admin'):
@@ -96,7 +94,7 @@ async def delete_review(
 async def product_reviews(request: Request, product_id: int, db: AsyncSession = Depends(get_db)):
     product = await db.get(Product, product_id)
     if not product:
-        raise HTTPException(status_code=404, detail="Товар не найден")
+        return not_found(request=request)
 
     reviews = await db.execute(
         select(Review)

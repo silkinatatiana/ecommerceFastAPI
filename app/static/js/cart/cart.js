@@ -13,8 +13,10 @@ async function updateCart(productId, isAdd, count = 1) {
 
         if (response.ok) {
             const result = await response.json();
-
-            if (result.removed) {
+            if (result == 'Товар закончился на складе') {
+            alert(result);
+            }
+            else if (result.removed) {
                 const itemToRemove = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
                 if (itemToRemove) {
                     itemToRemove.remove();
@@ -231,11 +233,12 @@ async function createOrder() {
             }
         }
 
+        alert('Заказ успешно создан!');
+        window.location.href = `/orders/${data.order_id}`;
         return {
             success: true,
             message: data.message,
-            orderId: data.order_id,
-            redirectUrl: data.redirect_url
+            orderId: data.order_id
         };
 
     } catch (error) {

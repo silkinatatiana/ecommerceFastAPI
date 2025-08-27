@@ -74,10 +74,7 @@ async def del_favorite_product(product_id: int,
         await db.commit()
 
         if result.rowcount == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='Товар не найден в избранном'
-            )
+            return {'message': 'Товар удален из избранного'}
         return None
 
     except Exception as e:

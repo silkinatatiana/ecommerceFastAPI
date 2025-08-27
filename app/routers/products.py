@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, func
+from sqlalchemy import select
 import httpx
 import jwt
 from loguru import logger
@@ -14,7 +14,7 @@ from app.backend.db_depends import get_db
 from app.schemas import CreateProduct, ProductOut
 from app.models import *
 from app.models import Review
-from app.functions import get_current_user, get_favorite_product_ids, get_in_cart_product_ids
+from app.functions import get_current_user, get_favorite_product_ids, get_in_cart_product_ids, not_found
 from app.config import Config
 
 router = APIRouter(prefix='/products', tags=['products'])
@@ -66,7 +66,7 @@ async def create_product(
         if not category:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Категория не найдена"
+                detail='NOT FOUND'
             )
 
         product = Product(
@@ -128,8 +128,9 @@ async def products_by_category(db: Annotated[AsyncSession, Depends(get_db)], cat
     if category is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail='Category not found'
+            detail='NOT FOUND'
         )
+
     products_category = await db.scalars(
         select(Product).where(Product.category_id == category.id))
     return products_category.all()
@@ -174,10 +175,7 @@ async def product_detail_page(
     )
 
     if not product:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Товар не найден"
-        )
+        return not_found(request=request)
 
     review_count = len(product.reviews)
     avg_rating = sum(r.grade for r in product.reviews) / review_count if review_count > 0 else 0

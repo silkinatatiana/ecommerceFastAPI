@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles/exceptions/not_found.css') }}?v=1.0">
+</head>
+<body>
+    <div class="space-background" id="spaceBackground"></div>
+    <main class="main-content">
+        <div class="container">
+            <div class="cosmic-scene">
+                <div class="planet">
+                    <div class="planet-crater" style="top: 20px; left: 30px; width: 25px; height: 25px;"></div>
+                    <div class="planet-crater" style="top: 60px; left: 70px; width: 18px; height: 18px;"></div>
+                    <div class="planet-crater" style="top: 90px; left: 40px; width: 30px; height: 30px;"></div>
+                </div>
+                <div class="satellite"></div>
+
+                <div class="error-content">
+                    <h1 class="error-code">404</h1>
+                    <h2 class="error-title">Похоже, вы отклонились от курса!</h2>
+                    <p class="error-message">Эта страница находится за пределами нашей галактики</p>
+                    <div class="cta-buttons">
+                        <a href="/" class="cosmic-btn btn-primary">
+                            <span style="margin-right: 8px;">🚀</span>Вернуться на главную
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+<script src="/static/js/exceptions/not_found.js"></script>
+</body>
+</html>
