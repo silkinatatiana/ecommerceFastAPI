@@ -13,7 +13,7 @@ from app.models import User
 from app.models.orders import Orders
 from app.models.products import Product
 from app.functions import get_user_id_by_token, update_stock, not_found
-from app.schemas import Orders
+from app.schemas import OrderResponse
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 templates = Jinja2Templates(directory="app/templates")
@@ -24,8 +24,8 @@ async def get_orders_by_user_id(user_id: int, db: AsyncSession = Depends(get_db)
     pass
 
 
-@router.get('/{order_id}', response_model=Orders)
-async def get_order_by_id(order_id: int, request=Request, db: AsyncSession = Depends(get_db)):
+@router.get('/{order_id}', response_model=OrderResponse)
+async def get_order_by_id(order_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     order = await db.scalar(select(Orders).where(Orders.id == order_id))
 
     if not order:
@@ -46,10 +46,8 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail='NOT FOUND'
+                detail='Пользователь не найден'
             )
-
-        order_products = None
 
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{Config.url}/cart/{user_id}")
@@ -57,8 +55,8 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
 
         if not order_products:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='NOT FOUND'
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Корзина пуста'
             )
 
         products_data = {}

@@ -234,7 +234,7 @@ async function createOrder() {
         }
 
         alert('Заказ успешно создан!');
-        window.location.href = `/orders/${data.order_id}`;
+        window.location.href = `/orders/order/${data.order_id}`;
         return {
             success: true,
             message: data.message,

@@ -93,7 +93,7 @@ class CartUpdate(BaseModel):
     count: int = 1
 
 
-class Orders(BaseModel):
+class OrderResponse(BaseModel):
     id: int
     user_id: int
     products: dict

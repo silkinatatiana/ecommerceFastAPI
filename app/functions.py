@@ -217,7 +217,5 @@ async def update_quantity_cart_reduce(cart_data: CartUpdate,
 def not_found(request: Request):
     return templates.TemplateResponse(
         "exceptions/not_found.html",
-        {
-            "request": request
-        }
+        {"request": request}
     )
