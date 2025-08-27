@@ -4,6 +4,7 @@ import httpx
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse
 
@@ -20,9 +21,16 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 templates = Jinja2Templates(directory="app/templates")
 
 
-@router.get('/user{user_id}')  # возвращает список из словарей-заказов
+@router.get('/user{user_id}')
 async def get_orders_by_user_id(user_id: int, db: AsyncSession = Depends(get_db)):
-    pass
+    try:
+        orders = await db.scalars(select(Orders).where(Orders.user_id == user_id))
+        return orders.all()
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
 
 
 @router.get('/{order_id}', response_model=OrderResponse)
