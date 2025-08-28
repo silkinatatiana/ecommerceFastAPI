@@ -26,17 +26,17 @@
             <div class="account-sidebar">
                 <ul class="nav-menu">
                     <li class="nav-item">
-                        <a href="#profile" class="nav-link active">
+                        <a href="#profile" class="nav-link active" data-section="profile">
                             <i>👤</i> Профиль
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="#orders" class="nav-link">
+                        <a href="#orders" class="nav-link" data-section="orders">
                             <i>🛒</i> Мои заказы
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="#security" class="nav-link">
+                        <a href="#security" class="nav-link" data-section="security">
                             <i>🔒</i> Безопасность
                         </a>
                     </li>
@@ -45,7 +45,7 @@
 
             <div class="account-main">
                 <!-- Секция профиля -->
-                <div id="profile" class="section">
+                <div id="profile" class="section active">
                     <h3 class="section-title">Личная информация</h3>
 
                     <div class="info-grid">
@@ -70,7 +70,7 @@
 
                     <button class="btn btn-primary" onclick="toggleEditForm('profile')">Редактировать профиль</button>
 
-                    <div id="profile-edit-form" class="edit-form">
+                    <div id="profile-edit-form" class="edit-form" style="display: none;">
                         <form id="update-profile-form" action="/account/update" method="post">
                             <div class="form-group">
                                 <label for="first_name">Имя</label>
@@ -96,34 +96,42 @@
                 </div>
 
                 <!-- Секция заказов -->
-                <div id="orders" class="section" style="display: none;">
+                <div id="orders" class="section">
                     <h3 class="section-title">Мои заказы</h3>
 
-                    <ul class="orders-list">
-                        <li class="order-item">
-                            <div class="order-header">
-                                <strong>Заказ #12345</strong>
-                                <span class="order-status status-completed">Завершен</span>
+                    <div id="orders-container">
+                        {% if orders_data and orders_data.orders %}
+                            {% for order in orders_data.orders %}
+                            <div class="order-card">
+                                <div class="order-header">
+                                    <h3>Заказ #{{ order.id }}</h3>
+                                    <span class="status {{ order.status|lower }}">{{ order.status }}</span>
+                                </div>
+                                <div class="order-details">
+                                    <p>Дата: {{ order.date.strftime('%d.%m.%Y %H:%M') }}</p>
+                                    <p>Сумма: {{ order.summa }} руб.</p>
+                                    <p>Статус: {{ order.status }}</p>
+                                </div>
+                                <a href="/orders/order/{{ order.id }}" class="btn btn-primary">Подробнее о заказе</a>
                             </div>
-                            <div>Дата: 15.05.2023</div>
-                            <div>Сумма: 12 490 ₽</div>
-                        </li>
+                            {% endfor %}
 
-                        <li class="order-item">
-                            <div class="order-header">
-                                <strong>Заказ #12344</strong>
-                                <span class="order-status status-pending">В обработке</span>
+                            {% if orders_data.pagination.has_next %}
+                            <div class="load-more-container">
+                                <button id="load-more-btn" class="btn btn-secondary"
+                                        onclick="loadMoreOrders({{ orders_data.pagination.page + 1 }})">
+                                    Показать еще
+                                </button>
                             </div>
-                            <div>Дата: 10.05.2023</div>
-                            <div>Сумма: 8 750 ₽</div>
-                        </li>
-                    </ul>
-
-                    <p style="text-align: center; color: var(--light-text);">Показано 2 из 5 заказов</p>
+                            {% endif %}
+                        {% else %}
+                            <p>У вас пока нет заказов</p>
+                        {% endif %}
+                    </div>
                 </div>
 
                 <!-- Секция безопасности -->
-                <div id="security" class="section" style="display: none;">
+                <div id="security" class="section">
                     <h3 class="section-title">Безопасность</h3>
 
                     <div class="info-grid">
@@ -133,7 +141,7 @@
 
                     <button class="btn btn-primary" onclick="toggleEditForm('password')">Изменить пароль</button>
 
-                    <div id="password-edit-form" class="edit-form">
+                    <div id="password-edit-form" class="edit-form" style="display: none;">
                         <form id="update-password-form" action="/account/update-password" method="post">
                             <div class="form-group">
                                 <label for="current_password">Текущий пароль</label>
@@ -160,6 +168,9 @@
             </div>
         </div>
     </div>
-<script src="/static/js/auth/personal_account.js"></script>
+
+    <script>
+
+    </script>
 </body>
 </html>

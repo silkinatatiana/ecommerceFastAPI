@@ -3,7 +3,7 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse
@@ -20,12 +20,49 @@ from app.schemas import OrderResponse
 router = APIRouter(prefix="/orders", tags=["orders"])
 templates = Jinja2Templates(directory="app/templates")
 
+from fastapi import Query
+from sqlalchemy import select, desc
+from sqlalchemy.orm import selectinload
 
-@router.get('/user{user_id}')
-async def get_orders_by_user_id(user_id: int, db: AsyncSession = Depends(get_db)):
+
+@router.get('/user/{user_id}')
+async def get_orders_by_user_id(
+        user_id: int,
+        page: int = Query(1, ge=1, description="Номер страницы"),
+        per_page: int = Query(5, ge=1, le=50, description="Количество заказов на странице"),
+        db: AsyncSession = Depends(get_db)
+):
     try:
-        orders = await db.scalars(select(Orders).where(Orders.user_id == user_id))
-        return orders.all()
+        total_count_result = await db.execute(
+            select(func.count()).select_from(Orders).where(Orders.user_id == user_id)
+        )
+        total_count = total_count_result.scalar()
+
+        offset = (page - 1) * per_page
+
+        result = await db.execute(
+            select(Orders)
+            .where(Orders.user_id == user_id)
+            .order_by(desc(Orders.date))
+            .offset(offset)
+            .limit(per_page)
+        )
+        orders = result.scalars().all()
+
+        total_pages = (total_count + per_page - 1) // per_page
+
+        return {
+            "orders": orders,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_prev": page > 1
+            }
+        }
+
     except SQLAlchemyError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

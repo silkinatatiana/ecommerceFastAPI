@@ -1,11 +1,11 @@
-from typing import Annotated
+from typing import Annotated, Optional
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Cookie, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
@@ -13,6 +13,7 @@ from app.functions.auth_func import get_current_user, authenticate_user, create_
 from app.models.users import User
 from app.backend.db_depends import get_db
 from app.config import Config
+from app.routers.orders import get_orders_by_user_id
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app/templates/')
@@ -37,39 +38,25 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
     }
 
 
-@router.get('/account', response_class=HTMLResponse)
+@router.get('/account')
 async def personal_account(
         request: Request,
-        token: str = Cookie(None),
+        page: int = Query(1, ge=1),
+        token: Optional[str] = Cookie(None, alias='token'),
         db: AsyncSession = Depends(get_db)
 ):
     try:
-        if not token:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Пользователь не авторизован"
-            )
+        user_dict = await get_current_user(token=token)
+        orders_data = await get_orders_by_user_id(user_dict['id'], page, 5, db)
+        user = await db.scalar(select(User).where(User.id == user_dict['id']))
 
-        clean_token = token.replace("Bearer ", "")
-        user_data = await get_current_user(clean_token)
-        user = await db.get(User, user_data['id'])
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Пользователь не авторизован"
-            )
         return templates.TemplateResponse(
             "auth/personal_account.html",
             {
                 "request": request,
-                "auth_account_url": "/auth/account",
-                "user": {
-                    "first_name": user.first_name,
-                    "last_name": user.last_name,
-                    "username": user.username,
-                    "email": user.email
-                },
-                "config": {"url": Config.url, "shop_name": "Pear"}
+                "user": user,
+                "orders_data": orders_data,
+                "config": Config.url
             }
         )
     except HTTPException as e:

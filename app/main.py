@@ -132,7 +132,6 @@ async def get_main_page(
         is_favorite: bool = Query(False),
         partial: bool = Query(False),
 ):
-    # Убрали skip и limit из параметров по умолчанию для главной страницы
     INITIAL_SKIP = 3  # Количество товаров, показываемых изначально
     LOAD_LIMIT = 12  # Количество товаров, загружаемых при каждом нажатии
 
@@ -160,7 +159,6 @@ async def get_main_page(
         products_url = f"{Config.url}/products/"
         params = {
             "user_id": user_id,
-            # Убираем skip и limit для первоначальной загрузки всех товаров категории
             **({"category_id": category_id} if category_id else {}),
             **({"colors": colors} if colors else {}),
             **({"built_in_memory": built_in_memory} if built_in_memory else {}),
@@ -171,7 +169,7 @@ async def get_main_page(
         async with httpx.AsyncClient() as client:
             categories, products = await asyncio.gather(
                 client.get(f"{Config.url}/categories/"),
-                client.get(products_url, params=params)  # Загружаем ВСЕ товары по фильтрам
+                client.get(products_url, params=params)
             )
             categories.raise_for_status()
             products.raise_for_status()
@@ -203,11 +201,9 @@ async def get_main_page(
                 count_response = await client.get(f"{Config.url}/products/count/", params=count_params)
                 category_counts[category['id']] = count_response.json().get('count', 0)
         except:
-            # Если не удалось получить count, считаем вручную
             category_products = [p for p in products_data if p['category_id'] == category['id']]
             category_counts[category['id']] = len(category_products)
 
-    # Формируем данные для каждой категории
     for category in categories_data:
         if selected_category_ids and category['id'] not in selected_category_ids:
             continue
