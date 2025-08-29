@@ -315,7 +315,6 @@ function showNoFavoritesMessage() {
     contentArea.appendChild(messageDiv);
 }
 
-// Функция для проверки состояния избранного при загрузке
 function checkFavoritesOnLoad() {
     const urlParams = new URLSearchParams(window.location.search);
     const isFavoriteFilterActive = urlParams.get('is_favorite') === 'true';
@@ -336,48 +335,6 @@ function checkFavoritesOnLoad() {
         }, 1000);
     }
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    initFiltersFromUrl();
-
-    const userIcon = document.getElementById('userIcon');
-    const dropdown = document.getElementById('userDropdown');
-
-    if (userIcon && dropdown) {
-        userIcon.addEventListener('click', function(e) {
-            e.stopPropagation();
-            dropdown.classList.toggle('show-dropdown');
-        });
-
-        document.addEventListener('click', function() {
-            dropdown.classList.remove('show-dropdown');
-        });
-    }
-
-    // Обработчик для checkbox избранного - с перезагрузкой
-    const favoritesCheckbox = document.getElementById('favoritesOnlyCheckbox');
-    if (favoritesCheckbox) {
-        favoritesCheckbox.addEventListener('change', function() {
-            const params = new URLSearchParams(window.location.search);
-
-            if (this.checked) {
-                params.set('is_favorite', 'true');
-            } else {
-                params.delete('is_favorite');
-            }
-
-            // Обновляем URL и перезагружаем страницу
-            window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
-            window.location.search = params.toString();
-        });
-    }
-
-    // Проверяем избранное при загрузке
-    checkFavoritesOnLoad();
-
-    // Дополнительная проверка через 2 секунды на случай медленной загрузки
-    setTimeout(checkFavoritesOnLoad, 2000);
-});
 
 async function toggleFavorite(element, productId) {
     try {

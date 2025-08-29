@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initReviewForm();
     initReviewsSection();
     initReviewGalleries();
-    initUserDropdown();
 });
 
 function initGallery() {
@@ -32,7 +31,6 @@ function initGallery() {
         });
     }
     
-    // Обработчики для полноэкранного режима
     document.querySelector('.fullscreen-prev')?.addEventListener('click', (e) => {
         e.stopPropagation();
         navigateFullscreen(-1);
@@ -43,7 +41,6 @@ function initGallery() {
         navigateFullscreen(1);
     });
     
-    // Закрытие по клику на фон или ESC
     document.getElementById('fullscreenGallery')?.addEventListener('click', function(e) {
         if (e.target === this || e.target.closest('.close-fullscreen')) {
             closeFullscreen();
@@ -56,26 +53,6 @@ function initGallery() {
             closeFullscreenReviewImage();
         }
     });
-}
-
-function initUserDropdown() {
-    const userIcon = document.getElementById('userIcon');
-    const userDropdown = document.getElementById('userDropdown');
-
-    if (userIcon && userDropdown) {
-        userIcon.addEventListener('click', function(e) {
-            e.stopPropagation();
-            userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
-        });
-
-        document.addEventListener('click', function() {
-            userDropdown.style.display = 'none';
-        });
-
-        userDropdown.addEventListener('click', function(e) {
-            e.stopPropagation();
-        });
-    }
 }
 
 function changeMainImage(thumbnail, index) {
