@@ -1,12 +1,12 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Корзина - {{ shop_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles/orders/order_page.css') }}?v=1.0">
+</head>
 
-{% block title %}{{ shop_name }} - Главная{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', path='/styles/orders/order_page.css') }}?v=1.0">
-{% endblock %}
-
-{% block content %}
 <div class="container">
     <div class="order-header">
         <h1>Заказ {{ order.id }}</h1>
@@ -47,13 +47,16 @@
     </div>
 
     <div class="actions">
-        <button class="btn btn-primary" onclick="window.location.href='/orders/user{{ user_id }}'">
+        <button class="btn btn-primary" onclick="window.location.href='/auth/account#orders'">
             Перейти к списку заказов
+        </button>
+
+        <button class="btn btn-secondary" onclick="window.location.href='/'">
+            На главную
         </button>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
-<script src="/static/js/orders/order_page.js"></script>
-{% endblock %}
+<script src="{{ url_for('static', path='/js/orders/order_page.js') }}?v=1.0"></script>
+</body>
+</html>

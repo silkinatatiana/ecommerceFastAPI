@@ -56,7 +56,8 @@ async def personal_account(
                 "request": request,
                 "user": user,
                 "orders_data": orders_data,
-                "config": Config.url
+                "config": Config.url,
+                "is_authenticated": True
             }
         )
     except HTTPException as e:

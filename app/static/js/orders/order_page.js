@@ -325,13 +325,11 @@ function setupFocusManagement() {
 
 function setupKeyboardShortcuts() {
     document.addEventListener('keydown', function(e) {
-        // Alt + 1 - переход к основному контенту
         if (e.altKey && e.key === '1') {
             e.preventDefault();
             document.querySelector('main')?.focus();
         }
 
-        // Alt + 2 - переход к навигации
         if (e.altKey && e.key === '2') {
             e.preventDefault();
             document.querySelector('.nav')?.focus();

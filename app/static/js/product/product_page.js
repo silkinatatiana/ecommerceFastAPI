@@ -405,25 +405,3 @@ function getCookie(name) {
     }
     return cookieValue;
 }
-
-function getCSRFTokenFromMeta() {
-    const metaTag = document.querySelector('meta[name="csrf-token"]');
-    return metaTag ? metaTag.getAttribute('content') : '';
-}
-
-function getCSRFTokenFromForm() {
-    const input = document.querySelector('[name=csrfmiddlewaretoken]');
-    return input ? input.value : '';
-}
-
-function getCSRFTokenFromMeta() {
-    const metaTag = document.querySelector('meta[name="csrf-token"]');
-    return metaTag ? metaTag.getAttribute('content') : '';
-}
-
-function showLoginPrompt(message) {
-    const loginConfirmed = confirm(`${message}. Перейти на страницу входа?`);
-    if (loginConfirmed) {
-        window.location.href = '/auth/create';
-    }
-}
