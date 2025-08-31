@@ -1,7 +1,6 @@
 :root {
-    --primary-color: #4285f4;
+    --primary-color: #2c5f8a;
     --secondary-color: #f1f3f4;
-    --danger-color: #f44336;
     --text-color: #202124;
     --light-text: #5f6368;
     --border-color: #dadce0;
@@ -68,6 +67,7 @@ body {
 }
 
 .btn {
+    text-decoration: none;
     padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
@@ -82,7 +82,7 @@ body {
 }
 
 .btn-danger {
-    background-color: var(--danger-color);
+    background-color: var(--secondary-color);
     color: white;
 }
 
@@ -251,4 +251,9 @@ body {
 .btn-secondary {
 background-color: var(--secondary-color);
 color: var(--text-color);
+}
+
+.load-more-container {
+    margin-top: 20px;
+    text-align: center;
 }
