@@ -1,45 +1,70 @@
-document.querySelectorAll('.nav-link').forEach(link => {
-    link.addEventListener('click', function(e) {
-        e.preventDefault();
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('profile-edit-form').style.display = 'none';
+    document.getElementById('password-edit-form').style.display = 'none';
 
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+            this.classList.add('active');
+
+            const sectionId = this.getAttribute('data-section') || this.getAttribute('href').substring(1);
+            const targetSection = document.getElementById(sectionId);
+
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+
+            if (sectionId === 'orders') {
+                updateUrlParameter('section', 'orders');
+            }
+        });
+    });
+
+    // Проверяем начальное состояние URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const section = urlParams.get('section');
+    const page = urlParams.get('page');
+
+    if (section === 'orders') {
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
 
-        this.classList.add('active');
-
-        const sectionId = this.getAttribute('data-section');
-        document.getElementById(sectionId).classList.add('active');
-
-        if (sectionId === 'orders') {
-            updateUrlParameter('page', 1);
+        const ordersLink = document.querySelector('[data-section="orders"]');
+        if (ordersLink) {
+            ordersLink.classList.add('active');
         }
-    });
+        document.getElementById('orders').classList.add('active');
+    }
 });
 
-async function loadMoreOrders(page) {
+async function loadMoreOrders(userId, page) {
     try {
-        const response = await fetch(`/api/user/{{ user.id }}?page=${page}&per_page=5`);
+        const response = await fetch(`/orders/user/${userId}?page=${page}&per_page=5`);
+
         if (!response.ok) {
             throw new Error('Ошибка загрузки заказов');
         }
 
         const data = await response.json();
-
         const ordersContainer = document.getElementById('orders-container');
         const loadMoreContainer = document.querySelector('.load-more-container');
 
-        data.orders.forEach(order => {
-            const orderCard = createOrderCard(order);
-            ordersContainer.insertBefore(orderCard, loadMoreContainer);
-        });
+        if (data.orders && data.orders.length > 0) {
+            data.orders.forEach(order => {
+                const orderCard = createOrderCard(order);
+                ordersContainer.insertBefore(orderCard, loadMoreContainer);
+            });
 
-        if (data.pagination.has_next) {
-            document.getElementById('load-more-btn').setAttribute('onclick', `loadMoreOrders(${page + 1})`);
-        } else {
-            loadMoreContainer.style.display = 'none';
+            if (data.pagination && data.pagination.has_next) {
+                document.getElementById('load-more-btn').setAttribute('onclick', `loadMoreOrders(${userId}, ${data.pagination.page + 1})`);
+            } else {
+                loadMoreContainer.style.display = 'none';
+            }
         }
-
-        updateUrlParameter('page', page);
 
     } catch (error) {
         console.error('Ошибка при загрузке заказов:', error);
@@ -84,21 +109,7 @@ function updateUrlParameter(key, value) {
 
 function toggleEditForm(type) {
     const form = document.getElementById(`${type}-edit-form`);
-    form.style.display = form.style.display === 'none' || form.style.display === '' ? 'block' : 'none';
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const page = urlParams.get('page');
-
-    if (page && page > 1) {
-        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-
-        document.querySelector('[data-section="orders"]').classList.add('active');
-        document.getElementById('orders').classList.add('active');
+    if (form) {
+        form.style.display = form.style.display === 'none' || form.style.display === '' ? 'block' : 'none';
     }
-
-    document.getElementById('profile-edit-form').style.display = 'none';
-    document.getElementById('password-edit-form').style.display = 'none';
-});
+}

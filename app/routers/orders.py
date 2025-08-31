@@ -1,9 +1,9 @@
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
+from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie, Query
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, func
+from sqlalchemy import select, func, desc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse
@@ -19,10 +19,6 @@ from app.schemas import OrderResponse
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 templates = Jinja2Templates(directory="app/templates")
-
-from fastapi import Query
-from sqlalchemy import select, desc
-from sqlalchemy.orm import selectinload
 
 
 @router.get('/user/{user_id}')
@@ -48,7 +44,6 @@ async def get_orders_by_user_id(
             .limit(per_page)
         )
         orders = result.scalars().all()
-
         total_pages = (total_count + per_page - 1) // per_page
 
         return {

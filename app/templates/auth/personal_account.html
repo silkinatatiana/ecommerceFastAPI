@@ -44,7 +44,7 @@
             </div>
 
             <div class="account-main">
-                <!-- Секция профиля -->
+
                 <div id="profile" class="section active">
                     <h3 class="section-title">Личная информация</h3>
 
@@ -95,7 +95,6 @@
                     </div>
                 </div>
 
-                <!-- Секция заказов -->
                 <div id="orders" class="section">
                     <h3 class="section-title">Мои заказы</h3>
 
@@ -119,7 +118,7 @@
                             {% if orders_data.pagination.has_next %}
                             <div class="load-more-container">
                                 <button id="load-more-btn" class="btn btn-secondary"
-                                        onclick="loadMoreOrders({{ orders_data.pagination.page + 1 }})">
+                                        onclick="loadMoreOrders({{ user.id }}, {{ orders_data.pagination.page + 1 }})">
                                     Показать еще
                                 </button>
                             </div>
@@ -130,7 +129,6 @@
                     </div>
                 </div>
 
-                <!-- Секция безопасности -->
                 <div id="security" class="section">
                     <h3 class="section-title">Безопасность</h3>
 
@@ -169,8 +167,6 @@
         </div>
     </div>
 
-    <script>
-
-    </script>
+<script src="/static/js/auth/personal_account.js"></script>
 </body>
 </html>
