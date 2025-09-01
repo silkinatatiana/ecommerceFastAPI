@@ -109,3 +109,9 @@ class OrderItem(BaseModel):
     user_id: int
     products_data: dict
     summa: int
+
+
+class ProfileUpdate(BaseModel):
+    first_name: str
+    last_name: str
+    email: str

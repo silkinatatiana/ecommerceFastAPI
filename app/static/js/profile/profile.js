@@ -113,3 +113,38 @@ function toggleEditForm(type) {
         form.style.display = form.style.display === 'none' || form.style.display === '' ? 'block' : 'none';
     }
 }
+
+document.getElementById('update-profile-form').addEventListener('submit', async function(event) {
+    event.preventDefault();
+
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+
+    try {
+        const response = await fetch('/auth/update', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Успех:', result);
+            alert('Профиль обновлен!');
+
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+
+        } else {
+            console.error('Ошибка сервера:', response.status);
+            alert('Произошла ошибка при обновлении профиля.');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Сетевая ошибка или сервер недоступен.');
+    }
+});

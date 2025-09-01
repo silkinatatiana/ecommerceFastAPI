@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Co
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
@@ -14,6 +14,7 @@ from app.functions.profile import get_tab_by_section
 from app.models.users import User
 from app.backend.db_depends import get_db
 from app.config import Config
+from app.schemas import ProfileUpdate
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app/templates/')
@@ -152,3 +153,46 @@ async def logout():
     response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
     response.delete_cookie("token")
     return response
+
+
+@router.put('/update')
+async def update_profile(profile_update: ProfileUpdate,
+                         token: Optional[str] = Cookie(None, alias='token'),
+                         db: AsyncSession = Depends(get_db)
+                         ):
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Для обновления данных необходимо авторизоваться'
+        )
+
+    user = await get_current_user(token)
+
+    update_data = {}
+    if profile_update.first_name is not None:
+        update_data['first_name'] = profile_update.first_name
+    if profile_update.last_name is not None:
+        update_data['last_name'] = profile_update.last_name
+    if profile_update.email is not None:
+        update_data['email'] = profile_update.email
+
+    if not update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Не указаны данные для обновления'
+        )
+
+    query = update(User).where(User.id == user['id']).values(**update_data)
+
+    try:
+        await db.execute(query)
+        await db.commit()
+
+        return {"message": "Данные профиля успешно обновлены"}
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка при обновлении данных: {str(e)}"
+        )
