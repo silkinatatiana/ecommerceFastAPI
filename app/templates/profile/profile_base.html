@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Личный кабинет | {{ shop_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/profile/profile.css') }}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<div class="account-container">
+    <div class="account-header">
+        <div class="user-profile">
+            <div class="user-avatar">{{ user.first_name[0] }}{{ user.last_name[0] }}</div>
+            <div class="user-info">
+                <h2>{{ user.first_name }} {{ user.last_name }}</h2>
+                <p>@{{ user.username }}</p>
+            </div>
+        </div>
+        <div class="account-actions">
+            <a href="{{ url_for('logout') }}" class="btn btn-secondary">Выйти</a>
+            <a href="{{ url_for('get_main_page') }}" class="btn btn-secondary">На главную</a>
+        </div>
+    </div>
+
+    <div class="account-content">
+        <div class="account-sidebar">
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#profile" class="nav-link active" data-section="profile">
+                        <i>👤</i> Профиль
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#orders" class="nav-link" data-section="orders">
+                        <i>🛒</i> Мои заказы
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#security" class="nav-link" data-section="security">
+                        <i>🔒</i> Безопасность
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="account-main">
+            {% block account_content %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/profile/profile.js"></script>
+{% endblock %}

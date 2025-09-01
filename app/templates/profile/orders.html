@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль | {{ config.shop_name }}{% endblock %}
+
+{% block content %}
+<div id="orders" class="section">
+    <h3 class="section-title">Мои заказы</h3>
+
+    <div id="orders-container">
+        {% if orders_data and orders_data.orders %}
+            {% for order in orders_data.orders %}
+            <div class="order-card">
+                <div class="order-header">
+                    <h3>Заказ #{{ order.id }}</h3>
+                    <span class="status {{ order.status|lower }}">{{ order.status }}</span>
+                </div>
+                <div class="order-details">
+                    <p>Дата: {{ order.date.strftime('%d.%m.%Y %H:%M') }}</p>
+                    <p>Сумма: {{ order.summa }} руб.</p>
+                    <p>Статус: {{ order.status }}</p>
+                </div>
+                <a href="/orders/order/{{ order.id }}" class="btn btn-primary">Подробнее о заказе</a>
+            </div>
+            {% endfor %}
+
+            {% if orders_data.pagination.has_next %}
+            <div class="load-more-container">
+                <button id="load-more-btn" class="btn btn-secondary"
+                        onclick="loadMoreOrders({{ user.id }}, {{ orders_data.pagination.page + 1 }})">
+                    Показать еще
+                </button>
+            </div>
+            {% endif %}
+        {% else %}
+            <p>У вас пока нет заказов</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

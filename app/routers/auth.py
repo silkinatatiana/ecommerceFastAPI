@@ -10,10 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
 from app.functions.auth_func import get_current_user, authenticate_user, create_access_token
+from app.functions.profile import get_tab_by_section
 from app.models.users import User
 from app.backend.db_depends import get_db
 from app.config import Config
-from app.routers.orders import get_orders_by_user_id
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app/templates/')
@@ -42,24 +42,16 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
 async def personal_account(
         request: Request,
         page: int = Query(1, ge=1),
+        section: str = Query('profile_tab'),
         token: Optional[str] = Cookie(None, alias='token'),
         db: AsyncSession = Depends(get_db)
 ):
     try:
         user_dict = await get_current_user(token=token)
-        orders_data = await get_orders_by_user_id(user_dict['id'], page, 5, db)
         user = await db.scalar(select(User).where(User.id == user_dict['id']))
+        response = await get_tab_by_section(section, templates, request, user, page, db, user_dict)
+        return response
 
-        return templates.TemplateResponse(
-            "auth/personal_account.html",
-            {
-                "request": request,
-                "user": user,
-                "orders_data": orders_data,
-                "config": Config.url,
-                "is_authenticated": True
-            }
-        )
     except HTTPException as e:
         response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
         return response

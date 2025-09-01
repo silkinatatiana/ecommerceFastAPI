@@ -233,6 +233,16 @@ body {
     color: #155724;
 }
 
+.btn-secondary {
+background-color: var(--secondary-color);
+color: var(--text-color);
+}
+
+.load-more-container {
+    margin-top: 20px;
+    text-align: center;
+}
+
 @media (max-width: 768px) {
     .account-content {
         flex-direction: column;
@@ -246,14 +256,4 @@ body {
     .info-grid {
         grid-template-columns: 1fr;
     }
-}
-
-.btn-secondary {
-background-color: var(--secondary-color);
-color: var(--text-color);
-}
-
-.load-more-container {
-    margin-top: 20px;
-    text-align: center;
 }

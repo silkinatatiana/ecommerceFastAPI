@@ -34,7 +34,9 @@
                              alt="Меню пользователя"
                              title="Меню пользователя">
                         <div class="user-dropdown" id="userDropdown">
-                            <a href="{{ url_for('personal_account') }}">Профиль</a>
+                            <a href="/auth/account?section=profile_tab" class="nav-link {% if active_section == 'profile_tab' %}active{% endif %}" data-section="profile">
+                                Профиль
+                            </a>
                             <a href="{{ url_for('logout') }}" class="logout">Выйти</a>
                         </div>
                     </div>
@@ -50,9 +52,9 @@
     </header>
 
     <nav>
-        <a href="{{ url }}">Главная</a> |
+        <a href="/">Главная</a>
         {% if role == 'seller' %}
-            <a href="{{ url_for('create_product_form') }}">Добавить товар</a>
+            <a href="{{ url_for('create_product_form') }}"> | Добавить товар</a>
         {% endif %}
     </nav>
 
@@ -67,7 +69,6 @@
 
     {% block scripts %}
     {% endblock %}
-
     <script src="/static/js/base.js"></script>
 </body>
 </html>
