@@ -11,7 +11,7 @@
             {% for order in orders_data.orders %}
             <div class="order-card">
                 <div class="order-header">
-                    <h3>Заказ #{{ order.id }}</h3>
+                    <h3>Заказ {{ order.id }}</h3>
                     <span class="status {{ order.status|lower }}">{{ order.status }}</span>
                 </div>
                 <div class="order-details">
