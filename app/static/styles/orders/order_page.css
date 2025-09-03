@@ -347,3 +347,22 @@ body {
 .info-item, .product-quantity, .product-price, .product-total {
     backdrop-filter: blur(10px);
 }
+
+.btn-cancel {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.btn-cancel:hover {
+    background-color: #d32f2f;
+}
+
+.btn-cancel:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}

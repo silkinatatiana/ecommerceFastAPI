@@ -3,7 +3,7 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie, Query
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse
@@ -146,8 +146,48 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
 
 
 @router.patch('/cancel{order_id}')
-async def cancel_order():
-    pass
+async def cancel_order(order_id: int,
+                       token: Optional[str] = Cookie(default=None, alias='token'),
+                       db: AsyncSession = Depends(get_db)):
+    try:
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Требуется авторизация для отмены заказа'
+            )
+
+        user_id = get_user_id_by_token(token=token)
+
+        order = await db.scalar(select(Orders).where(Orders.id == order_id))
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Заказ с ID {order_id} не найден'
+            )
+
+        if order.user_id != user_id:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail='Ошибка авторизации')
+        if order.status != 'Оформлен':
+            raise Exception(
+                f"Заказ можно отменить только при статусе 'Оформлен'. Текущий статус заказа: {order.status}")
+
+        query = update(Orders).where(Orders.id == order_id).values(status='Отменен')
+        await db.execute(query)
+        await db.commit()
+
+        return f'Заказ № {order_id} отменен'
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        await db.rollback()
+        print('Произошла ошибка при отмене заказа')
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail='Произошла внутренняя ошибка при отмене заказа'
+        )
 
 
 @router.get('/order/{order_id}', response_class=HTMLResponse)

@@ -6,19 +6,14 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeOrderPage() {
     console.log('Initializing order page...');
 
-    // Автоматическое раскрытие если мало товаров
     autoExpandProducts();
 
-    // Настройка обработки изображений
     setupImageErrorHandling();
 
-    // Настройка доступности
     setupAccessibility();
 
-    // Восстановление состояния из localStorage
     restoreSavedState();
 
-    // Инициализация инструментов разработчика
     if (isDevelopmentMode()) {
         enableDeveloperTools();
     }
@@ -27,7 +22,6 @@ function initializeOrderPage() {
 }
 
 function setupEventListeners() {
-    // Обработчик для кнопки раскрытия товаров
     const expandButton = document.querySelector('.expand-toggle');
     if (expandButton) {
         expandButton.addEventListener('click', handleExpandToggle);
@@ -39,16 +33,13 @@ function setupEventListeners() {
         });
     }
 
-    // Обработчики для товаров
     setupProductItemsInteractions();
 
-    // Обработчик для кнопки возврата
     const backButton = document.querySelector('.btn-primary');
     if (backButton) {
         backButton.addEventListener('click', handleBackButtonClick);
     }
 
-    // Глобальные обработчики ошибок
     window.addEventListener('error', handleGlobalError);
     window.addEventListener('unhandledrejection', handlePromiseRejection);
 }
@@ -73,7 +64,6 @@ function handleExpandToggle(event) {
 
     if (isExpanding) {
         content.style.display = 'block';
-        // Ждем следующего frame для начала анимации
         requestAnimationFrame(() => {
             content.style.height = content.scrollHeight + 'px';
             content.classList.add('expanded');
@@ -84,14 +74,12 @@ function handleExpandToggle(event) {
         content.classList.remove('expanded');
         icon.classList.remove('expanded');
 
-        // После анимации скрываем полностью
         setTimeout(() => {
             content.style.display = 'none';
             content.style.height = 'auto';
         }, 300);
     }
 
-    // Сохраняем состояние
     localStorage.setItem('orderProductsExpanded', isExpanding.toString());
 }
 
@@ -101,7 +89,6 @@ function expandProducts(content, icon) {
     content.classList.add('expanded');
     icon.classList.add('expanded');
 
-    // Плавное раскрытие
     const contentHeight = content.scrollHeight;
     content.style.height = contentHeight + 'px';
 
@@ -114,14 +101,12 @@ function collapseProducts(content, icon) {
     const contentHeight = content.scrollHeight;
     content.style.height = contentHeight + 'px';
 
-    // Даем время для начала анимации
     requestAnimationFrame(() => {
         content.style.height = '0';
         content.classList.remove('expanded');
         icon.classList.remove('expanded');
     });
 
-    // Полное скрытие после анимации
     setTimeout(() => {
         content.style.display = 'none';
         content.style.height = 'auto';
@@ -143,12 +128,10 @@ function setupProductItemsInteractions() {
     const productItems = document.querySelectorAll('.product-item');
 
     productItems.forEach((item, index) => {
-        // Делаем элементы фокусируемыми
         item.setAttribute('tabindex', '0');
         item.setAttribute('role', 'link');
         item.setAttribute('aria-label', `Товар ${index + 1}`);
 
-        // Keyboard navigation
         item.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -156,7 +139,6 @@ function setupProductItemsInteractions() {
             }
         });
 
-        // Hover effects
         item.addEventListener('mouseenter', function() {
             this.style.transform = 'translateX(5px)';
             this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
@@ -167,7 +149,6 @@ function setupProductItemsInteractions() {
             this.style.boxShadow = 'none';
         });
 
-        // Click analytics
         item.addEventListener('click', function() {
             trackProductClick(this.href, index + 1);
         });
@@ -384,4 +365,44 @@ function trackProductClick(url, position) {
 function getOrderIdFromUrl() {
     const match = window.location.pathname.match(/\/orders\/(\d+)/);
     return match ? match[1] : null;
+}
+
+async function cancelOrder(orderId) {
+    if (!confirm('Вы уверены, что хотите отменить заказ?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/orders/cancel/${orderId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            alert(result.message || 'Заказ успешно отменен');
+
+            const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
+            if (orderCard) {
+                const statusElement = orderCard.querySelector('.order-status');
+                statusElement.textContent = 'Отменен';
+                statusElement.className = 'order-status';
+                statusElement.style.backgroundColor = '#ffebee';
+                statusElement.style.color = '#d32f2f';
+
+                const cancelButton = orderCard.querySelector('.btn-cancel');
+                cancelButton.disabled = true;
+                cancelButton.textContent = 'Заказ отменен';
+            }
+        } else {
+            const errorData = await response.json();
+            alert(`Ошибка: ${errorData.detail || 'Не удалось отменить заказ'}`);
+        }
+    } catch (error) {
+        console.error('Ошибка при отмене заказа:', error);
+        alert('Произошла ошибка при отмене заказа');
+    }
 }
