@@ -155,7 +155,6 @@ function initReviewGalleries() {
         if (thumbnails.length > 0) {
             thumbnails[0].classList.add('active');
             
-            // Обработчики для миниатюр
             thumbnails.forEach((thumb, index) => {
                 thumb.addEventListener('click', function(e) {
                     e.stopPropagation();
@@ -323,72 +322,6 @@ function toggleSpecs() {
     
     const isVisible = specsContent.classList.toggle('show');
     toggleBtn.textContent = isVisible ? '▲' : '▼';
-}
-
-async function toggleFavorite(button, productId) {
-    console.log('toggleFavorite called for product:', productId);
-    console.log('Initial button classes:', button.classList.toString());
-
-    try {
-        // Проверка аутентификации
-        const authCheck = await fetch('/api/check-auth/', {
-            credentials: 'include'
-        });
-
-        if (!authCheck.ok) {
-            showLoginPrompt('Для добавления товаров в избранное необходимо войти в систему');
-            return;
-        }
-
-        const url = `/favorites/toggle/${productId}`;
-        console.log('Fetching:', url);
-
-        // Получаем CSRF токен
-        const csrfToken = getCookie('csrftoken') || getCSRFTokenFromMeta();
-        console.log('CSRF Token:', csrfToken ? 'Found' : 'Not found');
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'include'
-        });
-
-        console.log('Response status:', response.status);
-
-        if (response.ok) {
-            const result = await response.json();
-            console.log('Server response:', result);
-
-            // Обновляем UI
-            button.classList.toggle('active');
-            console.log('Button classes after toggle:', button.classList.toString());
-
-            // Анимация
-            button.style.transform = 'scale(1.2)';
-            setTimeout(() => {
-                button.style.transform = 'scale(1)';
-            }, 300);
-
-        } else {
-            console.error('Server error:', response.status, response.statusText);
-
-            // Детальная информация об ошибке
-            try {
-                const errorData = await response.json();
-                console.error('Error details:', errorData);
-            } catch (e) {
-                const errorText = await response.text();
-                console.error('Error text:', errorText);
-            }
-        }
-
-    } catch (error) {
-        console.error('Network error:', error);
-    }
 }
 
 function getCookie(name) {

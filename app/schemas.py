@@ -115,3 +115,9 @@ class ProfileUpdate(BaseModel):
     first_name: str
     last_name: str
     email: str
+
+
+class PasswordUpdate(BaseModel):
+    old_password: str = Field(..., min_length=3)
+    new_password: str = Field(..., min_length=3)
+    new_password_one_more_time: str = Field(..., min_length=3)

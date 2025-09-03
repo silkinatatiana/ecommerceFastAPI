@@ -9,12 +9,12 @@ from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
-from app.functions.auth_func import get_current_user, authenticate_user, create_access_token
+from app.functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
 from app.functions.profile import get_tab_by_section
 from app.models.users import User
 from app.backend.db_depends import get_db
 from app.config import Config
-from app.schemas import ProfileUpdate
+from app.schemas import ProfileUpdate, PasswordUpdate
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app/templates/')
@@ -185,6 +185,47 @@ async def update_profile(profile_update: ProfileUpdate,
     query = update(User).where(User.id == user['id']).values(**update_data)
 
     try:
+        await db.execute(query)
+        await db.commit()
+
+        return {"message": "Данные профиля успешно обновлены"}
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка при обновлении данных: {str(e)}"
+        )
+
+
+@router.patch('/update/password')
+async def update_password(data: PasswordUpdate,
+                          token: Optional[str] = Cookie(None, alias='token'),
+                          db: AsyncSession = Depends(get_db)
+                          ):
+    try:
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Для обновления данных необходимо авторизоваться'
+            )
+
+        if data.new_password != data.new_password_one_more_time:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Пароли не совпадают'
+            )
+
+        data_user = await get_current_user(token)
+        user = await db.scalar(select(User).where(User.id == data_user['id']))
+
+        if not verify_password(plain_password=data.new_password,
+                               hashed_password=user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Неправильный пароль'
+            )
+        query = update(User).where(User.id == data_user['id']).values(hashed_password=bcrypt_context.hash(data.new_password))
         await db.execute(query)
         await db.commit()
 

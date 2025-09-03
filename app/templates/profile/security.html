@@ -14,10 +14,10 @@
     <button class="btn btn-primary" onclick="toggleEditForm('password')">Изменить пароль</button>
 
     <div id="password-edit-form" class="edit-form" style="display: none;">
-        <form id="update-password-form" action="/account/update-password" method="post">
+        <form id="update-password-form" onsubmit="sendPatchRequest(event); return false;">
             <div class="form-group">
-                <label for="current_password">Текущий пароль</label>
-                <input type="password" id="current_password" name="current_password" required>
+                <label for="old_password">Текущий пароль</label>
+                <input type="password" id="old_password" name="old_password" required>
             </div>
 
             <div class="form-group">
@@ -36,5 +36,7 @@
             </div>
         </form>
     </div>
+
+<script src="/static/js/profile/security.js"></script>
 </div>
 {% endblock %}

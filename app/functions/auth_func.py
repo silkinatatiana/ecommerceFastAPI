@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import bcrypt
 
 from app.backend.db_depends import get_db
 from app.models import User
@@ -92,6 +93,13 @@ async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], userna
     return user
 
 
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(
+        plain_password.encode('utf-8'),
+        hashed_password.encode('utf-8')
+    )
+
+
 async def get_current_user_from_cookie(request: Request):
     token = request.cookies.get("token")
     if not token:
@@ -100,3 +108,4 @@ async def get_current_user_from_cookie(request: Request):
             detail="Not authenticated"
         )
     return await get_current_user(token.replace("Bearer", ""))
+
