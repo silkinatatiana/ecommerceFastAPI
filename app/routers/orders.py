@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse
 
 from app.backend.db_depends import get_db
-from app.config import Config
+from app.config import Config, Statuses
 from app.models import User
 from app.models.orders import Orders
 from app.models.products import Product
@@ -161,18 +161,18 @@ async def cancel_order(order_id: int,
         order = await db.scalar(select(Orders).where(Orders.id == order_id))
         if not order:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=status.HTTP_404_NOT_FOUND, # TODO заменить на страницу 404
                 detail=f'Заказ с ID {order_id} не найден'
             )
-
+# TODO вынести в отдельную функцию и переиспользовать в ручках (обработчик ошибок) и при 401 ошибке делать редирект на страничку входа
         if order.user_id != user_id:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                detail='Ошибка авторизации')
-        if order.status != 'Оформлен':
+            raise Exception('Можно отменить только свой заказ')
+
+        if order.status != Statuses.DESIGNED:
             raise Exception(
                 f"Заказ можно отменить только при статусе 'Оформлен'. Текущий статус заказа: {order.status}")
 
-        query = update(Orders).where(Orders.id == order_id).values(status='Отменен')
+        query = update(Orders).where(Orders.id == order_id).values(status=Statuses.CANCELLED)
         await db.execute(query)
         await db.commit()
 
@@ -180,10 +180,8 @@ async def cancel_order(order_id: int,
 
     except HTTPException:
         raise
-
+    # TODO добавить еще Exception для БД и там добавить         await db.rollback()
     except Exception as e:
-        await db.rollback()
-        print('Произошла ошибка при отмене заказа')
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Произошла внутренняя ошибка при отмене заказа'

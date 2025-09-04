@@ -78,7 +78,9 @@ async def startup():
     for route in app.routes:
         print(f"{route.path} -> {route.name}")
 
-
+# TODO добавить более детальный вывод ошибки
+#  и еще записывать логи в текстовый файлик (вид запроса, данные пользователя, время запроса, ошибка (если будет).
+#  Выделять красным ошибку, успех зеленым, желтым - предупреждение. Все в одном файле
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     logger.debug(f"Запрос: {request.method} {request.url}")

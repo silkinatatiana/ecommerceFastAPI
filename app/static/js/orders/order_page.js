@@ -44,45 +44,6 @@ function setupEventListeners() {
     window.addEventListener('unhandledrejection', handlePromiseRejection);
 }
 
-//function handleExpandToggle(event) {
-//    if (event) {
-//        event.stopPropagation();
-//        event.preventDefault();
-//    }
-//
-//    const content = document.getElementById('productsContent');
-//    const icon = document.querySelector('.toggle-icon');
-//
-//    console.log('Toggle elements:', {content, icon}); // Для отладки
-//
-//    if (!content || !icon) {
-//        console.error('Required elements not found');
-//        return;
-//    }
-//
-//    const isExpanding = !content.classList.contains('expanded');
-//
-//    if (isExpanding) {
-//        content.style.display = 'block';
-//        requestAnimationFrame(() => {
-//            content.style.height = content.scrollHeight + 'px';
-//            content.classList.add('expanded');
-//            icon.classList.add('expanded');
-//        });
-//    } else {
-//        content.style.height = '0';
-//        content.classList.remove('expanded');
-//        icon.classList.remove('expanded');
-//
-//        setTimeout(() => {
-//            content.style.display = 'none';
-//            content.style.height = 'auto';
-//        }, 300);
-//    }
-//
-//    localStorage.setItem('orderProductsExpanded', isExpanding.toString());
-//}
-
 function expandProducts(content, icon) {
     content.style.display = 'block';
     content.style.height = '0';
@@ -375,7 +336,6 @@ async function cancelOrder(orderId) {
 
         if (response.ok) {
             const result = await response.json();
-            alert(result.message || 'Заказ успешно отменен');
 
             const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
             if (orderCard) {
@@ -389,6 +349,11 @@ async function cancelOrder(orderId) {
                 cancelButton.disabled = true;
                 cancelButton.textContent = 'Заказ отменен';
             }
+
+            setTimeout(() => {
+                    window.location.reload();
+                }, 100);
+
         } else {
             const errorData = await response.json();
             alert(`Ошибка: ${errorData.detail || 'Не удалось отменить заказ'}`);

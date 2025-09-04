@@ -20,9 +20,12 @@
             <p><strong>Общая сумма:</strong> <span class="price">{{ order.total_sum }} руб.</span></p>
             <p><strong>Количество товаров:</strong> {{ products|length }}</p>
 
-            <button class="btn-cancel" onclick="cancelOrder({{ order.id }})">
-                Отменить заказ
-            </button>
+            {% if order.status == 'Оформлен' %}
+                <button class="btn-cancel" onclick="cancelOrder({{ order.id }})">
+                    Отменить заказ
+                </button>
+            {% endif %}
+
         </div>
     </div>
 
@@ -57,7 +60,7 @@
 
         <button class="btn btn-secondary" onclick="window.location.href='/'">
             На главную
-        </button>a
+        </button>
     </div>
 </div>
 
