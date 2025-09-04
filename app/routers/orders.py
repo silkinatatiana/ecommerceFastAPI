@@ -145,7 +145,7 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         )
 
 
-@router.patch('/cancel{order_id}')
+@router.patch('/cancel_order/{order_id}')
 async def cancel_order(order_id: int,
                        token: Optional[str] = Cookie(default=None, alias='token'),
                        db: AsyncSession = Depends(get_db)):

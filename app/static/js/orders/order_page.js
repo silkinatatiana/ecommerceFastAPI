@@ -44,44 +44,44 @@ function setupEventListeners() {
     window.addEventListener('unhandledrejection', handlePromiseRejection);
 }
 
-function handleExpandToggle(event) {
-    if (event) {
-        event.stopPropagation();
-        event.preventDefault();
-    }
-
-    const content = document.getElementById('productsContent');
-    const icon = document.querySelector('.toggle-icon');
-
-    console.log('Toggle elements:', {content, icon}); // Для отладки
-
-    if (!content || !icon) {
-        console.error('Required elements not found');
-        return;
-    }
-
-    const isExpanding = !content.classList.contains('expanded');
-
-    if (isExpanding) {
-        content.style.display = 'block';
-        requestAnimationFrame(() => {
-            content.style.height = content.scrollHeight + 'px';
-            content.classList.add('expanded');
-            icon.classList.add('expanded');
-        });
-    } else {
-        content.style.height = '0';
-        content.classList.remove('expanded');
-        icon.classList.remove('expanded');
-
-        setTimeout(() => {
-            content.style.display = 'none';
-            content.style.height = 'auto';
-        }, 300);
-    }
-
-    localStorage.setItem('orderProductsExpanded', isExpanding.toString());
-}
+//function handleExpandToggle(event) {
+//    if (event) {
+//        event.stopPropagation();
+//        event.preventDefault();
+//    }
+//
+//    const content = document.getElementById('productsContent');
+//    const icon = document.querySelector('.toggle-icon');
+//
+//    console.log('Toggle elements:', {content, icon}); // Для отладки
+//
+//    if (!content || !icon) {
+//        console.error('Required elements not found');
+//        return;
+//    }
+//
+//    const isExpanding = !content.classList.contains('expanded');
+//
+//    if (isExpanding) {
+//        content.style.display = 'block';
+//        requestAnimationFrame(() => {
+//            content.style.height = content.scrollHeight + 'px';
+//            content.classList.add('expanded');
+//            icon.classList.add('expanded');
+//        });
+//    } else {
+//        content.style.height = '0';
+//        content.classList.remove('expanded');
+//        icon.classList.remove('expanded');
+//
+//        setTimeout(() => {
+//            content.style.display = 'none';
+//            content.style.height = 'auto';
+//        }, 300);
+//    }
+//
+//    localStorage.setItem('orderProductsExpanded', isExpanding.toString());
+//}
 
 function expandProducts(content, icon) {
     content.style.display = 'block';
@@ -207,14 +207,6 @@ function setLoadingState(element, isLoading) {
         element.removeAttribute('disabled');
         element.innerHTML = element.getAttribute('data-original-text') || 'Вернуться к списку заказов';
         element.style.opacity = '1';
-    }
-}
-
-function handleGlobalError(event) {
-    console.error('Global error:', event.error);
-    // Можно добавить отправку ошибок на сервер
-    if (isDevelopmentMode()) {
-        showErrorNotification('Произошла ошибка: ' + event.error.message);
     }
 }
 
@@ -373,7 +365,7 @@ async function cancelOrder(orderId) {
     }
 
     try {
-        const response = await fetch(`/orders/cancel/${orderId}`, {
+        const response = await fetch(`/orders/cancel_order/${orderId}`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
