@@ -157,7 +157,7 @@ async def products_by_category(
             colors_list = [color.strip() for color in colors.split(',')]
             color_conditions = Product.color.in_(colors_list)
             query = query.where(color_conditions)
-            count_query = count_query.where(color_conditions)  # Исправлено: без or_(*)
+            count_query = count_query.where(color_conditions)
 
         if built_in_memory:
             built_in_memory_list = [memory.strip() for memory in built_in_memory.split(',')]
@@ -188,7 +188,7 @@ async def products_by_category(
             "has_next": page < total_pages,
             "has_prev": page > 1
         }
-        print(pagination)
+
         return {
             "products": products,
             "pagination": pagination

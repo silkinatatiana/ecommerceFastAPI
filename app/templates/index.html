@@ -103,24 +103,28 @@
 
                     <div class="category-actions">
                         {% set pagination = category_data.pagination %}
+                        {% set has_next = pagination.has_next %}
+                        {% set has_prev = pagination.has_prev %}
                         {% set current_page = pagination.page %}
-                        {% set has_more = pagination.has_next %}
-                        <button
-                            onclick="loadMoreProducts('{{ category_data.id }}', this)"
-                            class="view-all-btn load-more-btn"
-                            data-category-id="{{ category_data.id }}"
-                            data-current-page="{{ current_page }}"
-                            {% if not has_more %}style="display: none;"{% endif %}>
-                            Показать еще
-                        </button>
 
-                        <button
-                            onclick="collapseProducts('{{ category_data.id }}', this)"
-                            class="view-all-btn collapse-btn"
-                            style="display: {% if current_page > 1 or not has_more %}inline-block{% else %}none{% endif %};"
-                            data-category-id="{{ category_data.id }}">
-                            Свернуть
-                        </button>
+                        {% if has_next %}
+                            <button
+                                onclick="loadMoreProducts('{{ category_data.id }}', this)"
+                                class="view-all-btn load-more-btn"
+                                data-category-id="{{ category_data.id }}"
+                                data-current-page="{{ current_page }}">
+                                Показать еще
+                            </button>
+                        {% endif %}
+
+                        {% if not has_next and has_prev %}
+                            <button
+                                onclick="collapseProducts('{{ category_data.id }}', this)"
+                                class="view-all-btn collapse-btn"
+                                data-category-id="{{ category_data.id }}">
+                                Свернуть
+                            </button>
+                        {% endif %}
                     </div>
                 </div>
             {% endfor %}
