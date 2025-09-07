@@ -130,14 +130,19 @@ async def all_products(
 async def products_by_category(
        category_id: int,
        user_id: int,
-       page: int = Query(1, ge=1, description="Номер страницы"),
+       request: Request,
        per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
-       colors: list[str] = Query(None),
-       built_in_memory: list[str] = Query(None),
+       colors: str = Query(None),
+       built_in_memory: str = Query(None),
        favorites: list[str] = Query(None),
        db: AsyncSession = Depends(get_db)):
 
     try:
+        page_param_name = f"page_cat_{category_id}"
+        page = int(request.query_params.get(page_param_name, 1))
+        if page < 1:
+            page = 1
+
         category = await db.scalar(select(Category).where(Category.id == category_id))
         if category is None:
             raise HTTPException(
@@ -149,14 +154,16 @@ async def products_by_category(
         count_query = select(func.count()).select_from(Product).where(Product.category_id == category_id)
 
         if colors:
-            color_conditions = [Product.color.in_(colors)]
-            query = query.where(or_(*color_conditions))
-            count_query = count_query.where(or_(*color_conditions))
+            colors_list = [color.strip() for color in colors.split(',')]
+            color_conditions = Product.color.in_(colors_list)
+            query = query.where(color_conditions)
+            count_query = count_query.where(color_conditions)  # Исправлено: без or_(*)
 
         if built_in_memory:
-            memory_conditions = [Product.built_in_memory_capacity.in_(built_in_memory)]
-            query = query.where(or_(*memory_conditions))
-            count_query = count_query.where(or_(*memory_conditions))
+            built_in_memory_list = [memory.strip() for memory in built_in_memory.split(',')]
+            memory_conditions = Product.built_in_memory_capacity.in_(built_in_memory_list)
+            query = query.where(memory_conditions)
+            count_query = count_query.where(memory_conditions)  # Исправлено: без or_(*)
 
         total_count = await db.scalar(count_query)
 
@@ -173,25 +180,25 @@ async def products_by_category(
             total_count = len(products)
 
         total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
-
+        pagination = {
+            "page": page,
+            "per_page": per_page,
+            "total_count": total_count,
+            "total_pages": total_pages,
+            "has_next": page < total_pages,
+            "has_prev": page > 1
+        }
+        print(pagination)
         return {
             "products": products,
-            "pagination": {
-                "page": page,
-                "per_page": per_page,
-                "total_count": total_count,
-                "total_pages": total_pages,
-                "has_next": page < total_pages,
-                "has_prev": page > 1
-            }
+            "pagination": pagination
         }
+
     except SQLAlchemyError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {str(e)}"
         )
-
-
 @router.get('/{product_id}', response_class=HTMLResponse)
 async def product_detail_page(
         request: Request,

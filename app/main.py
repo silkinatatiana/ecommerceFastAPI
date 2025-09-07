@@ -1,3 +1,5 @@
+import time
+from logging.handlers import RotatingFileHandler
 from typing import AsyncGenerator, Optional, Annotated
 
 from fastapi import FastAPI, Request, HTTPException, Query, Depends, Cookie
@@ -25,6 +27,8 @@ from app.functions.favorites_func import get_favorite_product_ids
 from app.functions.cart_func import get_in_cart_product_ids
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+shop_info = Config.shop_info
 
 
 @asynccontextmanager
@@ -45,9 +49,7 @@ class NoCacheStaticFiles(StaticFiles):
 
 
 app = FastAPI(lifespan=lifespan)
-
 templates = Jinja2Templates(directory="app/templates")
-
 app.mount("/static", NoCacheStaticFiles(directory="app/static"), name="static")
 
 app.include_router(products.router)
@@ -59,6 +61,39 @@ app.include_router(favorites.router)
 app.include_router(cart.router)
 app.include_router(orders.router)
 
+
+class ColorFormatter(logging.Formatter): # TODO вынести  отдельный файлик
+    colors = {
+        'INFO': '\033[92m',
+        'WARNING': '\033[93m',
+        'ERROR': '\033[91m',
+        'RESET': '\033[0m'
+    }
+
+    def format(self, record):
+        color = self.colors.get(record.levelname, self.colors['RESET'])
+        message = super().format(record)
+        return f"{color}{message}{self.colors['RESET']}"
+
+
+file_handler = RotatingFileHandler(
+    'app.log',
+    maxBytes=5 * 1024 * 1024,
+    backupCount=3,
+    encoding='UTF-8'
+)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s - %(levelname)s - %(message)s'
+))
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(ColorFormatter(
+    '%(asctime)s - %(levelname)s - %(message)s'
+))
+
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['http://127.0.0.1:8000'],
@@ -66,11 +101,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-shop_info = {
-    'shop_name': 'PEAR',
-    'descr': 'магазин электроники'
-}
 
 
 @app.on_event("startup")
@@ -80,18 +110,31 @@ async def startup():
         print(f"{route.path} -> {route.name}")
 
 
-# TODO добавить более детальный вывод ошибки
-#  и еще записывать логи в текстовый файлик (вид запроса, данные пользователя, время запроса, ошибка (если будет).
-#  Выделять красным ошибку, успех зеленым, желтым - предупреждение. Все в одном файле
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    logger.debug(f"Запрос: {request.method} {request.url}")
+    start_time = time.time()
+    client_ip = request.client.host if request.client else "unknown"
+
     try:
         response = await call_next(request)
-        logger.debug(f"Ответ: {response.status_code}")
+        process_time = time.time() - start_time
+
+        logger.info(
+            f"{request.method} {request.url.path} - "
+            f"IP: {client_ip} - "
+            f"Status: {response.status_code} - "
+            f"Time: {process_time:.2f}s"
+        )
         return response
+
     except Exception as e:
-        logger.error(f"Ошибка: {str(e)}", exc_info=True)
+        process_time = time.time() - start_time
+        logger.error(
+            f"ERROR: {request.method} {request.url.path} - "
+            f"IP: {client_ip} - "
+            f"Error: {str(e)} - "
+            f"Time: {process_time:.2f}s"
+        )
         raise
 
 
@@ -181,7 +224,7 @@ async def get_main_page(
             params = {
                 "page": page,
                 "per_page": per_page,
-                "user_id": user_id if user_id else 0,
+                "user_id": user_id if user_id else 0,# TODO передавать токен
             }
 
             if colors:
@@ -189,7 +232,7 @@ async def get_main_page(
             if built_in_memory:
                 params["built_in_memory"] = built_in_memory
 
-            if is_favorite and is_authenticated and favorite_product_ids:
+            if is_favorite and is_authenticated and favorite_product_ids: # TODO
                 params["favorites"] = ",".join(map(str, favorite_product_ids))
 
             async with httpx.AsyncClient() as client:

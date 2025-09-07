@@ -31,67 +31,99 @@ function resetFilters() {
     window.location.href = window.location.pathname;
 }
 
-function loadMoreProducts(categoryId, currentPage, buttonElement) {
+function loadMoreProducts(categoryId, buttonElement) {
+    // Получаем текущую страницу для этой категории
+    let currentPage = parseInt(buttonElement.getAttribute('data-current-page')) || 1;
+    let nextPage = currentPage + 1;
+
+    // Создаем URL с параметрами
     const url = new URL(window.location.href);
-    const existingParams = new URLSearchParams(window.location.search);
-    existingParams.forEach((value, key) => {
-        if (key !== 'page' && key !== 'partial') {
-            url.searchParams.set(key, value);
+    const searchParams = new URLSearchParams();
+
+    // Копируем все параметры, кроме глобального 'page' и всех 'page_cat_*'
+    const currentParams = new URLSearchParams(window.location.search);
+    for (let [key, value] of currentParams) {
+        if (key !== 'page' && !key.startsWith('page_cat_')) {
+            searchParams.set(key, value);
         }
-    });
-    url.searchParams.set('page', currentPage + 1);
-    url.searchParams.set('partial', 'true');
+    }
+
+    // Устанавливаем ТОЛЬКО page_cat_X для текущей категории
+    searchParams.set(`page_cat_${categoryId}`, nextPage);
+    searchParams.set('partial', 'true');
+
+    url.search = searchParams.toString();
+
+    console.log("Запрос на URL:", url.toString()); // 👈 Добавьте это для отладки!
 
     fetch(url)
-        .then(response => response.text())
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.text();
+        })
         .then(html => {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
-            const newProducts = doc.querySelector(`[data-category-id="${categoryId}"] .products-grid`);
+            const newProductsContainer = doc.querySelector(`[data-category-id="${categoryId}"] .products-grid`);
 
-            if (newProducts) {
-                const currentGrid = document.querySelector(`[data-category-id="${categoryId}"] .products-grid`);
-                currentGrid.innerHTML += newProducts.innerHTML;
+            if (newProductsContainer) {
+                const productCards = newProductsContainer.querySelectorAll('.product-card');
 
-                buttonElement.setAttribute('data-current-page', currentPage + 1);
+                if (productCards.length > 0) {
+                    const currentGrid = document.querySelector(`[data-category-id="${categoryId}"] .products-grid`);
+                    currentGrid.insertAdjacentHTML('beforeend', newProductsContainer.innerHTML);
 
-                const hasMoreProducts = newProducts.querySelector('.product-card') !== null;
+                    // Обновляем текущую страницу в кнопке
+                    buttonElement.setAttribute('data-current-page', nextPage);
 
-                updateButtonVisibility(categoryId, currentPage + 1, hasMoreProducts);
+                    // Проверяем, есть ли ещё товары (если пришло меньше per_page — значит, последняя страница)
+                    const perPage = 3; // Жестко задано, но лучше получать с сервера через JSON
+                    const hasMore = productCards.length >= perPage;
+
+                    updateButtonVisibility(categoryId, nextPage, hasMore);
+                } else {
+                    // Больше нет товаров
+                    updateButtonVisibility(categoryId, nextPage, false);
+                }
             }
         })
-        .catch(error => console.error('Ошибка:', error));
+        .catch(error => {
+            console.error('Ошибка при загрузке товаров:', error);
+            alert('Не удалось загрузить товары. Попробуйте позже.');
+        });
 }
 
 function updateButtonVisibility(categoryId, currentPage, hasMore) {
     const loadMoreBtn = document.querySelector(`.load-more-btn[data-category-id="${categoryId}"]`);
     const collapseBtn = document.querySelector(`.collapse-btn[data-category-id="${categoryId}"]`);
 
-    if (loadMoreBtn && collapseBtn) {
-        const shouldShowCollapse = (currentPage > 1 || !hasMore);
+    if (loadMoreBtn) {
+        loadMoreBtn.style.display = hasMore ? 'inline-block' : 'none';
+    }
 
-        collapseBtn.style.display = shouldShowCollapse ? 'inline-block' : 'none';
-
-        loadMoreBtn.style.display = (hasMore && !shouldShowCollapse) ? 'inline-block' : 'none';
-
-        loadMoreBtn.setAttribute('data-current-page', currentPage);
+    if (collapseBtn) {
+        collapseBtn.style.display = (currentPage > 1 || !hasMore) ? 'inline-block' : 'none';
     }
 }
 
 function collapseProducts(categoryId, buttonElement) {
-    const categoryElement = document.querySelector(`[data-category-id="${categoryId}"]`);
-    const productsGrid = categoryElement.querySelector('.products-grid');
-    const products = productsGrid.querySelectorAll('.product-card');
-
-    if (products.length > 3) {
-        for (let i = 3; i < products.length; i++) {
-            products[i].remove();
+    const grid = document.querySelector(`[data-category-id="${categoryId}"] .products-grid`);
+    if (grid) {
+        // Оставляем только первые 3 товара (или per_page)
+        const cards = grid.querySelectorAll('.product-card');
+        for (let i = 3; i < cards.length; i++) { // Можно параметризовать
+            cards[i].remove();
         }
     }
 
-    updateButtonVisibility(categoryId, 1, true);
+    // Сбрасываем страницу в кнопке
+    const loadMoreBtn = document.querySelector(`.load-more-btn[data-category-id="${categoryId}"]`);
+    if (loadMoreBtn) {
+        loadMoreBtn.setAttribute('data-current-page', 1);
+        loadMoreBtn.style.display = 'inline-block';
+    }
 
-    categoryElement.scrollIntoView({ behavior: 'smooth' });
+    buttonElement.style.display = 'none';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
