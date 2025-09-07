@@ -1,11 +1,9 @@
-{% for product in products %}
-    {% include 'products/product_card.html' %}
-{% endfor %}
-
-{% if has_more %}
-    <div class="load-more-placeholder"
-         data-category-id="{{ category_id }}"
-         data-skip="{{ next_skip }}"
-         style="display: none;">
+{% for category_name, category_data in categories_products.items() %}
+    <div class="category" data-category-id="{{ category_data.id }}">
+        <div class="products-grid">
+            {% for product in category_data.products %}
+                {% include 'products/product_card.html' %}
+            {% endfor %}
+        </div>
     </div>
-{% endif %}
+{% endfor %}

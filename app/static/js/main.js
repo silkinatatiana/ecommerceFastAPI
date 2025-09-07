@@ -1,32 +1,26 @@
 function applyFilters() {
     const params = new URLSearchParams();
 
-    // Категории
     const categoryCheckboxes = document.querySelectorAll('input[name="category"]:checked');
     if (categoryCheckboxes.length > 0) {
         params.append('category_id', Array.from(categoryCheckboxes).map(cb => cb.value).join(','));
     }
 
-    // Цвета
     const colorCheckboxes = document.querySelectorAll('input[name="color"]:checked');
     if (colorCheckboxes.length > 0) {
         params.append('colors', Array.from(colorCheckboxes).map(cb => cb.value).join(','));
     }
 
-    // Память
     const memoryCheckboxes = document.querySelectorAll('input[name="built_in_memory"]:checked');
     if (memoryCheckboxes.length > 0) {
         params.append('built_in_memory', Array.from(memoryCheckboxes).map(cb => cb.value).join(','));
     }
 
-    // Избранное
     const favoritesCheckbox = document.getElementById('favoritesOnlyCheckbox');
     if (favoritesCheckbox && favoritesCheckbox.checked) {
         params.append('is_favorite', 'true');
     }
 
-    // Обновляем URL и перезагружаем страницу
-    window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
     window.location.search = params.toString();
 }
 
@@ -34,109 +28,92 @@ function resetFilters() {
     document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = false;
     });
-
-    window.history.pushState({}, '', window.location.pathname);
     window.location.href = window.location.pathname;
 }
 
-async function loadMoreProducts(categoryId, buttonElement) {
-    const currentSkip = parseInt(buttonElement.getAttribute('data-skip')) || 0;
-    const limit = parseInt(buttonElement.getAttribute('data-limit')) || 12;
-
-    try {
-        const params = new URLSearchParams();
-        params.append('category_id', categoryId);
-        params.append('skip', currentSkip.toString());
-        params.append('limit', limit.toString());
-
-        document.querySelectorAll('input[name="category"]:checked').forEach(input => {
-            params.append('categories', input.value);
-        });
-
-        document.querySelectorAll('input[name="built_in_memory"]:checked').forEach(input => {
-            params.append('built_in_memory', input.value);
-        });
-
-        document.querySelectorAll('input[name="color"]:checked').forEach(input => {
-            params.append('colors', input.value);
-        });
-
-        if (document.getElementById('favoritesOnlyCheckbox')?.checked) {
-            params.append('is_favorite', 'true');
+function loadMoreProducts(categoryId, currentPage, buttonElement) {
+    const url = new URL(window.location.href);
+    const existingParams = new URLSearchParams(window.location.search);
+    existingParams.forEach((value, key) => {
+        if (key !== 'page' && key !== 'partial') {
+            url.searchParams.set(key, value);
         }
+    });
+    url.searchParams.set('page', currentPage + 1);
+    url.searchParams.set('partial', 'true');
 
-        const response = await fetch(`/products/load-more/?${params.toString()}`);
+    fetch(url)
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newProducts = doc.querySelector(`[data-category-id="${categoryId}"] .products-grid`);
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+            if (newProducts) {
+                const currentGrid = document.querySelector(`[data-category-id="${categoryId}"] .products-grid`);
+                currentGrid.innerHTML += newProducts.innerHTML;
 
-        const html = await response.text();
+                buttonElement.setAttribute('data-current-page', currentPage + 1);
 
-        if (html.trim()) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
+                const hasMoreProducts = newProducts.querySelector('.product-card') !== null;
 
-            const productsGrid = buttonElement.closest('.category').querySelector('.products-grid');
-            const newProducts = tempDiv.querySelectorAll('.product-card');
-
-            newProducts.forEach(product => {
-                productsGrid.appendChild(product.cloneNode(true));
-            });
-
-            const placeholder = tempDiv.querySelector('.load-more-placeholder');
-            if (placeholder) {
-                const nextSkip = parseInt(placeholder.getAttribute('data-skip')) || currentSkip;
-                buttonElement.setAttribute('data-skip', nextSkip.toString());
-
-                const initialSkip = parseInt(buttonElement.getAttribute('data-initial-skip')) || 0;
-                if (nextSkip > initialSkip) {
-                    const collapseBtn = buttonElement.closest('.category-actions').querySelector('.collapse-btn');
-                    if (collapseBtn) {
-                        collapseBtn.style.display = 'inline-block';
-                    }
-                }
-            } else {
-                buttonElement.style.display = 'none';
-
-                const collapseBtn = buttonElement.closest('.category-actions').querySelector('.collapse-btn');
-                if (collapseBtn) {
-                    collapseBtn.style.display = 'inline-block';
-                }
+                updateButtonVisibility(categoryId, currentPage + 1, hasMoreProducts);
             }
-        }
+        })
+        .catch(error => console.error('Ошибка:', error));
+}
 
-    } catch (error) {
-        console.error('Ошибка загрузки товаров:', error);
-        alert('Произошла ошибка при загрузке товаров');
+function updateButtonVisibility(categoryId, currentPage, hasMore) {
+    const loadMoreBtn = document.querySelector(`.load-more-btn[data-category-id="${categoryId}"]`);
+    const collapseBtn = document.querySelector(`.collapse-btn[data-category-id="${categoryId}"]`);
+
+    if (loadMoreBtn && collapseBtn) {
+        const shouldShowCollapse = (currentPage > 1 || !hasMore);
+
+        collapseBtn.style.display = shouldShowCollapse ? 'inline-block' : 'none';
+
+        loadMoreBtn.style.display = (hasMore && !shouldShowCollapse) ? 'inline-block' : 'none';
+
+        loadMoreBtn.setAttribute('data-current-page', currentPage);
     }
 }
 
 function collapseProducts(categoryId, buttonElement) {
-    const categoryElement = buttonElement.closest('.category');
+    const categoryElement = document.querySelector(`[data-category-id="${categoryId}"]`);
     const productsGrid = categoryElement.querySelector('.products-grid');
-    const loadMoreBtn = categoryElement.querySelector('.load-more-btn');
-    const initialSkip = parseInt(loadMoreBtn.getAttribute('data-initial-skip')) || 3;
+    const products = productsGrid.querySelectorAll('.product-card');
 
-    const allProducts = Array.from(productsGrid.querySelectorAll('.product-card'));
-    allProducts.forEach((product, index) => {
-        if (index >= initialSkip) {
-            product.remove();
+    if (products.length > 3) {
+        for (let i = 3; i < products.length; i++) {
+            products[i].remove();
+        }
+    }
+
+    updateButtonVisibility(categoryId, 1, true);
+
+    categoryElement.scrollIntoView({ behavior: 'smooth' });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.category').forEach(category => {
+        const categoryId = category.dataset.categoryId;
+        const loadMoreBtn = category.querySelector('.load-more-btn');
+
+        if (loadMoreBtn) {
+            const currentPage = parseInt(loadMoreBtn.dataset.currentPage || 1);
+            const hasMore = loadMoreBtn.style.display !== 'none';
+            updateButtonVisibility(categoryId, currentPage, hasMore);
         }
     });
 
-    if (loadMoreBtn) {
-        loadMoreBtn.setAttribute('data-skip', initialSkip.toString());
-        loadMoreBtn.style.display = 'inline-block';
-    }
+    initFiltersFromUrl();
 
-    buttonElement.style.display = 'none';
-}
+    checkFavoritesOnLoad();
+});
 
 function initFiltersFromUrl() {
     const urlParams = new URLSearchParams(window.location.search);
 
-    // Категории
     const categoryParam = urlParams.get('category_id');
     if (categoryParam) {
         const categories = categoryParam.split(',');
@@ -146,14 +123,12 @@ function initFiltersFromUrl() {
         });
     }
 
-    // Избранное
     const favoritesOnly = urlParams.get('is_favorite');
     if (favoritesOnly === 'true') {
         const checkbox = document.getElementById('favoritesOnlyCheckbox');
         if (checkbox) checkbox.checked = true;
     }
 
-    // Цвета
     const colorParam = urlParams.get('colors');
     if (colorParam) {
         const colors = colorParam.split(',');
@@ -163,7 +138,6 @@ function initFiltersFromUrl() {
         });
     }
 
-    // Память
     const memoryParam = urlParams.get('built_in_memory');
     if (memoryParam) {
         const memories = memoryParam.split(',');
@@ -173,7 +147,6 @@ function initFiltersFromUrl() {
         });
     }
 
-    // Проверяем, есть ли активные фильтры (кроме category_id)
     const hasActiveFilters = favoritesOnly === 'true' || colorParam || memoryParam;
     if (hasActiveFilters) {
         hideCategoryTitles();
@@ -199,26 +172,21 @@ function processFavoritesFilter() {
     const isFavoriteFilterActive = favoritesCheckbox && favoritesCheckbox.checked;
 
     if (!isFavoriteFilterActive) {
-        // Если фильтр избранного не активен - показываем все как есть
         showAllContent();
         return;
     }
 
-    // Если фильтр избранного активен
     const favoriteProducts = document.querySelectorAll('.product-card .heart-icon.active');
     const hasFavorites = favoriteProducts.length > 0;
 
     if (hasFavorites) {
-        // Есть избранные товары - показываем только их
         showOnlyFavorites();
     } else {
-        // Нет избранных товаров - показываем сообщение
         showNoFavoritesMessage();
     }
 }
 
 function showAllContent() {
-    // Показываем все категории и товары
     const categories = document.querySelectorAll('.category');
     categories.forEach(category => {
         category.style.display = 'block';
@@ -229,7 +197,6 @@ function showAllContent() {
         product.style.display = 'block';
     });
 
-    // Показываем заголовки категорий только если нет активных фильтров
     const urlParams = new URLSearchParams(window.location.search);
     const hasActiveFilters = urlParams.get('is_favorite') === 'true' ||
                            urlParams.get('colors') ||
@@ -241,7 +208,6 @@ function showAllContent() {
         showCategoryTitles();
     }
 
-    // Убираем сообщение об отсутствии избранного
     const noFavoritesMessage = document.querySelector('.no-favorites-message');
     if (noFavoritesMessage) {
         noFavoritesMessage.remove();
@@ -252,7 +218,6 @@ function showOnlyFavorites() {
     const categories = document.querySelectorAll('.category');
     let hasVisibleCategories = false;
 
-    // Скрываем все заголовки категорий
     hideCategoryTitles();
 
     categories.forEach(category => {
@@ -277,32 +242,27 @@ function showOnlyFavorites() {
         }
     });
 
-    // Убираем сообщение об отсутствии избранного
     const noFavoritesMessage = document.querySelector('.no-favorites-message');
     if (noFavoritesMessage) {
         noFavoritesMessage.remove();
     }
 
-    // Если нет видимых категорий (все избранные товары скрыты)
     if (!hasVisibleCategories) {
         showNoFavoritesMessage();
     }
 }
 
 function showNoFavoritesMessage() {
-    // Скрываем все категории
     const categories = document.querySelectorAll('.category');
     categories.forEach(category => {
         category.style.display = 'none';
     });
 
-    // Проверяем, нет ли уже сообщения
     const existingMessage = document.querySelector('.no-favorites-message');
     if (existingMessage) {
         return;
     }
 
-    // Создаем сообщение
     const contentArea = document.querySelector('.content-area');
     const messageDiv = document.createElement('div');
     messageDiv.className = 'no-favorites-message no-products-found';
@@ -319,7 +279,6 @@ function checkFavoritesOnLoad() {
     const urlParams = new URLSearchParams(window.location.search);
     const isFavoriteFilterActive = urlParams.get('is_favorite') === 'true';
 
-    // Проверяем все фильтры
     const hasActiveFilters = isFavoriteFilterActive ||
                            urlParams.get('colors') ||
                            urlParams.get('built_in_memory');
@@ -329,7 +288,6 @@ function checkFavoritesOnLoad() {
     }
 
     if (isFavoriteFilterActive) {
-        // Даем время на загрузку всех товаров
         setTimeout(() => {
             processFavoritesFilter();
         }, 1000);

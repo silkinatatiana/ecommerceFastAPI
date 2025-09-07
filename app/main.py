@@ -8,6 +8,8 @@ from sqlalchemy import select, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 from contextlib import asynccontextmanager
+
+from starlette import status
 from starlette.middleware.cors import CORSMiddleware
 import asyncio
 import logging
@@ -57,7 +59,6 @@ app.include_router(favorites.router)
 app.include_router(cart.router)
 app.include_router(orders.router)
 
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['http://127.0.0.1:8000'],
@@ -77,6 +78,7 @@ async def startup():
     logger.info("Приложение запущено")
     for route in app.routes:
         print(f"{route.path} -> {route.name}")
+
 
 # TODO добавить более детальный вывод ошибки
 #  и еще записывать логи в текстовый файлик (вид запроса, данные пользователя, время запроса, ошибка (если будет).
@@ -133,10 +135,9 @@ async def get_main_page(
         built_in_memory: Optional[str] = Query(None),
         is_favorite: bool = Query(False),
         partial: bool = Query(False),
+        page: int = Query(1, ge=1, description="Номер страницы"),
+        per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
 ):
-    INITIAL_SKIP = 3  # Количество товаров, показываемых изначально
-    LOAD_LIMIT = 12  # Количество товаров, загружаемых при каждом нажатии
-
     is_authenticated = False
     user_id = None
     favorite_product_ids = []
@@ -158,91 +159,79 @@ async def get_main_page(
             print(f"Ошибка декодирования токена: {e}")
 
     try:
-        products_url = f"{Config.url}/products/"
-        params = {
-            "user_id": user_id,
-            **({"category_id": category_id} if category_id else {}),
-            **({"colors": colors} if colors else {}),
-            **({"built_in_memory": built_in_memory} if built_in_memory else {}),
-            **({"product_ids": ",".join(map(str, favorite_product_ids))}
-               if is_favorite and is_authenticated else {})
-        }
-
         async with httpx.AsyncClient() as client:
-            categories, products = await asyncio.gather(
-                client.get(f"{Config.url}/categories/"),
-                client.get(products_url, params=params)
-            )
-            categories.raise_for_status()
-            products.raise_for_status()
+            categories_response = await client.get(f"{Config.url}/categories/")
+            categories_response.raise_for_status()
+            categories_data = categories_response.json()
 
-    except httpx.HTTPStatusError as e:
+    except httpx.HTTPStatusError:
         raise HTTPException(502, detail="Сервис каталога недоступен")
     except Exception as e:
         raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}")
 
-    categories_data = categories.json()
-    products_data = products.json()
-
     categories_products = {}
     selected_category_ids = [int(cid) for cid in category_id.split(',')] if category_id else []
 
-    category_counts = {}
     for category in categories_data:
         if selected_category_ids and category['id'] not in selected_category_ids:
             continue
-
-        count_params = {"category_id": category['id']}
-        if colors:
-            count_params["colors"] = colors
-        if built_in_memory:
-            count_params["built_in_memory"] = built_in_memory
 
         try:
-            async with httpx.AsyncClient() as client:
-                count_response = await client.get(f"{Config.url}/products/count/", params=count_params)
-                category_counts[category['id']] = count_response.json().get('count', 0)
-        except:
-            category_products = [p for p in products_data if p['category_id'] == category['id']]
-            category_counts[category['id']] = len(category_products)
-
-    for category in categories_data:
-        if selected_category_ids and category['id'] not in selected_category_ids:
-            continue
-
-        all_category_products = [
-            {
-                **p,
-                'name': ', '.join(
-                    str(s) for s in [
-                        p.get('name'),
-                        p.get('RAM_capacity'),
-                        p.get('built_in_memory_capacity'),
-                        p.get('screen'),
-                        p.get('cpu'),
-                        p.get('color')
-                    ]
-                    if s is not None
-                )
+            products_url = f"{Config.url}/products/by_category/{category['id']}"
+            params = {
+                "page": page,
+                "per_page": per_page,
+                "user_id": user_id if user_id else 0,
             }
-            for p in products_data
-            if p['category_id'] == category['id']
-        ]
 
-        total_count = category_counts.get(category['id'], len(all_category_products))
+            if colors:
+                params["colors"] = colors
+            if built_in_memory:
+                params["built_in_memory"] = built_in_memory
 
-        displayed_products = all_category_products[:INITIAL_SKIP]
-        has_more = len(all_category_products) > INITIAL_SKIP
+            if is_favorite and is_authenticated and favorite_product_ids:
+                params["favorites"] = ",".join(map(str, favorite_product_ids))
+
+            async with httpx.AsyncClient() as client:
+                products_response = await client.get(products_url, params=params)
+                products_response.raise_for_status()
+                products_data = products_response.json()
+
+        except httpx.HTTPStatusError as e:
+            print(f"Ошибка при запросе продуктов для категории {category['id']}: {e}")
+            products_data = {"products": [], "pagination": {}}
+
+        formatted_products = []
+        for p in products_data.get('products', []):
+            characteristics = [
+                p.get('name'),
+                p.get('RAM_capacity'),
+                p.get('built_in_memory_capacity'),
+                p.get('screen'),
+                p.get('cpu'),
+                p.get('color')
+            ]
+            name_parts = [str(s) for s in characteristics if s is not None]
+
+            formatted_products.append({
+                **p,
+                'name': ', '.join(name_parts)
+            })
+
+        pagination_info = products_data.get('pagination', {})
+        has_more = pagination_info.get('has_next', False)
+        total_count = pagination_info.get('total_count', 0)
+        displayed_count = len(formatted_products) + ((page - 1) * per_page)
 
         categories_products[category['name']] = {
             "id": category['id'],
-            "products": displayed_products,
-            "all_products": all_category_products,
+            "products": formatted_products,
+            "pagination": pagination_info,
             "has_more": has_more,
             "total_count": total_count,
-            "current_skip": INITIAL_SKIP,
-            "initial_skip": INITIAL_SKIP,
-            "limit": LOAD_LIMIT
+            "displayed_count": displayed_count,
+            "current_page": page,
+            "per_page": per_page
         }
 
     if partial:
@@ -263,15 +252,18 @@ async def get_main_page(
         memory_query = memory_query.where(Product.category_id.in_(selected_category_ids))
     all_built_in_memory = sorted((await db.execute(memory_query)).scalars().all(), key=sort_func)
 
+    selected_colors_list = colors.split(",") if colors else []
+    selected_memory_list = built_in_memory.split(",") if built_in_memory else []
+
     context = {
         "request": request,
         "shop_name": "PEAR",
         "descr": "Магазин техники и электроники",
         "categories": list(categories_products.keys()),
         "colors": all_colors,
-        "selected_colors": colors.split(",") if colors else [],
+        "selected_colors": selected_colors_list,
         "all_built_in_memory": all_built_in_memory,
-        "selected_built_in_memory": built_in_memory.split(",") if built_in_memory else [],
+        "selected_built_in_memory": selected_memory_list,
         "categories_products": categories_products,
         "url": Config.url,
         "current_categories": selected_category_ids,
@@ -282,7 +274,9 @@ async def get_main_page(
         "user_id": user_id,
         "favorite_product_ids": favorite_product_ids,
         "in_cart_product_ids": in_cart_product_ids,
-        "role": role
+        "role": role,
+        "current_page": page,
+        "per_page": per_page
     }
 
     response = templates.TemplateResponse(template_name, context)

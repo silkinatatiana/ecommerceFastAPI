@@ -18,7 +18,7 @@
                     <input type="checkbox"
                            name="category"
                            value="{{ category_data.id }}"
-                           {% if current_category == category_data.id %}checked{% endif %}
+                           {% if category_data.id in current_categories %}checked{% endif %}
                            onchange="applyFilters()">
                     <span>{{ category_name | title }}</span>
                 </label>
@@ -69,6 +69,7 @@
                     <input type="checkbox"
                            name="color"
                            value="{{ color }}"
+                           {% if color in selected_colors %}checked{% endif %}
                            onchange="applyFilters()">
                     <span>{{ color | title }}</span>
                 </label>
@@ -80,7 +81,7 @@
     </div>
 
     <div class="content-area">
-        <h2>{% if current_category %}Товары категории{% else %}Все товары{% endif %}</h2>
+        <h2>{% if current_categories %}Товары категории{% else %}Все товары{% endif %}</h2>
         {% if is_favorite and not has_products %}
             <div class="no-products-found">
                 <p>В избранном пока нет товаров</p>
@@ -90,33 +91,36 @@
         {% elif categories_products and has_products %}
             {% for category_name, category_data in categories_products.items() %}
                 <div class="category" data-category-id="{{ category_data.id }}">
-                    {% if not current_category %}
+                    {% if not current_categories or current_categories|length > 1 %}
                         <h3>{{ category_name | title }}</h3>
                     {% endif %}
 
-                    <div class="products-grid">
+                    <div class="products-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
                         {% for product in category_data.products %}
                             {% include 'products/product_card.html' %}
                         {% endfor %}
                     </div>
 
                     <div class="category-actions">
-                        <button onclick="loadMoreProducts('{{ category_data.id }}', this)"
+                        {% set pagination = category_data.pagination %}
+                        {% set current_page = pagination.page %}
+                        {% set has_more = pagination.has_next %}
+
+                        <button onclick="loadMoreProducts('{{ category_data.id }}', {{ current_page }}, this)"
                                 class="view-all-btn load-more-btn"
-                                data-skip="{{ category_data.current_skip }}"
-                                data-initial-skip="{{ category_data.initial_skip }}"
-                                data-limit="{{ category_data.limit }}"
                                 data-category-id="{{ category_data.id }}"
-                                {% if not category_data.has_more %}style="display: none;"{% endif %}>
+                                data-current-page="{{ current_page }}"
+                                {% if not has_more %}style="display: none;"{% endif %}>
                             Показать еще
                         </button>
 
                         <button onclick="collapseProducts('{{ category_data.id }}', this)"
                                 class="view-all-btn collapse-btn"
-                                style="display: {% if category_data.current_skip > category_data.initial_skip %}inline-block{% else %}none{% endif %};"
+                                style="display: {% if current_page > 1 or not has_more %}inline-block{% else %}none{% endif %};"
                                 data-category-id="{{ category_data.id }}">
                             Свернуть
                         </button>
+                    </div>
                 </div>
             {% endfor %}
         {% else %}

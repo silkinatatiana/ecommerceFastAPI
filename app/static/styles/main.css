@@ -139,7 +139,6 @@
     transform: translateY(-1px);
 }
 
-/* Стили для сообщения "Товары не найдены" */
 .no-products-found {
     text-align: center;
     padding: 40px;
@@ -161,7 +160,6 @@
     color: var(--secondary-color);
 }
 
-/* Анимации */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }

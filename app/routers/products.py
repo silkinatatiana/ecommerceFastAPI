@@ -1,11 +1,12 @@
-from typing import Annotated, Optional, List
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Query, Cookie
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select
+from sqlalchemy import select, func, or_
 import httpx
 import jwt
 from loguru import logger
@@ -126,17 +127,69 @@ async def all_products(
 
 
 @router.get('/by_category/{category_id}')
-async def products_by_category(db: Annotated[AsyncSession, Depends(get_db)], category_id: int):
-    category = await db.scalar(select(Category).where(Category.id == category_id))
-    if category is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='NOT FOUND'
-        )
+async def products_by_category(
+       category_id: int,
+       user_id: int,
+       page: int = Query(1, ge=1, description="Номер страницы"),
+       per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
+       colors: list[str] = Query(None),
+       built_in_memory: list[str] = Query(None),
+       favorites: list[str] = Query(None),
+       db: AsyncSession = Depends(get_db)):
 
-    products_category = await db.scalars(
-        select(Product).where(Product.category_id == category.id))
-    return products_category.all()
+    try:
+        category = await db.scalar(select(Category).where(Category.id == category_id))
+        if category is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Category not found'
+            )
+
+        query = select(Product).where(Product.category_id == category_id)
+        count_query = select(func.count()).select_from(Product).where(Product.category_id == category_id)
+
+        if colors:
+            color_conditions = [Product.color.in_(colors)]
+            query = query.where(or_(*color_conditions))
+            count_query = count_query.where(or_(*color_conditions))
+
+        if built_in_memory:
+            memory_conditions = [Product.built_in_memory_capacity.in_(built_in_memory)]
+            query = query.where(or_(*memory_conditions))
+            count_query = count_query.where(or_(*memory_conditions))
+
+        total_count = await db.scalar(count_query)
+
+        offset = (page - 1) * per_page
+        query = query.offset(offset).limit(per_page)
+
+        products_result = await db.scalars(query)
+        products = products_result.all()
+
+        if favorites:
+            favorite_products = await db.scalars(select(Favorites).where(Favorites.user_id == user_id))
+            favorite_products_ids = {fp.product_id for fp in favorite_products}
+            products = [prod for prod in products if prod.id in favorite_products_ids]
+            total_count = len(products)
+
+        total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+
+        return {
+            "products": products,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_prev": page > 1
+            }
+        }
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
 
 
 @router.get('/{product_id}', response_class=HTMLResponse)
@@ -252,245 +305,57 @@ async def product_detail_page(
     )
 
 
-# @router.put('/{product_slug}')
-# async def update_product(db: Annotated[AsyncSession, Depends(get_db)], product_slug: str,
-#                          update_product_model: CreateProduct, get_user: Annotated[dict, Depends(get_current_user)]):
-#     if get_user.get('is_supplier') or get_user.get('is_admin'):
-#         product_update = await db.scalar(select(Product).where(Product.slug == product_slug))
-#         if product_update is None:
-#             raise HTTPException(
-#                 status_code=status.HTTP_404_NOT_FOUND,
-#                 detail='There is no product found'
+# @router.get("/by_category/")
+# async def get_products_by_category(
+#         request: Request,
+#         db: AsyncSession = Depends(get_db),
+#         category_id: int = Query(..., alias="categoryId"),
+#         skip: int = Query(6, alias="skip"),
+#         is_favorite: bool = Query(False, alias="isFavorite"),
+#         user_id: Optional[int] = Query(None)
+# ):
+#     try:
+#         params = {'category_id': category_id}
+#
+#         if is_favorite and user_id:
+#             # 1. Получаем все избранные товары пользователя
+#             fav_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
+#             fav_result = await db.execute(fav_query)
+#             all_favorites = fav_result.scalars().all()
+#
+#             if not all_favorites:
+#                 return []  # Нет избранных товаров вообще
+#
+#             # 2. Получаем товары из нужной категории, которые есть в избранном
+#             products_query = select(Product.id).where(
+#                 Product.id.in_(all_favorites),
+#                 Product.category_id == category_id
 #             )
-#         if get_user.get('id') == product_update.supplier_id or get_user.get('is_admin'):
-#             category = await db.scalar(select(Category).where(Category.id == update_product_model.category_id))
-#             if category is None:
-#                 raise HTTPException(
-#                     status_code=status.HTTP_404_NOT_FOUND,
-#                     detail='There is no category found'
-#                 )
-#             product_update.name = update_product_model.name
-#             product_update.description = update_product_model.description
-#             product_update.price = update_product_model.price
-#             product_update.image_urls = update_product_model.image_urls
-#             product_update.stock = update_product_model.stock
-#             product_update.category_id = update_product_model.category_id
-#             product_update.slug = slugify(update_product_model.name)
-
-#             await db.commit()
-#             return {
-#                 'status_code': status.HTTP_200_OK,
-#                 'transaction': 'Product update is successful'
-#             }
-#         else:
-
-#             raise HTTPException(
-#                 status_code=status.HTTP_403_FORBIDDEN,
-#                 detail='You have not enough permission for this action'
+#             products_result = await db.execute(products_query)
+#             valid_products = products_result.scalars().all()
+#
+#             if not valid_products:
+#                 return []  # Нет избранных товаров в этой категории
+#
+#             params['product_ids'] = ','.join(map(str, valid_products))
+#
+#         async with httpx.AsyncClient() as client:
+#             response = await client.get(
+#                 f"{Config.url}/products/",
+#                 params=params
 #             )
-#     else:
+#             response.raise_for_status()
+#             products = response.json()
+#
+#             return products[skip - 1:] if skip <= len(products) else []
+#
+#     except httpx.HTTPStatusError as e:
 #         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail='You have not enough permission for this action'
+#             status_code=502,
+#             detail=f"Product service error: {str(e)}"
 #         )
-
-
-# @router.delete('/{product_slug}')
-# async def delete_product(db: Annotated[AsyncSession, Depends(get_db)], product_slug: str,
-#                          get_user: Annotated[dict, Depends(get_current_user)]):
-#     product_delete = await db.scalar(select(Product).where(Product.slug == product_slug))
-#     if product_delete is None:
+#     except Exception as e:
 #         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail='There is no product found'
+#             status_code=400,
+#             detail=f"Request processing error: {str(e)}"
 #         )
-#     if get_user.get('is_supplier') or get_user.get('is_admin'):
-#         if get_user.get('id') == product_delete.supplier_id or get_user.get('is_admin'):
-#             product_delete.is_active = False
-#             await db.commit()
-#             return {
-#                 'status_code': status.HTTP_200_OK,
-#                 'transaction': 'Product delete is successful'
-#             }
-#         else:
-#             raise HTTPException(
-#                 status_code=status.HTTP_403_FORBIDDEN,
-#                 detail='You have not enough permission for this action'
-#             )
-#     else:
-#         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail='You have not enough permission for this action'
-#         )
-
-@router.get("/by_category/")
-async def get_products_by_category(
-        request: Request,
-        db: AsyncSession = Depends(get_db),
-        category_id: int = Query(..., alias="categoryId"),
-        skip: int = Query(6, alias="skip"),
-        is_favorite: bool = Query(False, alias="isFavorite"),
-        user_id: Optional[int] = Query(None)
-):
-    try:
-        params = {'category_id': category_id}
-
-        if is_favorite and user_id:
-            # 1. Получаем все избранные товары пользователя
-            fav_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
-            fav_result = await db.execute(fav_query)
-            all_favorites = fav_result.scalars().all()
-
-            if not all_favorites:
-                return []  # Нет избранных товаров вообще
-
-            # 2. Получаем товары из нужной категории, которые есть в избранном
-            products_query = select(Product.id).where(
-                Product.id.in_(all_favorites),
-                Product.category_id == category_id
-            )
-            products_result = await db.execute(products_query)
-            valid_products = products_result.scalars().all()
-
-            if not valid_products:
-                return []  # Нет избранных товаров в этой категории
-
-            params['product_ids'] = ','.join(map(str, valid_products))
-
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{Config.url}/products/",
-                params=params
-            )
-            response.raise_for_status()
-            products = response.json()
-
-            return products[skip - 1:] if skip <= len(products) else []
-
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Product service error: {str(e)}"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Request processing error: {str(e)}"
-        )
-
-
-@router.get("/load-more/", response_class=HTMLResponse)
-async def load_more_products(
-        request: Request,
-        db: AsyncSession = Depends(get_db),
-        category_id: str = Query(...),
-        skip: int = Query(0),
-        limit: int = Query(12),
-        colors: Optional[List[str]] = Query(None),
-        built_in_memory: Optional[List[str]] = Query(None),
-        categories: Optional[List[int]] = Query(None),
-        is_favorite: bool = Query(False),
-        token: Optional[str] = Cookie(None, alias='token')
-):
-    try:
-        products_url = f"{Config.url}/products/"
-        params = {
-            "category_id": category_id,
-            "skip": skip,
-            "limit": limit,
-        }
-
-        if colors:
-            params["colors"] = ",".join(colors)
-        if built_in_memory:
-            params["built_in_memory"] = ",".join(built_in_memory)
-        if categories:
-            params["categories"] = ",".join(map(str, categories))
-
-        if is_favorite and token:
-            payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
-            user_id = payload.get("id")
-            favorite_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
-            favorite_result = await db.execute(favorite_query)
-            favorite_product_ids = favorite_result.scalars().all()
-            if favorite_product_ids:
-                params["product_ids"] = ",".join(map(str, favorite_product_ids))
-
-        async with httpx.AsyncClient() as client:
-            response = await client.get(products_url, params=params)
-            response.raise_for_status()
-            products_data = response.json()
-
-    except Exception as e:
-        raise HTTPException(500, detail=f"Ошибка при загрузке товаров: {str(e)}")
-
-    try:
-        count_params = {"category_id": category_id}
-        if colors:
-            count_params["colors"] = ",".join(colors)
-        if built_in_memory:
-            count_params["built_in_memory"] = ",".join(built_in_memory)
-        if categories:
-            count_params["categories"] = ",".join(map(str, categories))
-
-        async with httpx.AsyncClient() as client:
-            count_response = await client.get(f"{Config.url}/products/count/", params=count_params)
-            total_count = count_response.json().get('count', 0)
-    except:
-        total_count = skip + len(products_data)
-
-    has_more = (skip + len(products_data)) < total_count
-
-    formatted_products = []
-    for product in products_data:
-        formatted_products.append({
-            **product,
-            'name': ', '.join(
-                str(s) for s in [
-                    product.get('name'),
-                    product.get('RAM_capacity'),
-                    product.get('built_in_memory_capacity'),
-                    product.get('screen'),
-                    product.get('cpu'),
-                    product.get('color')
-                ]
-                if s is not None
-            )
-        })
-
-    is_authenticated = False
-    favorite_product_ids = []
-    in_cart_product_ids = []
-
-    if token:
-        try:
-            payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
-            is_authenticated = True
-            user_id = payload.get("id")
-
-            if is_authenticated:
-                favorite_product_ids = await get_favorite_product_ids(user_id=user_id, db=db)
-                in_cart_product_ids = await get_in_cart_product_ids(user_id=user_id, db=db)
-
-        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
-            pass
-
-        except HTTPException:
-            raise
-
-        except Exception as e:
-            logger.error(f'Unexpected error in authentication: {str(e)}')
-
-    return templates.TemplateResponse(
-        "products/more_products.html",
-        {
-            "request": request,
-            "products": formatted_products,
-            "category_id": category_id,
-            "has_more": has_more,
-            "next_skip": skip + len(products_data),
-            "is_authenticated": is_authenticated,
-            "favorite_product_ids": favorite_product_ids,
-            "in_cart_product_ids": in_cart_product_ids
-        }
-    )
