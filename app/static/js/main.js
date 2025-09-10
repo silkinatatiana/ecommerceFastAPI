@@ -32,15 +32,12 @@ function resetFilters() {
 }
 
 function loadMoreProducts(categoryId, buttonElement) {
-    // Получаем текущую страницу для этой категории
     let currentPage = parseInt(buttonElement.getAttribute('data-current-page')) || 1;
     let nextPage = currentPage + 1;
 
-    // Создаем URL с параметрами
     const url = new URL(window.location.href);
     const searchParams = new URLSearchParams();
 
-    // Копируем все параметры, кроме глобального 'page' и всех 'page_cat_*'
     const currentParams = new URLSearchParams(window.location.search);
     for (let [key, value] of currentParams) {
         if (key !== 'page' && !key.startsWith('page_cat_')) {
@@ -48,13 +45,18 @@ function loadMoreProducts(categoryId, buttonElement) {
         }
     }
 
-    // Устанавливаем ТОЛЬКО page_cat_X для текущей категории
+    for (let [key, value] of currentParams) {
+        if (key.startsWith('page_cat_') && key !== `page_cat_${categoryId}`) {
+            searchParams.set(key, value);
+        }
+    }
+
     searchParams.set(`page_cat_${categoryId}`, nextPage);
     searchParams.set('partial', 'true');
 
     url.search = searchParams.toString();
 
-    console.log("Запрос на URL:", url.toString()); // 👈 Добавьте это для отладки!
+    console.log("Запрос на URL:", url.toString());
 
     fetch(url)
         .then(response => {
@@ -73,18 +75,22 @@ function loadMoreProducts(categoryId, buttonElement) {
                     const currentGrid = document.querySelector(`[data-category-id="${categoryId}"] .products-grid`);
                     currentGrid.insertAdjacentHTML('beforeend', newProductsContainer.innerHTML);
 
-                    // Обновляем текущую страницу в кнопке
+                    // Обновляем текущую страницу кнопки
                     buttonElement.setAttribute('data-current-page', nextPage);
 
-                    // Проверяем, есть ли ещё товары (если пришло меньше per_page — значит, последняя страница)
-                    const perPage = 3; // Жестко задано, но лучше получать с сервера через JSON
-                    const hasMore = productCards.length >= perPage;
+                    // ✅ ВАЖНО: определяем, есть ли еще товары
+                    // Для этого ищем в ответе кнопку "Показать еще" — если она есть, значит, есть еще страницы
+                    const nextLoadMoreBtnInResponse = doc.querySelector(`.load-more-btn[data-category-id="${categoryId}"]`);
+                    const hasMore = !!nextLoadMoreBtnInResponse;
 
                     updateButtonVisibility(categoryId, nextPage, hasMore);
                 } else {
-                    // Больше нет товаров
+                    // Если новых товаров нет — скрываем кнопку
                     updateButtonVisibility(categoryId, nextPage, false);
                 }
+            } else {
+                // Если контейнер не найден — тоже скрываем кнопку
+                updateButtonVisibility(categoryId, nextPage, false);
             }
         })
         .catch(error => {
@@ -102,21 +108,19 @@ function updateButtonVisibility(categoryId, currentPage, hasMore) {
     }
 
     if (collapseBtn) {
-        collapseBtn.style.display = (currentPage > 1 || !hasMore) ? 'inline-block' : 'none';
+        collapseBtn.style.display = (currentPage > 1) ? 'inline-block' : 'none';
     }
 }
 
 function collapseProducts(categoryId, buttonElement) {
     const grid = document.querySelector(`[data-category-id="${categoryId}"] .products-grid`);
     if (grid) {
-        // Оставляем только первые 3 товара (или per_page)
         const cards = grid.querySelectorAll('.product-card');
-        for (let i = 3; i < cards.length; i++) { // Можно параметризовать
+        for (let i = 3; i < cards.length; i++) {
             cards[i].remove();
         }
     }
 
-    // Сбрасываем страницу в кнопке
     const loadMoreBtn = document.querySelector(`.load-more-btn[data-category-id="${categoryId}"]`);
     if (loadMoreBtn) {
         loadMoreBtn.setAttribute('data-current-page', 1);

@@ -14,7 +14,7 @@ import logging
 import httpx
 import jwt
 
-from app.routers import category, products, auth, permission, reviews, favorites, cart, orders
+from app.routers import category, products, auth, permission, reviews, favorites, cart, orders, chats, messages
 from app.backend.db_depends import get_db
 from app.backend.db import Base, engine
 from app.models import *
@@ -58,6 +58,8 @@ app.include_router(reviews.router)
 app.include_router(favorites.router)
 app.include_router(cart.router)
 app.include_router(orders.router)
+app.include_router(chats.router)
+app.include_router(messages.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -183,8 +185,6 @@ async def get_main_page(
         built_in_memory: Optional[str] = Query(None),
         is_favorite: bool = Query(False),
         partial: bool = Query(False),
-        page: int = Query(1, ge=1, description="Номер страницы"),
-        per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
 ):
     is_authenticated = False
     user_id = None
@@ -223,11 +223,18 @@ async def get_main_page(
     for category in categories_data:
         if selected_category_ids and category['id'] not in selected_category_ids:
             continue
+        page_key = f"page_cat_{category['id']}"
+        current_page = int(request.query_params.get(page_key, 1))
+        if current_page < 1:
+            current_page = 1
+        else:
+            current_page += 1
+        per_page = 3
 
         try:
             products_url = f"{Config.url}/products/by_category/{category['id']}"
             params = {
-                "page": page,
+                "page": current_page,
                 "per_page": per_page,
                 "user_id": user_id if user_id else 0,# TODO передавать токен
             }
@@ -269,7 +276,7 @@ async def get_main_page(
         pagination_info = products_data.get('pagination', {})
         has_more = pagination_info.get('has_next', False)
         total_count = pagination_info.get('total_count', 0)
-        displayed_count = len(formatted_products) + ((page - 1) * per_page)
+        displayed_count = len(formatted_products) + ((current_page - 1) * per_page)
 
         categories_products[category['name']] = {
             "id": category['id'],
@@ -278,7 +285,7 @@ async def get_main_page(
             "has_more": has_more,
             "total_count": total_count,
             "displayed_count": displayed_count,
-            "current_page": page,
+            "current_page": current_page,
             "per_page": per_page
         }
 
@@ -323,7 +330,7 @@ async def get_main_page(
         "favorite_product_ids": favorite_product_ids,
         "in_cart_product_ids": in_cart_product_ids,
         "role": role,
-        "current_page": page,
+        "current_page": current_page,
         "per_page": per_page
     }
 

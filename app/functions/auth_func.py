@@ -1,7 +1,8 @@
 from datetime import timedelta, datetime, timezone
-from typing import Annotated
+from typing import Annotated, Dict, Any
 
 import jwt
+from jose import jwt, JWTError
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, Request, status
@@ -12,7 +13,6 @@ import bcrypt
 from app.backend.db_depends import get_db
 from app.models import User
 from app.config import Config
-
 
 SECRET_KEY = Config.SECRET_KEY
 ALGORITHM = Config.ALGORITHM
@@ -27,11 +27,24 @@ async def create_access_token(username: str, user_id: int, is_admin: bool, role:
         'id': user_id,
         'is_admin': is_admin,
         'role': role,
-        'exp': datetime.now(timezone.utc) + expires_delta
+        'exp': datetime.now(timezone.utc) + expires_delta,
+        'type': 'access'
     }
 
     payload['exp'] = int(payload['exp'].timestamp())
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def verify_token(token: str,
+                 token_type: str = 'access') -> Dict[str, Any]:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=ALGORITHM)
+        if payload.get('type') != token_type:
+            raise JWTError('Invalid token type')
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail='Invalid or expired token')
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -108,4 +121,3 @@ async def get_current_user_from_cookie(request: Request):
             detail="Not authenticated"
         )
     return await get_current_user(token.replace("Bearer", ""))
-

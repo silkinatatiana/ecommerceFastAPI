@@ -38,7 +38,11 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
         'token_type': 'bearer'
     }
 
-
+# TODO сделать так чтобы свагер брал токен (token: str = Depends(oauth2_scheme)
+# ):
+#     # Сначала пробуем взять токен из кук
+#     cookie_token = request.cookies.get("token")
+#     actual_token = cookie_token or token)
 @router.get('/account')
 async def personal_account(
         request: Request,
@@ -128,7 +132,7 @@ async def login(request: Request,
         response.set_cookie(
             key="token",
             value=token,
-            httponly=True,
+            httponly=False, # TODO в продакшн заменить на True для безопасности
             max_age=3600,
             secure=False,
             samesite='lax',
@@ -136,7 +140,7 @@ async def login(request: Request,
         )
         return response
 
-    except HTTPException as e:
+    except HTTPException:
         return templates.TemplateResponse(
             "auth/create_auth_form.html",
             {

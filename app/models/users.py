@@ -18,3 +18,15 @@ class User(Base):
     products = relationship("Product", back_populates="supplier")
     reviews = relationship("Review", back_populates="user")
     cart = relationship('Cart', uselist=False, back_populates='user')
+
+    chats = relationship(
+        'Chats',
+        foreign_keys='[Chats.user_id]',
+        back_populates='user'
+    )
+
+    employee_chats = relationship(
+        'Chats',
+        foreign_keys='[Chats.employee_id]',
+        back_populates='employee'
+    )

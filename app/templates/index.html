@@ -90,7 +90,9 @@
             </div>
         {% elif categories_products and has_products %}
             {% for category_name, category_data in categories_products.items() %}
-                <div class="category" data-category-id="{{ category_data.id }}">
+                <div class="category" data-category-id="{{ category_data.id }}"
+                     data-current-page="{{ category_data.current_page }}">
+
                     {% if not current_categories or current_categories|length > 1 %}
                         <h3>{{ category_name | title }}</h3>
                     {% endif %}
@@ -105,14 +107,15 @@
                         {% set pagination = category_data.pagination %}
                         {% set has_next = pagination.has_next %}
                         {% set has_prev = pagination.has_prev %}
-                        {% set current_page = pagination.page %}
+                        {% set current_page = category_data.current_page %}
 
                         {% if has_next %}
                             <button
                                 onclick="loadMoreProducts('{{ category_data.id }}', this)"
                                 class="view-all-btn load-more-btn"
                                 data-category-id="{{ category_data.id }}"
-                                data-current-page="{{ current_page }}">
+                                data-current-page="{{ category_data.current_page }}"
+                                data-page-key="{{ category_data.page_key }}">
                                 Показать еще
                             </button>
                         {% endif %}

@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func
 import httpx
 import jwt
 from loguru import logger
@@ -163,7 +163,7 @@ async def products_by_category(
             built_in_memory_list = [memory.strip() for memory in built_in_memory.split(',')]
             memory_conditions = Product.built_in_memory_capacity.in_(built_in_memory_list)
             query = query.where(memory_conditions)
-            count_query = count_query.where(memory_conditions)  # Исправлено: без or_(*)
+            count_query = count_query.where(memory_conditions)
 
         total_count = await db.scalar(count_query)
 
@@ -188,7 +188,7 @@ async def products_by_category(
             "has_next": page < total_pages,
             "has_prev": page > 1
         }
-
+        print(pagination)
         return {
             "products": products,
             "pagination": pagination
@@ -199,6 +199,8 @@ async def products_by_category(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {str(e)}"
         )
+
+
 @router.get('/{product_id}', response_class=HTMLResponse)
 async def product_detail_page(
         request: Request,

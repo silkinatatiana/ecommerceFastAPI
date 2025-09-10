@@ -1,0 +1,120 @@
+from typing import Annotated, Optional
+from random import choice
+
+from fastapi import APIRouter, Depends, status, HTTPException, Request, Query, Cookie
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import update
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import joinedload
+from sqlalchemy import select, func, or_
+import httpx
+import jwt
+from loguru import logger
+
+from app.backend.db_depends import get_db
+from app.schemas import CreateProduct, ProductOut
+from app.models import *
+from app.models import Review
+from app.functions.cart_func import get_in_cart_product_ids
+from app.functions.auth_func import get_current_user, get_user_id_by_token
+from app.functions.favorites_func import get_favorite_product_ids
+
+from app.config import Config
+
+router = APIRouter(prefix='/chats', tags=['chats'])
+templates = Jinja2Templates(directory='app/templates/')
+
+
+@router.get('/my')
+async def get_all_chats(db: AsyncSession = Depends(get_db),
+                        token: Optional[str] = Cookie(None, alias='token')):
+    try:
+        if not token:
+            raise HTTPException(status_code=401, detail="Не авторизован")
+
+        user_id = get_user_id_by_token(token)
+
+        query = select(Chats).where(Chats.user_id == user_id)
+        result = await db.execute(query)
+        all_chats_by_user_id = result.scalars().all()
+        return all_chats_by_user_id
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get('/{chat_id}')
+async def chat_by_id(chat_id: int,
+                     db: AsyncSession = Depends(get_db)):
+    try:
+        query = select(Chats).where(Chats.id == chat_id)
+        chat = await db.scalar(query)
+
+        if not chat:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail='Чат не найден')
+        return chat
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post('/create', status_code=status.HTTP_201_CREATED)
+async def chat_create(topic: str,
+                      db: AsyncSession = Depends(get_db),
+                      token: Optional[str] = Cookie(None, alias='token')):
+    try:
+        if not token:
+            raise HTTPException(status_code=401, detail="Не авторизован")
+
+        user_id = get_user_id_by_token(token)
+
+        query_employee_ids = select(User).where(User.role == 'seller')
+        result = await db.execute(query_employee_ids)
+        employee_ids = result.scalars().all()
+        print(employee_ids)
+
+        chat_item = Chats(
+            user_id=user_id,
+            employee_id=choice(employee_ids).id,
+            topic=topic
+        )
+
+        db.add(chat_item)
+        await db.commit()
+        return {"message": f"Создан новый чат на тему: '{topic}'"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch('/close', status_code=status.HTTP_204_NO_CONTENT)
+async def chats_close(chat_id: int,
+                      db: AsyncSession = Depends(get_db)):
+    try:
+        query = update(Chats).where(Chats.id == chat_id).values(active=False)
+        result = await db.execute(query)
+
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        await db.commit()
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
