@@ -7,7 +7,8 @@
     {% if is_authenticated %}
     <meta name="user-id" content="{{ user_id }}">
     {% endif %}
-    <link rel="stylesheet" href="{{ url_for('static', path='styles/base.css') }}?v=1.1">
+    <link rel="stylesheet" href="{{ url_for('static', path='styles/base.css') }}?v=1.2">
+    <link rel="stylesheet" href="{{ url_for('static', path='styles/chat/chat.css') }}?v=1.2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     {% block extra_css %}{% endblock %}
 </head>
@@ -67,8 +68,40 @@
         <p>&copy; 2025 {{ shop_name }}. Все права защищены.</p>
     </footer>
 
+    <!-- Кнопка открытия чата -->
+    {% if is_authenticated %}
+    <div id="chatButton" class="chat-button">
+        <i class="fas fa-comments"></i>
+    </div>
+
+    <!-- Модальное окно чата -->
+    <div id="chatModal" class="chat-modal">
+        <div class="chat-modal-content">
+            <div class="chat-header">
+                <h3>Чат с поддержкой</h3>
+                <div class="chat-controls">
+                    <button id="minimizeChat" class="btn-icon" title="Свернуть"><i class="fas fa-window-minimize"></i></button>
+                    <button id="closeChat" class="btn-icon" title="Закрыть"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <!-- Сообщения подгружаются сюда -->
+                <div class="message-system">Загрузка истории чата...</div>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="messageInput" placeholder="Введите сообщение..." maxlength="500">
+                <button id="sendMessage" class="btn-send">Отправить</button>
+            </div>
+            <div class="chat-footer">
+                <button id="endChat" class="btn-end">Завершить чат</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {% block scripts %}
     {% endblock %}
     <script src="/static/js/base.js"></script>
+    <script src="/static/js/chat/chat.js"></script>
 </body>
 </html>

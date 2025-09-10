@@ -14,7 +14,7 @@ import jwt
 from loguru import logger
 
 from app.backend.db_depends import get_db
-from app.schemas import CreateProduct, ProductOut
+from app.schemas import CreateProduct, ProductOut, ChatCreate
 from app.models import *
 from app.models import Review
 from app.functions.cart_func import get_in_cart_product_ids
@@ -70,7 +70,7 @@ async def chat_by_id(chat_id: int,
 
 
 @router.post('/create', status_code=status.HTTP_201_CREATED)
-async def chat_create(topic: str,
+async def chat_create(chat_data: ChatCreate,
                       db: AsyncSession = Depends(get_db),
                       token: Optional[str] = Cookie(None, alias='token')):
     try:
@@ -82,17 +82,16 @@ async def chat_create(topic: str,
         query_employee_ids = select(User).where(User.role == 'seller')
         result = await db.execute(query_employee_ids)
         employee_ids = result.scalars().all()
-        print(employee_ids)
 
         chat_item = Chats(
             user_id=user_id,
             employee_id=choice(employee_ids).id,
-            topic=topic
+            topic=chat_data.topic
         )
 
         db.add(chat_item)
         await db.commit()
-        return {"message": f"Создан новый чат на тему: '{topic}'"}
+        return {"message": f"Создан новый чат на тему: '{chat_data.topic}'"}
 
     except HTTPException:
         raise
