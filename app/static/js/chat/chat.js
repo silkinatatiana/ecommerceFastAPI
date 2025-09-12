@@ -77,7 +77,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (response.ok) {
                 messageInput.value = '';
-                loadMessages(false); // Обновляем без сброса скролла
+
+                // Создаем объект сообщения для отображения
+                const userId = document.querySelector('meta[name="user-id"]')?.content;
+                const newMessage = {
+                    id: Date.now(), // временный ID
+                    chat_id: currentChatId,
+                    sender_id: userId,
+                    sender_name: 'Вы',
+                    message: text,
+                    created_at: new Date().toISOString()
+                };
+
+                // Добавляем его в чат
+                addMessageToChat(newMessage);
+
+                // Прокручиваем вниз
+                chatMessages.scrollTop = chatMessages.scrollHeight;
             } else {
                 throw new Error('Ошибка отправки');
             }
@@ -120,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Подгрузка сообщений
     async function loadMessages(reset = false) {
-        if (isLoading || !hasMore || !currentChatId) return;
+        if (isLoading || (!reset && !hasMore) || !currentChatId) return;
 
         isLoading = true;
         if (reset) {
@@ -130,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
-            const url = `/messages/by_chat/${currentChatId}?page=${page}&limit=15`;
+            const url = `/messages/by_chat/${currentChatId}?page=${page}&limit=10`;
             const response = await fetch(url);
             const data = await response.json();
 
@@ -147,36 +163,31 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            data.forEach(msg => {
-                const isUser = msg.sender_id == document.querySelector('meta[name="user-id"]')?.content;
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `message ${isUser ? 'message-user' : 'message-support'}`;
+            // Сортируем сообщения по дате создания (от старых к новым)
+            const sortedData = data.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-                if (!isUser) {
-                    messageDiv.innerHTML = `
-                        <div class="sender-name">Оператор: ${msg.sender_name || 'Поддержка'}</div>
-                        <div>${msg.message}</div>
-                        <div class="message-info">${formatDateTime(msg.created_at)}</div>
-                    `;
-                } else {
-                    messageDiv.innerHTML = `
-                        <div>${msg.message}</div>
-                        <div class="message-info">${formatDateTime(msg.created_at)}</div>
-                    `;
-                }
+            // Для reset - добавляем все сообщения в правильном порядке
+            if (reset) {
+                sortedData.forEach(msg => {
+                    addMessageToChat(msg);
+                });
 
-                chatMessages.appendChild(messageDiv);
-            });
+                // Прокручиваем вниз
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } else {
+                // Старые сообщения добавляем в начало
+                const fragment = document.createDocumentFragment();
+                sortedData.reverse().forEach(msg => {
+                    const messageDiv = createMessageElement(msg);
+                    fragment.insertBefore(messageDiv, fragment.firstChild);
+                });
+                chatMessages.insertBefore(fragment, chatMessages.firstChild);
+            }
 
-            if (data.length < 15) {
+            if (data.length < 10) {
                 hasMore = false;
             } else {
                 page++;
-            }
-
-            // Автопрокрутка вниз, если сбрасывали
-            if (reset) {
-                chatMessages.scrollTop = chatMessages.scrollHeight;
             }
 
         } catch (error) {
@@ -186,6 +197,35 @@ document.addEventListener('DOMContentLoaded', function () {
         } finally {
             isLoading = false;
         }
+    }
+
+    // Вспомогательная функция для создания элемента сообщения
+    function createMessageElement(msg) {
+        const userId = document.querySelector('meta[name="user-id"]')?.content;
+        const isUser = msg.sender_id == userId;
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${isUser ? 'message-user' : 'message-support'}`;
+
+        if (!isUser) {
+            messageDiv.innerHTML = `
+                <div class="sender-name">Оператор: ${msg.sender_name || 'Поддержка'}</div>
+                <div>${msg.message}</div>
+                <div class="message-info">${formatDateTime(msg.created_at)}</div>
+            `;
+        } else {
+            messageDiv.innerHTML = `
+                <div>${msg.message}</div>
+                <div class="message-info">${formatDateTime(msg.created_at)}</div>
+            `;
+        }
+
+        return messageDiv;
+    }
+
+    // Вспомогательная функция для добавления сообщения в чат
+    function addMessageToChat(msg) {
+        const messageDiv = createMessageElement(msg);
+        chatMessages.appendChild(messageDiv);
     }
 
     // Бесконечная прокрутка вверх

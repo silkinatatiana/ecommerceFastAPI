@@ -1,27 +1,17 @@
-from typing import Annotated, Optional
+from typing import Optional
 from random import choice
 
-from fastapi import APIRouter, Depends, status, HTTPException, Request, Query, Cookie
+from fastapi import APIRouter, Depends, status, HTTPException, Cookie
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import update
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import joinedload
-from sqlalchemy import select, func, or_
-import httpx
-import jwt
-from loguru import logger
+from sqlalchemy import select
 
 from app.backend.db_depends import get_db
-from app.schemas import CreateProduct, ProductOut, ChatCreate
+from app.schemas import ChatCreate
 from app.models import *
-from app.models import Review
-from app.functions.cart_func import get_in_cart_product_ids
-from app.functions.auth_func import get_current_user, get_user_id_by_token
-from app.functions.favorites_func import get_favorite_product_ids
+from app.functions.auth_func import get_user_id_by_token
 
-from app.config import Config
 
 router = APIRouter(prefix='/chats', tags=['chats'])
 templates = Jinja2Templates(directory='app/templates/')

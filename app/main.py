@@ -23,7 +23,6 @@ from app.functions.favorites_func import get_favorite_product_ids
 from app.functions.cart_func import get_in_cart_product_ids
 from app.log.log import LOGGER
 
-
 logger = LOGGER
 logger.setLevel(logging.INFO)
 shop_info = Config.shop_info
@@ -68,46 +67,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# class ColorFormatter(logging.Formatter): # TODO вынести  отдельный файлик
-#     colors = {
-#         'INFO': '\033[92m',
-#         'WARNING': '\033[93m',
-#         'ERROR': '\033[91m',
-#         'RESET': '\033[0m'
-#     }
-#
-#     def format(self, record):
-#         color = self.colors.get(record.levelname, self.colors['RESET'])
-#         message = super().format(record)
-#         return f"{color}{message}{self.colors['RESET']}"
-#
-#
-# file_handler = RotatingFileHandler(
-#     'log/app.log',
-#     maxBytes=5 * 1024 * 1024,
-#     backupCount=3,
-#     encoding='UTF-8'
-# )
-# file_handler.setFormatter(logging.Formatter(
-#     '%(asctime)s - %(levelname)s - %(message)s'
-# ))
-#
-# console_handler = logging.StreamHandler()
-# console_handler.setFormatter(ColorFormatter(
-#     '%(asctime)s - %(levelname)s - %(message)s'
-# ))
-#
-# logger.addHandler(file_handler)
-# logger.addHandler(console_handler)
-#
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=['http://127.0.0.1:8000'],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
 
 
 @app.on_event("startup")
@@ -236,7 +195,7 @@ async def get_main_page(
             params = {
                 "page": current_page,
                 "per_page": per_page,
-                "user_id": user_id if user_id else 0,# TODO передавать токен
+                "user_id": user_id if user_id else 0,  # TODO передавать токен
             }
 
             if colors:
@@ -244,7 +203,7 @@ async def get_main_page(
             if built_in_memory:
                 params["built_in_memory"] = built_in_memory
 
-            if is_favorite and is_authenticated and favorite_product_ids: # TODO
+            if is_favorite and is_authenticated and favorite_product_ids:  # TODO
                 params["favorites"] = ",".join(map(str, favorite_product_ids))
 
             async with httpx.AsyncClient() as client:

@@ -34,12 +34,11 @@ async def messages_by_chat_id(
     try:
         offset = (page - 1) * limit
 
-        # Джойним User, чтобы получить sender_name
         query = (
             select(Messages, User.username.label("sender_name"))
             .join(User, Messages.sender_id == User.id)
             .where(Messages.chat_id == chat_id)
-            .order_by(Messages.created_at.asc())  # Старые сверху
+            .order_by(Messages.created_at.desc())
             .offset(offset)
             .limit(limit)
         )

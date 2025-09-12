@@ -171,11 +171,18 @@ footer {
     padding: 20px;
 }
 
-.chat-input {
+/* Нижняя панель */
+.chat-bottom-panel {
     display: flex;
+    flex-direction: column;
     padding: 10px;
     border-top: 1px solid #eee;
     background: white;
+}
+
+.chat-input {
+    display: flex;
+    margin-bottom: 10px; /* Отступ между вводом и кнопкой */
 }
 
 .chat-input input {
@@ -200,11 +207,11 @@ footer {
     background: #0056b3;
 }
 
+/* Футер с кнопкой завершения */
 .chat-footer {
-    padding: 10px 15px;
-    background: #f5f5f5;
-    border-top: 1px solid #eee;
-    text-align: right;
+    display: flex;
+    justify-content: flex-end;
+    padding: 5px 0;
 }
 
 .chat-footer .btn-end {
@@ -214,22 +221,9 @@ footer {
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    font-size: 14px;
 }
 
 .chat-footer .btn-end:hover {
     background: #c82333;
-}
-
-/* Скроллбар */
-.chat-messages::-webkit-scrollbar {
-    width: 6px;
-}
-
-.chat-messages::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 3px;
-}
-
-.chat-messages::-webkit-scrollbar-thumb:hover {
-    background: #aaa;
 }
