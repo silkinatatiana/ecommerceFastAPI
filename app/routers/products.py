@@ -211,12 +211,14 @@ async def product_detail_page(
     is_authenticated = False
     is_favorite = False
     in_cart = False
+    user_id = None
     favorite_product_ids = []
     in_cart_product_ids = []
 
     if token and token != "None" and token != "undefined":
         try:
             current_user = await get_current_user(token)
+            user_id = current_user['id']
             is_authenticated = True
 
             favorite_product_ids = await get_favorite_product_ids(user_id=current_user['id'], db=db)
@@ -274,6 +276,7 @@ async def product_detail_page(
         {
             "request": request,
             "is_authenticated": is_authenticated,
+            "user_id": user_id,
             "product": {
                 "id": product.id,
                 "name": name,

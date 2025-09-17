@@ -43,6 +43,8 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
 #     # Сначала пробуем взять токен из кук
 #     cookie_token = request.cookies.get("token")
 #     actual_token = cookie_token or token)
+
+
 @router.get('/account')
 async def personal_account(
         request: Request,

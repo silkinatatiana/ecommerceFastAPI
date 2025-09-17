@@ -6,6 +6,7 @@ async def get_tab_by_section(section, templates, request, user, page, db, user_d
     return_dict = {
         "request": request,
         "user": user,
+        "user_id": user.id,
         "config": Config.url,
         "is_authenticated": True
     }
