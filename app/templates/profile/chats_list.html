@@ -1,0 +1,55 @@
+{% extends "profile/profile_base.html" %}
+
+{% block account_content %}
+<div class="section">
+    <h2 class="section-title">Мои чаты</h2>
+
+    {% if chats and chats|length > 0 %}
+        <div class="chats-list">
+            {% for chat in chats %}
+            <div class="chat-item" onclick="window.location.href='/chats/{{ chat.id }}'">
+                <div class="chat-info">
+                    <h3>Чат #{{ chat.id }}</h3>
+                    <p><strong>Тема:</strong> {{ chat.topic or "Без темы" }}</p>
+                    <p><strong>Статус:</strong>
+                        <span class="status-{{ 'active' if chat.active else 'closed' }}">
+                            {{ 'Активен' if chat.active else 'Завершён' }}
+                        </span>
+                    </p>
+                    <p><strong>Начат:</strong> {{ chat.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                    {% if chat.last_message %}
+                        <p><strong>Последнее сообщение:</strong> {{ chat.last_message.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                        <p class="last-message-preview">«{{ chat.last_message.message | truncate(50) }}»</p>
+                    {% else %}
+                        <p class="no-messages">Сообщений пока нет</p>
+                    {% endif %}
+                </div>
+                <div class="chat-arrow">
+                    →
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>У вас пока нет чатов.</p>
+            <button id="openChatBtn" class="btn btn-primary">Начать чат</button>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const openChatBtn = document.getElementById('openChatBtn');
+    const chatButton = document.getElementById('chatButton'); // кнопка чата из base.html
+
+    if (openChatBtn && chatButton) {
+        openChatBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            // Имитируем клик по основной кнопке чата
+            chatButton.click();
+        });
+    }
+});
+</script>
+{% endblock %}

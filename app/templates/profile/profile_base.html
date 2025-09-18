@@ -36,6 +36,11 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a href="/auth/account?section=chats_tab" class="nav-link {% if request.query_params.get('section') == 'chats_tab' %}active{% endif %}" data-section="chats">
+                        <i>💬</i> Мои чаты
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="/auth/account?section=security_tab" class="nav-link {% if request.query_params.get('section') == 'security_tab' %}active{% endif %}" data-section="security">
                         <i>🔒</i> Безопасность
                     </a>

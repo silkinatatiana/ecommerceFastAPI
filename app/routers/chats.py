@@ -26,14 +26,24 @@ async def get_all_chats(db: AsyncSession = Depends(get_db),
 
         user_id = get_user_id_by_token(token)
 
-        query = select(Chats).where(Chats.user_id == user_id)
+        query = select(Chats).where(Chats.user_id == user_id).order_by(Chats.created_at.desc())
         result = await db.execute(query)
-        all_chats_by_user_id = result.scalars().all()
-        return all_chats_by_user_id
+        chats = result.scalars().all()
+
+        for chat in chats:
+            last_msg_query = (
+                select(Messages)
+                .where(Messages.chat_id == chat.id)
+                .order_by(Messages.created_at.desc())
+                .limit(1)
+            )
+            last_msg = await db.scalar(last_msg_query)
+            chat.last_message = last_msg
+
+        return chats
 
     except HTTPException:
         raise
-
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

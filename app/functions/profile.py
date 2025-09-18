@@ -14,7 +14,8 @@ async def get_tab_by_section(section, templates, request, user, page, db, user_d
     dict_tab = {
         'security_tab': 'profile/security.html',
         'orders_tab': 'profile/orders.html',
-        'profile_tab': 'profile/profile.html'
+        'profile_tab': 'profile/profile.html',
+        'chats_tab': 'profile/chats_list.html'
     }
 
     if section == 'orders_tab':
