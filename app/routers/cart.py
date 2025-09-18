@@ -200,11 +200,14 @@ async def get_cart_html(request: Request,
                         token: Optional[str] = Cookie(default=None, alias='token')):
     is_authenticated = False
     cart_products = []
+    user_id = None
 
     if token and token != 'None' and token != 'undefined':
         try:
             payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
             user_id = payload.get("id")
+            if user_id:
+                is_authenticated = True
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(f"{Config.url}/cart/{user_id}")
@@ -235,6 +238,7 @@ async def get_cart_html(request: Request,
         {
             "request": request,
             "is_authenticated": is_authenticated,
+            "user_id": user_id,
             "products": cart_products,
             "shop_name": "PEAR",
             "url": Config.url,
