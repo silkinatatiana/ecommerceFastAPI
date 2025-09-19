@@ -3,7 +3,7 @@ from random import choice
 
 from fastapi import APIRouter, Depends, status, HTTPException, Cookie, Request
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import update
 from sqlalchemy import select
@@ -168,3 +168,51 @@ async def chats_close(chat_id: int,
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get('/{chat_id}/view', response_class=HTMLResponse)
+async def view_chat(
+        request: Request,
+        chat_id: int,
+        token: Optional[str] = Cookie(None, alias='token'),
+        db: AsyncSession = Depends(get_db)
+):
+    try:
+        if not token:
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
+        user_dict = await get_current_user(token=token)
+        user_id = user_dict['id']
+
+        chat = await db.scalar(select(Chats).where(Chats.id == chat_id))
+        if not chat:
+            return templates.TemplateResponse(
+                "exceptions/not_found.html",
+                {"request": request}
+            )
+
+        employee = await db.scalar(select(User).where(User.id == chat.employee_id))
+        messages_query = (
+            select(Messages)
+            .where(Messages.chat_id == chat_id)
+            .order_by(Messages.created_at.asc())
+        )
+        messages = (await db.execute(messages_query)).scalars().all()
+
+        current_user = await db.scalar(select(User).where(User.id == user_id))
+
+        return templates.TemplateResponse('chat/chat_detail.html', {
+            'request': request,
+            'chat': chat,
+            'messages': messages,
+            'user': current_user,
+            'employee': employee,
+            'is_authenticated': True,
+            'user_id': user_id,
+            'shop_name': 'PEAR',
+            'descr': 'Интернет-магазин электроники'
+        })
+
+    except Exception as e:
+        print(f"Ошибка при отображении чата: {e}")
+        return RedirectResponse(url='/auth/account?section=chats_tab', status_code=303)

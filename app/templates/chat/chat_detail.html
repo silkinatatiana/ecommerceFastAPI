@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Чат #{{ chat.id }} | {{ shop_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/chat/chat_detail.css') }}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<div class="chat-detail-container">
+    <div class="chat-header">
+        <div class="chat-meta">
+            <div class="chat-meta-item">
+                <i class="fas fa-tag"></i>
+                <span>Тема: {{ chat.topic or "Без темы" }}</span>
+            </div>
+            <div class="chat-meta-item">
+                <i class="fas fa-user"></i>
+                <span>Пользователь: {{ user.first_name }} {{ user.last_name }}</span>
+            </div>
+            <div class="chat-meta-item">
+                <i class="fas fa-user-shield"></i>
+                <span>Оператор: {{ employee.first_name }} {{ employee.last_name }}</span>
+            </div>
+            <div class="chat-meta-item">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Начат: {{ chat.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+            </div>
+            <div class="chat-meta-item">
+                <i class="fas fa-info-circle"></i>
+                <span class="status-badge status-{{ 'active' if chat.active else 'closed' }}">
+                    {{ 'Активен' if chat.active else 'Завершён' }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="messages-container">
+        {% if messages and messages|length > 0 %}
+            {% for message in messages %}
+                <div class="message {% if message.sender_id == user.id %}message-user{% else %}message-support{% endif %}">
+                    {% if message.sender_id != user.id %}
+                        <div class="sender-name">
+                            Оператор: {{ employee.first_name }}
+                        </div>
+                    {% endif %}
+
+                    <div class="message-content">
+                        <p class="message-text">{{ message.message }}</p>
+                    </div>
+
+                    <div class="message-info">
+                        {{ message.created_at.strftime('%d.%m.%Y %H:%M') }}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="message-system">
+                В этом чате пока нет сообщений.
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="chat-actions">
+        <a href="/auth/account?section=chats_tab" class="back-link">
+            <i class="fas fa-arrow-left"></i> Назад к списку чатов
+        </a>
+
+        {% if chat.active %}
+            <form id="endChatForm" method="post" action="/chats/close" style="display:inline;">
+                <input type="hidden" name="chat_id" value="{{ chat.id }}">
+                <button type="submit" class="btn btn-primary" onclick="return confirm('Вы уверены, что хотите завершить чат?')">
+                    <i class="fas fa-times"></i> Завершить чат
+                </button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/chat/chat_detail.js') }}?v=1.0"></script>
+{% endblock %}

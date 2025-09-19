@@ -7,7 +7,7 @@
     {% if chats and chats|length > 0 %}
         <div class="chats-list" id="chatsList">
             {% for chat in chats %}
-            <div class="chat-item" onclick="window.location.href='/chats/{{ chat.id }}'">
+            <div class="chat-item" onclick="window.location.href='/chats/{{ chat.id }}/view'">
                 <div class="chat-info">
                     <h3>Чат #{{ chat.id }}</h3>
                     <p><strong>Тема:</strong> {{ chat.topic or "Без темы" }}</p>
