@@ -70,37 +70,39 @@ async def messages_by_chat_id(
 
 
 @router.post('/create', status_code=status.HTTP_201_CREATED)
-async def messages_create(message_data: MessageCreate,
-                          db: AsyncSession = Depends(get_db),
-                          token: Optional[str] = Cookie(None, alias='token')):
+async def messages_create(
+    message_data: MessageCreate,
+    db: AsyncSession = Depends(get_db),
+    token: Optional[str] = Cookie(None, alias='token')
+):
     try:
         if not token:
             raise HTTPException(status_code=401, detail="Не авторизован")
+
         user_id = get_user_id_by_token(token)
 
-        query = select(Chats).where(Chats.user_id == user_id)
-        result = await db.execute(query)
-        my_chats = result.scalars().all()
-        print(my_chats)
-
-        active_chat_id = [chat for chat in my_chats if chat.active][0].id
-        print(active_chat_id)
-
-        sender_id = get_user_id_by_token(token)
-        query = select(Chats).where(Chats.id == active_chat_id)
+        # Используем chat_id из запроса, а не ищем активный
+        query = select(Chats).where(
+            Chats.id == message_data.chat_id,
+            Chats.user_id == user_id,  # защита: только свои чаты
+            Chats.active == True       # только активные
+        )
         chat = await db.execute(query)
         chat = chat.scalar_one_or_none()
+
         if not chat:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+            raise HTTPException(status_code=404, detail="Активный чат не найден")
 
         message_item = Messages(
-            chat_id=active_chat_id,
+            chat_id=message_data.chat_id,
             message=message_data.message,
-            sender_id=sender_id
+            sender_id=user_id
         )
 
         db.add(message_item)
         await db.commit()
+
+        return {"message_id": message_item.id}  # полезно для фронтенда
 
     except HTTPException:
         raise

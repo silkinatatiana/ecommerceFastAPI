@@ -8,7 +8,7 @@
 
 {% block content %}
 <div class="chat-detail-container">
-    <div class="chat-header">
+    <div class="chat-detail-header">
         <div class="chat-meta">
             <div class="chat-meta-item">
                 <i class="fas fa-tag"></i>
@@ -67,13 +67,10 @@
         </a>
 
         {% if chat.active %}
-            <form id="endChatForm" method="post" action="/chats/close" style="display:inline;">
-                <input type="hidden" name="chat_id" value="{{ chat.id }}">
-                <button type="submit" class="btn btn-primary" onclick="return confirm('Вы уверены, что хотите завершить чат?')">
-                    <i class="fas fa-times"></i> Завершить чат
-                </button>
-            </form>
-        {% endif %}
+            <button id="closeChatBtn" class="btn btn-primary" onclick="closeChat({{ chat.id }})">
+                <i class="fas fa-times"></i> Завершить чат
+            </button>
+            {% endif %}
     </div>
 </div>
 {% endblock %}

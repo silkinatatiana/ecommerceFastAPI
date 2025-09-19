@@ -45,6 +45,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 chatModal.style.display = 'none';
                 currentChatId = null;
                 isInitialized = false;
+
+                updateEndChatButtonVisibility();
+
                 chatMessages.innerHTML = '<div class="message-system">Чат завершён. Начните новый.</div>';
             } else {
                 throw new Error('Ошибка завершения чата');
@@ -64,19 +67,67 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!text) return;
 
         try {
-            const response = await fetch(`/messages/create`, {
+            let chatId = currentChatId;
+
+            if (!chatId) {
+                const createChatRes = await fetch('/chats/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        topic: "Общая поддержка"
+                    })
+                });
+
+                if (!createChatRes.ok) {
+                    const errorData = await createChatRes.json();
+                    throw new Error(errorData.detail || 'Не удалось создать чат');
+                }
+
+                // Получаем ID нового чата — делаем запрос к /chats/my
+                const chatsRes = await fetch('/chats/my');
+                const chats = await chatsRes.json();
+                const activeChat = chats.find(c => c.active);
+
+                if (!activeChat) {
+                    throw new Error('Чат создан, но не найден в списке');
+                }
+
+                chatId = activeChat.id;
+                currentChatId = chatId;
+                updateEndChatButtonVisibility();
+
+                // Убираем приветствие
+                const prompt = document.getElementById('initialPrompt');
+                if (prompt) prompt.remove();
+
+                setupInfiniteScroll();
+                await loadMessages(true); // загружаем историю
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            // Отправляем сообщение в существующий или только что созданный чат
+            const response = await fetch('/messages/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text })
+                body: JSON.stringify({
+                    chat_id: chatId,     // ← теперь передаём chat_id
+                    message: text
+                })
             });
 
-            if (response.ok) {
-                messageInput.value = '';
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Ошибка отправки');
+            }
 
+            messageInput.value = '';
+
+            // Если мы не загружали историю (например, при повторной отправке) — добавим сообщение вручную
+            if (currentChatId === chatId) {
                 const userId = document.querySelector('meta[name="user-id"]')?.content;
                 const newMessage = {
                     id: Date.now(),
-                    chat_id: currentChatId,
+                    chat_id: chatId,
                     sender_id: userId,
                     sender_name: 'Вы',
                     message: text,
@@ -84,11 +135,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 };
 
                 addMessageToChat(newMessage);
-
                 chatMessages.scrollTop = chatMessages.scrollHeight;
-            } else {
-                throw new Error('Ошибка отправки');
             }
+
         } catch (error) {
             alert('Ошибка: ' + error.message);
         }
@@ -96,36 +145,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function initializeChat() {
         try {
-            // Проверяем активные чаты
             const chatsRes = await fetch('/chats/my');
             const chats = await chatsRes.json();
+            const activeChat = chats.find(c => c.active);
 
-            let activeChat = chats.find(c => c.active);
-
-            if (!activeChat) {
-                // Создаём новый чат
-                const createRes = await fetch('/chats/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ topic: "Общая поддержка" })
-                });
-                const created = await createRes.json();
-                if (!createRes.ok) throw new Error(created.detail || 'Ошибка создания чата');
-
-                // Получаем ID нового чата
-                const newChatsRes = await fetch('/chats/my');
-                const newChats = await newChatsRes.json();
-                activeChat = newChats.find(c => c.active);
+            if (activeChat) {
+                currentChatId = activeChat.id;
+                setupInfiniteScroll();
+                await loadMessages(true);
+            } else {
+                chatMessages.innerHTML = `
+                    <div class="message-system" id="initialPrompt">
+                        Напишите сообщение, чтобы начать чат с поддержкой.
+                    </div>
+                `;
+                currentChatId = null;
             }
+            updateEndChatButtonVisibility();
 
-            currentChatId = activeChat.id;
-            setupInfiniteScroll();
         } catch (error) {
-            chatMessages.innerHTML = `<div class="message-system">Ошибка инициализации чата: ${error.message}</div>`;
+            chatMessages.innerHTML = `<div class="message-system">Ошибка: ${error.message}</div>`;
         }
     }
 
-    // Подгрузка сообщений
     async function loadMessages(reset = false) {
         if (isLoading || (!reset && !hasMore) || !currentChatId) return;
 
@@ -190,7 +232,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Вспомогательная функция для создания элемента сообщения
     function createMessageElement(msg) {
         const userId = document.querySelector('meta[name="user-id"]')?.content;
         const isUser = msg.sender_id == userId;
@@ -235,4 +276,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const date = new Date(isoString);
         return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
+
+    function updateEndChatButtonVisibility() {
+    const endChatBtn = document.getElementById('endChat');
+    if (endChatBtn) {
+        if (currentChatId) {
+            endChatBtn.style.display = 'block';
+        } else {
+            endChatBtn.style.display = 'none';
+        }
+    }
+}
 });

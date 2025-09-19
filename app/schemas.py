@@ -129,3 +129,6 @@ class ChatCreate(BaseModel):
 
 class MessageCreate(BaseModel):
     message: str
+    chat_id: int
+
+

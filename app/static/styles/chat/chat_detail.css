@@ -7,7 +7,7 @@
     box-shadow: var(--box-shadow);
 }
 
-.chat-header {
+.chat-detail-header {
     margin-bottom: 25px;
     padding: 20px;
     border-bottom: none;
