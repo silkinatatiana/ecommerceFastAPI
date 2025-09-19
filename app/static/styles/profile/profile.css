@@ -381,6 +381,15 @@ color: var(--text-color);
     margin-top: 20px;
 }
 
+.load-more-container {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.load-more-container .btn {
+    margin-top: 10px;
+}
+
 @media (max-width: 768px) {
     .chat-item {
         flex-direction: column;

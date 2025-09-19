@@ -5,7 +5,7 @@
     <h2 class="section-title">Мои чаты</h2>
 
     {% if chats and chats|length > 0 %}
-        <div class="chats-list">
+        <div class="chats-list" id="chatsList">
             {% for chat in chats %}
             <div class="chat-item" onclick="window.location.href='/chats/{{ chat.id }}'">
                 <div class="chat-info">
@@ -30,6 +30,19 @@
             </div>
             {% endfor %}
         </div>
+
+        {% if has_more %}
+        <div class="load-more-container js-load-more-container">
+            <button class="btn btn-secondary" onclick="loadMoreChats({{ next_page }})">
+                Загрузить ещё
+            </button>
+        </div>
+        {% else %}
+        <div class="load-more-container js-load-more-container">
+            <p>Больше чатов нет</p>
+        </div>
+        {% endif %}
+
     {% else %}
         <div class="empty-state">
             <p>У вас пока нет чатов.</p>
@@ -38,18 +51,5 @@
     {% endif %}
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const openChatBtn = document.getElementById('openChatBtn');
-    const chatButton = document.getElementById('chatButton'); // кнопка чата из base.html
-
-    if (openChatBtn && chatButton) {
-        openChatBtn.addEventListener('click', function (e) {
-            e.preventDefault();
-            // Имитируем клик по основной кнопке чата
-            chatButton.click();
-        });
-    }
-});
-</script>
+<script src="/static/js/chat/chats_list.js"></script>
 {% endblock %}

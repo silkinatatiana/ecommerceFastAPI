@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', function () {
     let page = 1;
     let isInitialized = false;
 
-    // Открытие чата
     chatButton?.addEventListener('click', async function () {
         chatModal.style.display = 'block';
         if (!isInitialized) {
@@ -24,17 +23,14 @@ document.addEventListener('DOMContentLoaded', function () {
         loadMessages(true);
     });
 
-    // Сворачивание
     minimizeBtn?.addEventListener('click', function () {
         chatModal.classList.toggle('minimized');
     });
 
-    // Закрытие модалки (не завершает чат)
     closeBtn?.addEventListener('click', function () {
         chatModal.style.display = 'none';
     });
 
-    // Завершение чата
     endChatBtn?.addEventListener('click', async function () {
         if (!currentChatId) return;
 
@@ -58,7 +54,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Отправка сообщения
     sendMessageBtn?.addEventListener('click', sendMessage);
     messageInput?.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') sendMessage();
@@ -78,10 +73,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (response.ok) {
                 messageInput.value = '';
 
-                // Создаем объект сообщения для отображения
                 const userId = document.querySelector('meta[name="user-id"]')?.content;
                 const newMessage = {
-                    id: Date.now(), // временный ID
+                    id: Date.now(),
                     chat_id: currentChatId,
                     sender_id: userId,
                     sender_name: 'Вы',
@@ -89,10 +83,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     created_at: new Date().toISOString()
                 };
 
-                // Добавляем его в чат
                 addMessageToChat(newMessage);
 
-                // Прокручиваем вниз
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             } else {
                 throw new Error('Ошибка отправки');
@@ -102,7 +94,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Инициализация чата (создание или получение активного)
     async function initializeChat() {
         try {
             // Проверяем активные чаты

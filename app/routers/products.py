@@ -188,7 +188,7 @@ async def products_by_category(
             "has_next": page < total_pages,
             "has_prev": page > 1
         }
-        print(pagination)
+
         return {
             "products": products,
             "pagination": pagination

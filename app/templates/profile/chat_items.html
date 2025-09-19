@@ -1,0 +1,35 @@
+{% for chat in chats %}
+<div class="chat-item" onclick="window.location.href='/chats/{{ chat.id }}'">
+    <div class="chat-info">
+        <h3>Чат #{{ chat.id }}</h3>
+        <p><strong>Тема:</strong> {{ chat.topic or "Без темы" }}</p>
+        <p><strong>Статус:</strong>
+            <span class="status-{{ 'active' if chat.active else 'closed' }}">
+                {{ 'Активен' if chat.active else 'Завершён' }}
+            </span>
+        </p>
+        <p><strong>Начат:</strong> {{ chat.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+        {% if chat.last_message %}
+            <p><strong>Последнее сообщение:</strong> {{ chat.last_message.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+            <p class="last-message-preview">«{{ chat.last_message.message | truncate(50) }}»</p>
+        {% else %}
+            <p class="no-messages">Сообщений пока нет</p>
+        {% endif %}
+    </div>
+    <div class="chat-arrow">
+        →
+    </div>
+</div>
+{% endfor %}
+
+{% if has_more %}
+<div class="load-more-container js-load-more-container">
+    <button class="btn btn-secondary" onclick="loadMoreChats({{ next_page }})">
+        Загрузить ещё
+    </button>
+</div>
+{% else %}
+<div class="load-more-container js-load-more-container">
+    <p>Больше чатов нет</p>
+</div>
+{% endif %}
