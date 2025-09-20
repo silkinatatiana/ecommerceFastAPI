@@ -11,16 +11,22 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initGallery() {
+    const fullscreenGallery = document.getElementById('fullscreenGallery');
+    if (!fullscreenGallery) {
+        console.warn('Элемент #fullscreenGallery не найден');
+        return;
+    }
+
     const thumbnails = document.querySelectorAll('.thumbnail');
     productImages = Array.from(thumbnails).map(thumb => thumb.src);
-    
+
     if (productImages.length > 0) {
         const mainImage = document.getElementById('mainProductImage');
         if (mainImage) {
             mainImage.style.cursor = 'pointer';
             mainImage.addEventListener('click', () => openFullscreen(currentImageIndex));
         }
-        
+
         thumbnails.forEach((thumb, index) => {
             thumb.style.cursor = 'pointer';
             thumb.addEventListener('click', (e) => {
@@ -30,29 +36,51 @@ function initGallery() {
             });
         });
     }
-    
+
     document.querySelector('.fullscreen-prev')?.addEventListener('click', (e) => {
         e.stopPropagation();
         navigateFullscreen(-1);
     });
-    
+
     document.querySelector('.fullscreen-next')?.addEventListener('click', (e) => {
         e.stopPropagation();
         navigateFullscreen(1);
     });
-    
-    document.getElementById('fullscreenGallery')?.addEventListener('click', function(e) {
-        if (e.target === this || e.target.closest('.close-fullscreen')) {
+
+    // Закрытие по клику на фон
+    fullscreenGallery.addEventListener('click', function(e) {
+        if (e.target === this) {
             closeFullscreen();
         }
     });
-    
+
+    // Закрытие по клику на крестик
+    document.querySelector('.close-fullscreen')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeFullscreen();
+    });
+
+    // Клавиатурная навигация
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
+        const isFullscreenOpen = window.getComputedStyle(fullscreenGallery).display === 'flex';
+        if (!isFullscreenOpen) return;
+
+        if (e.key === 'ArrowLeft') {
+            navigateFullscreen(-1);
+        } else if (e.key === 'ArrowRight') {
+            navigateFullscreen(1);
+        } else if (e.key === 'Escape') {
             closeFullscreen();
-            closeFullscreenReviewImage();
         }
     });
+}
+
+function closeFullscreen() {
+    const fullscreenGallery = document.getElementById('fullscreenGallery');
+    if (fullscreenGallery) {
+        fullscreenGallery.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
 }
 
 function changeMainImage(thumbnail, index) {
@@ -94,11 +122,11 @@ function openFullscreen(index) {
 
 function navigateFullscreen(direction) {
     if (productImages.length === 0) return;
-    
+
     currentImageIndex = (currentImageIndex + direction + productImages.length) % productImages.length;
     const fullscreenImage = document.getElementById('fullscreenImage');
     const imageCounter = document.getElementById('imageCounter');
-    
+
     if (fullscreenImage) {
         fullscreenImage.style.opacity = '0';
         setTimeout(() => {
