@@ -1,69 +1,69 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Корзина - {{ shop_name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/styles/orders/order_page.css') }}?v=1.0">
-</head>
+{% extends "base.html" %}
 
-<div class="container">
-    <div class="order-header">
-        <h1>Заказ {{ order.id }}</h1>
-    </div>
+{% block title %} Корзина - {{ shop_name }}{% endblock %}
 
-    <div class="order-info">
-        <div class="info-card">
-            <h3>Информация о заказе</h3>
-            <p><strong>Дата создания:</strong> {{ order.created_at }}</p>
-            <p><strong>Статус:</strong> {{ order.status }}</p>
-            <p><strong>Общая сумма:</strong> <span class="price">{{ order.total_sum }} руб.</span></p>
-            <p><strong>Количество товаров:</strong> {{ products|length }}</p>
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/orders/order_page.css') }}?v=1.0">
+{% endblock %}
 
-            {% if order.status == 'Оформлен' %}
-                <button class="btn-cancel" onclick="cancelOrder({{ order.id }})">
-                    Отменить заказ
-                </button>
-            {% endif %}
+{% block content %}
+    <div class="container">
+        <div class="order-header">
+            <h1>Заказ {{ order.id }}</h1>
+        </div>
 
+        <div class="order-info">
+            <div class="info-card">
+                <h3>Информация о заказе</h3>
+                <p><strong>Дата создания:</strong> {{ order.created_at }}</p>
+                <p><strong>Статус:</strong> {{ order.status }}</p>
+                <p><strong>Общая сумма:</strong> <span class="price">{{ order.total_sum }} руб.</span></p>
+                <p><strong>Количество товаров:</strong> {{ products|length }}</p>
+
+                {% if order.status == 'Оформлен' %}
+                    <button class="btn-cancel" onclick="cancelOrder({{ order.id }})">
+                        Отменить заказ
+                    </button>
+                {% endif %}
+
+            </div>
+        </div>
+
+        <div class="expandable-section">
+            {% for product in products %}
+            <a href="http://127.0.0.1:8000/products/{{ product.id }}" class="product-item" target="_blank">
+                {% if product.image_url %}
+                    <img src="{{ product.image_url }}" alt="{{ product.name }}" class="product-image"
+                         onerror="this.src='/static/images/placeholder-product.jpg'">
+                {% else %}
+                    <img src="/static/images/placeholder-product.jpg" alt="Нет изображения" class="product-image">
+                {% endif %}
+
+                <div class="product-info">
+                    <div class="product-name">{{ product.name }}</div>
+                </div>
+
+                <div class="product-details">
+                    <span class="product-quantity">{{ product.count }} шт.</span>
+                    <span class="product-price">{{ product.price }} руб.</span>
+                    <span class="product-total">{{ product.item_total }} руб.</span>
+                </div>
+            </a>
+            {% endfor %}
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="window.location.href='/auth/account#orders'">
+                Перейти к списку заказов
+            </button>
+
+            <button class="btn btn-secondary" onclick="window.location.href='/'">
+                На главную
+            </button>
         </div>
     </div>
-
-    <div class="expandable-section">
-        {% for product in products %}
-        <a href="http://127.0.0.1:8000/products/{{ product.id }}" class="product-item" target="_blank">
-            {% if product.image_url %}
-                <img src="{{ product.image_url }}" alt="{{ product.name }}" class="product-image"
-                     onerror="this.src='/static/images/placeholder-product.jpg'">
-            {% else %}
-                <img src="/static/images/placeholder-product.jpg" alt="Нет изображения" class="product-image">
-            {% endif %}
-
-            <div class="product-info">
-                <div class="product-name">{{ product.name }}</div>
-            </div>
-
-            <div class="product-details">
-                <span class="product-quantity">{{ product.count }} шт.</span>
-                <span class="product-price">{{ product.price }} руб.</span>
-                <span class="product-total">{{ product.item_total }} руб.</span>
-            </div>
-        </a>
-        {% endfor %}
-        </div>
-    </div>
-
-    <div class="actions">
-        <button class="btn btn-primary" onclick="window.location.href='/auth/account#orders'">
-            Перейти к списку заказов
-        </button>
-
-        <button class="btn btn-secondary" onclick="window.location.href='/'">
-            На главную
-        </button>
-    </div>
-</div>
-
+{% endblock %}
+{% block scripts %}
 <script src="{{ url_for('static', path='/js/orders/order_page.js') }}?v=1.0"></script>
-</body>
-</html>
+{% endblock %}

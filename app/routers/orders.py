@@ -199,10 +199,13 @@ async def order_page(request: Request,
                      db: AsyncSession = Depends(get_db)
                      ):
     try:
+        is_authenticated = False
         if not token: # TODO взять локал хост из Config
             return RedirectResponse(url="http://127.0.0.1:8000/auth/create")
 
         user_id = get_user_id_by_token(token)
+        if user_id:
+            is_authenticated = True
 
         order_query = select(Orders).where(
             (Orders.id == order_id) &
@@ -247,7 +250,10 @@ async def order_page(request: Request,
             },
             'products': order_products,
             'total_amount': total_amount,
-            'user_id': user_id
+            "is_authenticated": is_authenticated,
+            'user_id': user_id,
+            'shop_name': Config.shop_name,
+            'descr': Config.descr
         }
         return templates.TemplateResponse("orders/order_page.html", context)
 
