@@ -120,6 +120,7 @@ async def chat_by_id(chat_id: int,
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+#TODO  Сделать так, чтобы при создании чата отправлялась та тема, в зависимости от того, на какой странице открыт чат при создании
 
 @router.post('/create', status_code=status.HTTP_201_CREATED)
 async def chat_create(chat_data: ChatCreate,

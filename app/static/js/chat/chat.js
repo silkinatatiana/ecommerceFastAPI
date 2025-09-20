@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        topic: "Общая поддержка"
+                        topic: getChatTopicByPage()
                     })
                 });
 
@@ -83,7 +83,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     throw new Error(errorData.detail || 'Не удалось создать чат');
                 }
 
-                // Получаем ID нового чата — делаем запрос к /chats/my
                 const chatsRes = await fetch('/chats/my');
                 const chats = await chatsRes.json();
                 const activeChat = chats.find(c => c.active);
@@ -96,21 +95,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 currentChatId = chatId;
                 updateEndChatButtonVisibility();
 
-                // Убираем приветствие
                 const prompt = document.getElementById('initialPrompt');
                 if (prompt) prompt.remove();
 
                 setupInfiniteScroll();
-                await loadMessages(true); // загружаем историю
+                await loadMessages(true);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
 
-            // Отправляем сообщение в существующий или только что созданный чат
             const response = await fetch('/messages/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    chat_id: chatId,     // ← теперь передаём chat_id
+                    chat_id: chatId,
                     message: text
                 })
             });
@@ -122,7 +119,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             messageInput.value = '';
 
-            // Если мы не загружали историю (например, при повторной отправке) — добавим сообщение вручную
             if (currentChatId === chatId) {
                 const userId = document.querySelector('meta[name="user-id"]')?.content;
                 const newMessage = {
@@ -140,6 +136,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
         } catch (error) {
             alert('Ошибка: ' + error.message);
+        }
+    }
+
+    function getChatTopicByPage() {
+        const path = window.location.pathname;
+
+        if (path === '/') {
+            return "Вопрос по каталогу товаров";
+        } else if (path.startsWith('/products')) {
+            return "Вопрос по товару";
+        } else if (path.startsWith('/orders')) {
+            return "Вопрос по заказу";
+        } else if (path.startsWith('/auth')) {
+            return "Вопрос по профилю";
+        } else if (path === '/cart/') {
+            return "Вопрос по корзине";
+        } else {
+            return "Общая поддержка";
         }
     }
 
@@ -196,19 +210,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            // Сортируем сообщения по дате создания (от старых к новым)
             const sortedData = data.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-            // Для reset - добавляем все сообщения в правильном порядке
             if (reset) {
                 sortedData.forEach(msg => {
                     addMessageToChat(msg);
                 });
 
-                // Прокручиваем вниз
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             } else {
-                // Старые сообщения добавляем в начало
                 const fragment = document.createDocumentFragment();
                 sortedData.reverse().forEach(msg => {
                     const messageDiv = createMessageElement(msg);
@@ -254,19 +264,16 @@ document.addEventListener('DOMContentLoaded', function () {
         return messageDiv;
     }
 
-    // Вспомогательная функция для добавления сообщения в чат
     function addMessageToChat(msg) {
         const messageDiv = createMessageElement(msg);
         chatMessages.appendChild(messageDiv);
     }
 
-    // Бесконечная прокрутка вверх
     function setupInfiniteScroll() {
         chatMessages.addEventListener('scroll', async function () {
             if (chatMessages.scrollTop === 0 && hasMore && !isLoading) {
                 const currentScrollHeight = chatMessages.scrollHeight;
                 await loadMessages(false);
-                // Сохраняем позицию после подгрузки
                 chatMessages.scrollTop = chatMessages.scrollHeight - currentScrollHeight;
             }
         });
