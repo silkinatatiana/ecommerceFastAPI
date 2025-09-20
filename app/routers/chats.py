@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import update, select
 
-from app.database.chats import update_chat_status
+from app.database.chats import update_chat_status, create_chat
 from app.database.db_depends import get_db
 from app.schemas import ChatCreate
 from app.models import *
@@ -52,10 +52,10 @@ async def get_all_chats(db: AsyncSession = Depends(get_db),
 
 @router.get('/load-more', response_class=HTMLResponse)
 async def get_chats_partial(
-    request: Request,
-    page: int = 1,
-    token: Optional[str] = Cookie(None, alias='token'),
-    db: AsyncSession = Depends(get_db)
+        request: Request,
+        page: int = 1,
+        token: Optional[str] = Cookie(None, alias='token'),
+        db: AsyncSession = Depends(get_db)
 ):
     try:
         if not token:
@@ -135,14 +135,10 @@ async def chat_create(chat_data: ChatCreate,
         result = await db.execute(query_employee_ids)
         employee_ids = result.scalars().all()
 
-        chat_item = Chats(
-            user_id=user_id,
-            employee_id=choice(employee_ids).id,
-            topic=chat_data.topic
-        )
-
-        db.add(chat_item)
-        await db.commit()
+        await create_chat(user_id=user_id,
+                          employee_id=choice(employee_ids).id,
+                          topic=chat_data.topic,
+                          db=db)
         return {"message": f"Создан новый чат на тему: '{chat_data.topic}'"}
 
     except HTTPException:

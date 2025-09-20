@@ -124,9 +124,8 @@ from app.models import Chats
 #         current_user = await db.scalar(select(User).where(User.id == user_id))
 
 
-#TODO UPDATE
 async def update_chat_status(chat_id: int,
-                         db: AsyncSession = Depends(get_db)):
+                             db: AsyncSession = Depends(get_db)):
     query = update(Chats).where(Chats.id == chat_id).values(active=False)
     result = await db.execute(query)
 
@@ -134,10 +133,15 @@ async def update_chat_status(chat_id: int,
         raise HTTPException(status_code=404, detail="Chat not found")
     await db.commit()
 
-#TODO CREATE
-#
-# chat_item = Chats(
-#     user_id=user_id,
-#     employee_id=choice(employee_ids).id,
-#     topic=chat_data.topic
-# )
+
+async def create_chat(user_id: int,
+                      employee_id: int,
+                      topic: str,
+                      db: AsyncSession = Depends(get_db)):
+    chat_item = Chats(
+        user_id=user_id,
+        employee_id=employee_id,
+        topic=topic
+    )
+    db.add(chat_item)
+    await db.commit()
