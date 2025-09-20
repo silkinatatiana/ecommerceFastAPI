@@ -251,14 +251,18 @@ async def product_detail_page(
     avg_rating = sum(r.grade for r in product.reviews) / review_count if review_count > 0 else 0
 
     formatted_reviews = []
+    print(0)
+    print(product.reviews)
     for review in product.reviews:
         formatted_reviews.append({
             "author": review.user.username if review.user else "Аноним",
             "date": review.comment_date.strftime("%d.%m.%Y"),
             "rating": review.grade,
             "text": review.comment,
-            "photo_urls": review.photo_urls if review.photo_urls else []
+            "images": review.photo_urls or []
         })
+        print(1)
+        print(review.photo_urls)
 
     recommended_products = await db.scalars(
         select(Product)

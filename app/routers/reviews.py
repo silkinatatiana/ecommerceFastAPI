@@ -1,11 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
 
 from app.backend.db_depends import get_db
 from app.schemas import CreateReviews
@@ -90,28 +88,28 @@ async def delete_review(
     return {'message': 'Review deleted successfully'}
 
 
-@router.get('/product/{product_id}/reviews', response_class=HTMLResponse)
-async def product_reviews(request: Request, product_id: int, db: AsyncSession = Depends(get_db)):
-    product = await db.get(Product, product_id)
-    if not product:
-        return templates.TemplateResponse(
-            "exceptions/not_found.html",
-            {"request": request}
-        )
-
-    reviews = await db.execute(
-        select(Review)
-        .where(Review.product_id == product_id)
-        .options(joinedload(Review.user))
-    )
-
-    return templates.TemplateResponse("products/reviews.html", {
-        "request": request,
-        "reviews": [{
-            "author": r.user.username if r.user else "Аноним",
-            "date": r.comment_date.strftime("%d.%m.%Y"),
-            "rating": r.grade,
-            "text": r.comment,
-            "photo_urls": r.photo_urls if r.photo_urls else []
-        } for r in reviews.scalars()]
-    })
+# @router.get('/product/{product_id}/reviews', response_class=HTMLResponse)
+# async def product_reviews(request: Request, product_id: int, db: AsyncSession = Depends(get_db)):
+#     product = await db.get(Product, product_id)
+#     if not product:
+#         return templates.TemplateResponse(
+#             "exceptions/not_found.html",
+#             {"request": request}
+#         )
+#
+#     reviews = await db.execute(
+#         select(Review)
+#         .where(Review.product_id == product_id)
+#         .options(joinedload(Review.user))
+#     )
+#
+#     return templates.TemplateResponse("products/reviews.html", {
+#         "request": request,
+#         "reviews": [{
+#             "author": r.user.username if r.user else "Аноним",
+#             "date": r.comment_date.strftime("%d.%m.%Y"),
+#             "rating": r.grade,
+#             "text": r.comment,
+#             "photo_urls": r.photo_urls if r.photo_urls else []
+#         } for r in reviews.scalars()]
+#     })
