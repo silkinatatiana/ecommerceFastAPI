@@ -7,11 +7,12 @@
 {% endblock %}
 
 {% block content %}
-    <div class="cart-container">
-        <div class="cart-header">
+    <div class="cart-header">
+        {% if products %}
             <a href="{{ url_for('get_main_page') }}" class="back-to-catalog">← Вернуться в каталог</a>
-            <h1>Корзина</h1>
-        </div>
+        {% endif %}
+        <h1>Корзина</h1>
+    </div>
 
         {% if not products %}
             <div class="empty-cart-message">
