@@ -111,17 +111,6 @@ function navigateFullscreen(direction) {
     }
 }
 
-function closeFullscreen() {
-    const fullscreenGallery = document.getElementById('fullscreenGallery');
-    if (fullscreenGallery) {
-        fullscreenGallery.style.opacity = '0';
-        setTimeout(() => {
-            fullscreenGallery.style.display = 'none';
-            document.body.style.overflow = 'auto';
-        }, 300);
-    }
-}
-
 function initReviewsSection() {
     const toggleBtn = document.getElementById('moreReviewsToggle');
     const moreReviews = document.getElementById('moreReviews');
@@ -149,58 +138,6 @@ function initReviewsSection() {
     });
 }
 
-function initReviewGalleries() {
-    document.querySelectorAll('.review-gallery').forEach(gallery => {
-        const thumbnails = gallery.querySelectorAll('.review-thumbnail');
-        if (thumbnails.length > 0) {
-            thumbnails[0].classList.add('active');
-            
-            thumbnails.forEach((thumb, index) => {
-                thumb.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const mainImg = this.closest('.review-gallery').querySelector('.review-main-image');
-                    if (mainImg) {
-                        mainImg.src = this.src;
-                        thumbnails.forEach(t => t.classList.remove('active'));
-                        this.classList.add('active');
-                    }
-                });
-            });
-            
-            // Обработчик для основного изображения
-            const mainImg = gallery.querySelector('.review-main-image');
-            if (mainImg) {
-                mainImg.addEventListener('click', function() {
-                    const activeIndex = Array.from(thumbnails).findIndex(t => t.classList.contains('active'));
-                    openFullscreenReviewImage(this.src, activeIndex, thumbnails.length);
-                });
-            }
-        }
-    });
-}
-
-function openFullscreenReviewImage(src, index, total) {
-    const fullscreen = document.getElementById('fullscreenReviewImage');
-    const fullscreenImg = document.getElementById('fullscreenReviewImg');
-    
-    if (!fullscreen || !fullscreenImg) return;
-    
-    currentReviewIndex = index;
-    currentReviewImages = Array.from(document.querySelectorAll('.review-thumbnail')).map(t => t.src);
-    
-    fullscreenImg.src = src;
-    fullscreen.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeFullscreenReviewImage() {
-    const fullscreen = document.getElementById('fullscreenReviewImage');
-    if (fullscreen) {
-        fullscreen.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-}
-
 function initReviewForm() {
     const reviewForm = document.getElementById('reviewForm');
     const newReviewForm = document.getElementById('newReviewForm');
@@ -221,6 +158,32 @@ function showReviewForm() {
             reviewForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }
+}
+
+function openReviewFullscreen(element, index, total) {
+    const modal = document.getElementById('fullscreenReviewModal');
+    const img = document.getElementById('fullscreenReviewImg');
+    const counter = document.getElementById('fullscreenReviewCounter');
+
+    if (!modal || !img || !counter) return;
+
+    // Получаем все изображения из галереи этого отзыва
+    const gallery = element.closest('.review-thumbnails');
+    currentReviewImages = Array.from(gallery.querySelectorAll('.review-thumbnail')).map(el => el.src);
+
+    // Устанавливаем текущий индекс
+    currentReviewIndex = index;
+
+    // Загружаем изображение
+    img.src = currentReviewImages[currentReviewIndex];
+    counter.textContent = `${currentReviewIndex + 1} / ${currentReviewImages.length}`;
+
+    // Показываем модалку
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    // Добавляем обработчик клавиш
+    document.addEventListener('keydown', handleReviewKeydown);
 }
 
 function addImageUrlField() {
@@ -286,34 +249,6 @@ async function submitReview() {
     }
 }
 
-function selectReviewImage(thumbnail, imageUrl) {
-  // Снимаем выделение со всех миниатюр
-  document.querySelectorAll('.review-image-thumbnail').forEach(img => {
-    img.classList.remove('selected');
-  });
-  
-  // Выделяем текущую миниатюру
-  thumbnail.classList.add('selected');
-  
-  // Обновляем основное изображение
-  const mainImage = thumbnail.closest('.review-gallery').querySelector('.review-main-image');
-  if (mainImage) {
-    mainImage.src = imageUrl;
-  }
-}
-
-function openReviewFullscreen(imgElement) {
-  const gallery = imgElement.closest('.review-gallery');
-  const images = Array.from(gallery.querySelectorAll('.review-image-thumbnail')).map(img => img.src);
-  const currentIndex = images.indexOf(imgElement.src);
-  
-  document.getElementById('fullscreenImage').src = imgElement.src;
-  currentImageIndex = currentIndex;
-  productImages = images; // Используем существующую переменную
-  
-  openFullscreen(currentIndex);
-}
-
 function toggleSpecs() {
     const specsContent = document.querySelector('.specs-content');
     const toggleBtn = document.querySelector('.specs-toggle');
@@ -337,4 +272,44 @@ function getCookie(name) {
         }
     }
     return cookieValue;
+}
+
+function closeFullscreenReviewModal() {
+    const modal = document.getElementById('fullscreenReviewModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        document.removeEventListener('keydown', handleReviewKeydown);
+    }
+}
+
+function navigateReviewImage(direction) {
+    if (currentReviewImages.length === 0) return;
+
+    currentReviewIndex += direction;
+
+    // Циклическая навигация
+    if (currentReviewIndex < 0) {
+        currentReviewIndex = currentReviewImages.length - 1;
+    } else if (currentReviewIndex >= currentReviewImages.length) {
+        currentReviewIndex = 0;
+    }
+
+    const img = document.getElementById('fullscreenReviewImg');
+    const counter = document.getElementById('fullscreenReviewCounter');
+
+    if (img) {
+        img.src = currentReviewImages[currentReviewIndex];
+        counter.textContent = `${currentReviewIndex + 1} / ${currentReviewImages.length}`;
+    }
+}
+
+function handleReviewKeydown(e) {
+    if (e.key === 'ArrowLeft') {
+        navigateReviewImage(-1);
+    } else if (e.key === 'ArrowRight') {
+        navigateReviewImage(1);
+    } else if (e.key === 'Escape') {
+        closeFullscreenReviewModal();
+    }
 }

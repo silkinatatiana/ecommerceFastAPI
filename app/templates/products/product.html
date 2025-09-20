@@ -189,23 +189,17 @@
                     {{ review.text }}
                 </div>
                 {% if review.images and review.images|length > 0 %}
-                <div class="review-gallery">
-                    <div class="review-main-image-container">
-                        <img src="{{ review.images[0] }}"
-                             class="review-main-image"
-                             alt="Отзыв {{ loop.index }}"
-                             onclick="openReviewFullscreen(this)">
-                    </div>
-                    {% if review.images|length > 1 %}
+                <div class="review-gallery" data-review-id="{{ loop.index0 }}">
                     <div class="review-thumbnails">
                         {% for image in review.images %}
                         <img src="{{ image }}"
-                             class="review-thumbnail {% if loop.first %}active{% endif %}"
-                             alt="Миниатюра {{ loop.index }}"
-                             onclick="changeReviewMainImage(this, '{{ image }}', {{ loop.index0 }}, {{ review.images|length }})">
+                             class="review-thumbnail"
+                             alt="Изображение {{ loop.index }} к отзыву {{ loop.index0 + 1 }}"
+                             data-index="{{ loop.index0 }}"
+                             data-total="{{ review.images|length }}"
+                             onclick="openReviewFullscreen(this, {{ loop.index0 }}, {{ review.images|length }})">
                         {% endfor %}
                     </div>
-                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -236,23 +230,17 @@
                         {{ review.text }}
                     </div>
                     {% if review.images and review.images|length > 0 %}
-                    <div class="review-gallery">
-                        <div class="review-main-image-container">
-                            <img src="{{ review.images[0] }}"
-                                 class="review-main-image"
-                                 alt="Отзыв {{ loop.index + 3 }}"
-                                 onclick="openFullscreenReviewImage('{{ review.images[0] }}', {{ loop.index0 }}, {{ review.images|length }})">
-                        </div>
-                        {% if review.images|length > 1 %}
+                    <div class="review-gallery" data-review-id="{{ loop.index0 }}">
                         <div class="review-thumbnails">
                             {% for image in review.images %}
                             <img src="{{ image }}"
-                                 class="review-thumbnail {% if loop.first %}active{% endif %}"
-                                 alt="Миниатюра {{ loop.index }}"
-                                 onclick="changeReviewMainImage(this, '{{ image }}', {{ loop.index0 }}, {{ review.images|length }})">
+                                 class="review-thumbnail"
+                                 alt="Изображение {{ loop.index }} к отзыву {{ loop.parent.loop.index }}"
+                                 data-index="{{ loop.index0 }}"
+                                 data-total="{{ review.images|length }}"
+                                 onclick="openReviewFullscreen(this, {{ loop.index0 }}, {{ review.images|length }})">
                             {% endfor %}
                         </div>
-                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
@@ -295,6 +283,13 @@
         </form>
     </div>
 </div>
+<div class="fullscreen-review-modal" id="fullscreenReviewModal">
+    <span class="fullscreen-review-close" onclick="closeFullscreenReviewModal()">&times;</span>
+    <button class="fullscreen-review-nav fullscreen-review-prev" onclick="navigateReviewImage(-1)">❮</button>
+    <button class="fullscreen-review-nav fullscreen-review-next" onclick="navigateReviewImage(1)">❯</button>
+    <img src="" id="fullscreenReviewImg" class="fullscreen-review-img">
+    <div class="fullscreen-review-counter" id="fullscreenReviewCounter"></div>
+</div>
 
 {% if recommended_products %}
 <section class="recommended-products">
@@ -309,11 +304,6 @@
     </div>
 </section>
 {% endif %}
-
-<div class="fullscreen-review-image" id="fullscreenReviewImage">
-    <span class="close-fullscreen" onclick="closeFullscreenReviewImage()">&times;</span>
-    <img src="" id="fullscreenReviewImg">
-</div>
 {% endblock %}
 
 {% block scripts %}
