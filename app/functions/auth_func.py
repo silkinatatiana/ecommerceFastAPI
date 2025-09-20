@@ -79,7 +79,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             detail="Token expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.PyJWTError:
+    except jwt.JWTError:
         raise credentials_exception
 
 

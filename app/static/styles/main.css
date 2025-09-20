@@ -123,20 +123,29 @@
 }
 
 .view-all-btn {
-    background: linear-gradient(135deg, rgba(44, 62, 80, 0.7) 0%, rgba(52, 152, 219, 0.7) 100%);
-    color: white;
-    border: none;
+    background-color: #f1f3f4;
+    color: var(--text-color);
     padding: 10px 20px;
-    border-radius: 6px;
+    border: none;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 14px;
     font-weight: 500;
+    font-size: 1rem;
     transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
 }
 
 .view-all-btn:hover {
-    background: linear-gradient(135deg, rgba(52, 73, 94, 0.8) 0%, rgba(41, 128, 185, 0.8) 100%);
+    background-color: #e0e0e0;
+    color: var(--text-color);
     transform: translateY(-1px);
+}
+
+.view-all-btn:active {
+    transform: translateY(0);
 }
 
 .no-products-found {
