@@ -171,7 +171,7 @@ async def delete_product_from_cart(product_id: int,
         )
 
 
-@router.post('/clear')  # TODO переписать вместе на delete(422)
+@router.post('/clear', status_code=status.HTTP_204_NO_CONTENT)  # TODO переписать вместе на delete(422)
 async def clear_cart(
         token: Optional[str] = Cookie(None, alias='token'),
         db: AsyncSession = Depends(get_db)
