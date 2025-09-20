@@ -4,10 +4,11 @@
     --text-color: #202124;
     --light-text: #5f6368;
     --border-color: #dadce0;
+    --ocean-deep: #1e466d;
+    --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 body {
-    font-family: 'Roboto', Arial, sans-serif;
     margin: 0;
     padding: 0;
     background-color: #f8f9fa;

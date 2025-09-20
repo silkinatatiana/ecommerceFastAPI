@@ -11,6 +11,7 @@ from sqlalchemy import select
 from app.backend.db_depends import get_db
 from app.schemas import ChatCreate
 from app.models import *
+from app.config import Config
 from app.functions.auth_func import get_user_id_by_token, get_current_user
 
 router = APIRouter(prefix='/chats', tags=['chats'])
@@ -209,8 +210,8 @@ async def view_chat(
             'employee': employee,
             'is_authenticated': True,
             'user_id': user_id,
-            'shop_name': 'PEAR',
-            'descr': 'Интернет-магазин электроники'
+            "shop_name": Config.shop_name,
+            "descr": Config.descr,
         })
 
     except Exception as e:

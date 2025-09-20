@@ -1,5 +1,4 @@
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f8f9fa;
     color: #333;
     line-height: 1.6;
@@ -46,7 +45,6 @@ body {
     color: #2980b9;
 }
 
-/* Сообщение о пустой корзине */
 .empty-cart-message {
     text-align: center;
     padding: 3rem;

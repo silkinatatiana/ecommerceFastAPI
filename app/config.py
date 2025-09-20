@@ -11,10 +11,8 @@ class Config:
     minutes = 1
     API_HOST = os.getenv('API_HOST')
     API_PORT = os.getenv('API_PORT')
-    shop_info = {
-        'shop_name': 'PEAR',
-        'descr': 'магазин электроники'
-    }
+    shop_name = os.getenv('SHOP_NAME')
+    descr = os.getenv('DESCR')
 
 
 class Statuses:

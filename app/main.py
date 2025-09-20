@@ -25,7 +25,6 @@ from app.log.log import LOGGER
 
 logger = LOGGER
 logger.setLevel(logging.INFO)
-shop_info = Config.shop_info
 
 
 @asynccontextmanager
@@ -271,8 +270,8 @@ async def get_main_page(
 
     context = {
         "request": request,
-        "shop_name": "PEAR",
-        "descr": "Магазин техники и электроники",
+        "shop_name": Config.shop_name,
+        "descr": Config.descr,
         "categories": list(categories_products.keys()),
         "colors": all_colors,
         "selected_colors": selected_colors_list,

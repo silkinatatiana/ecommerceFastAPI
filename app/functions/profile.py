@@ -11,8 +11,8 @@ async def get_tab_by_section(section, templates, request, user, page, db, user_d
         "user_id": user.id,
         "config": Config.url,
         "is_authenticated": True,
-        "shop_name": "PEAR",
-        "descr": "Магазин техники и электроники"
+        "shop_name": Config.shop_name,
+        "descr": Config.descr,
     }
 
     dict_tab = {

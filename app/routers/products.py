@@ -310,9 +310,9 @@ async def product_detail_page(
             ],
             "favorite_product_ids": favorite_product_ids,
             "in_cart_product_ids": in_cart_product_ids,
-            "shop_name": "PEAR",
             "url": Config.url,
-            "descr": "Интернет-магазин электроники"
+            "shop_name": Config.shop_name,
+            "descr": Config.descr,
         }
     )
 

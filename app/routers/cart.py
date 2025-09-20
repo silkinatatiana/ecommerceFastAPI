@@ -240,8 +240,8 @@ async def get_cart_html(request: Request,
             "is_authenticated": is_authenticated,
             "user_id": user_id,
             "products": cart_products,
-            "shop_name": "PEAR",
             "url": Config.url,
-            "descr": "Интернет-магазин электроники"
+            "shop_name": Config.shop_name,
+            "descr": Config.descr
         }
     )

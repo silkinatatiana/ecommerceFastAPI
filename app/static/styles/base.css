@@ -33,27 +33,19 @@ body {
 }
 
 header {
-    background: linear-gradient(135deg, var(--ocean-deep), var(--secondary-color));
+    background-color: var(--ocean-deep);
     color: white;
-    padding: 2rem 1rem;
+    padding: 2rem 0;
     text-align: center;
     box-shadow: var(--box-shadow);
+    width: 100%;
+    margin: 0;
+    position: relative;
 }
 
-header h1 {
-    font-size: clamp(2rem, 5vw, 2.5rem);
-    margin-bottom: 0.5rem;
-}
-
-header p {
-    font-size: clamp(1rem, 2.5vw, 1.2rem);
-    opacity: 0.9;
-    max-width: 800px;
-    margin: 0 auto;
-}
 
 nav {
-    background-color: var(--ocean-deep);
+    background-color: var(--ocean-dark);
     padding: 1rem;
     text-align: center;
 }
@@ -89,14 +81,50 @@ footer {
 .header-container {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 20px;
+    position: relative;
+    height: 80px;
+
+.header-text-left {
+    flex: 1;
+    min-width: 0;
 }
 
-.header-text {
+.header-text-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 1;
+    white-space: nowrap;
+}
+
+.header-text-center h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: clamp(2rem, 5vw, 2.5rem);
+    font-weight: 600;
+    white-space: normal;
+}
+
+.header-text-center p {
+    margin: 0;
+    font-size: clamp(1rem, 2.5vw, 1.2rem);
+    opacity: 0.9;
+    max-width: 800px;
+    line-height: 1.5;
+    white-space: normal;
+}
+
+.header-icons {
+    display: flex;
+    align-items: center;
+    gap: 20px;
     flex: 1;
+    justify-content: flex-end;
 }
 
 .user-icon-container {
@@ -187,7 +215,6 @@ footer {
     font-size: 1.2rem;
 }
 
-/* Дополнительные стили для кнопок в океанской гамме */
 .btn-primary {
     background-color: var(--ocean-deep);
     color: white;
@@ -203,7 +230,6 @@ footer {
     transform: translateY(-2px);
 }
 
-/* Ссылки в глубоком океанском синем */
 a {
     color: var(--ocean-deep);
     text-decoration: none;
@@ -215,17 +241,14 @@ a:hover {
     text-decoration: underline;
 }
 
-/* Для карточек товаров */
 .product-card .product-price {
     color: var(--ocean-deep) !important;
 }
 
-/* Для рекомендуемых товаров */
 .recommended-products .product-card .product-price {
     color: var(--ocean-deep) !important;
 }
 
-/* Дополнительные акцентные элементы */
 .rating-stars {
     color: var(--ocean-deep);
 }
