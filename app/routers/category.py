@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from slugify import slugify
 
 from app.functions.auth_func import get_current_user
-from app.backend.db_depends import get_db
+from app.database.db_depends import get_db
 from app.schemas import CreateCategory
 from app.models.category import Category
 

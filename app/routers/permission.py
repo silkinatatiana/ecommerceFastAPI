@@ -5,7 +5,7 @@ from sqlalchemy import select, update
 from starlette import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.backend.db_depends import get_db
+from app.database.db_depends import get_db
 from app.models.users import User
 from .auth import get_current_user
 

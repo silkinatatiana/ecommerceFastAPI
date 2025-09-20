@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.backend.db_depends import get_db
+from app.database.db_depends import get_db
 
 
 async def select_command(table,

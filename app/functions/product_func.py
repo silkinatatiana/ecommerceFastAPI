@@ -3,7 +3,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Product
-from app.backend.db_depends import get_db
+from app.database.db_depends import get_db
 
 
 async def check_stock(product_id: int,

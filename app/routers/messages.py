@@ -11,7 +11,7 @@ import httpx
 import jwt
 from loguru import logger
 
-from app.backend.db_depends import get_db
+from app.database.db_depends import get_db
 from app.schemas import CreateProduct, ProductOut
 from app.models import *
 from app.models import Review

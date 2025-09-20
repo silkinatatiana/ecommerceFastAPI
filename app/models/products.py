@@ -1,4 +1,4 @@
-from app.backend.db import Base
+from app.database.db import Base
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, JSON, FLOAT
 from sqlalchemy.orm import relationship
 from .users import User

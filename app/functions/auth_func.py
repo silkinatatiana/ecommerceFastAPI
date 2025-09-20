@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import bcrypt
 
-from app.backend.db_depends import get_db
+from app.database.db_depends import get_db
 from app.models import User
 from app.config import Config
 

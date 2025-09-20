@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, RedirectResponse
 
-from app.backend.db_depends import get_db
+from app.database.db_depends import get_db
 from app.config import Config, Statuses
 from app.models import User
 from app.models.orders import Orders

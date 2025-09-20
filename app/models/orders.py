@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.sql import func
 
 from app.config import Statuses
-from app.backend.db import Base
+from app.database.db import Base
 
 
 class Orders(Base):

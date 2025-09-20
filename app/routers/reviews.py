@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.backend.db_depends import get_db
+from app.database.db_depends import get_db
 from app.schemas import CreateReviews
 from app.models import *
 from app.models import Review

@@ -12,7 +12,7 @@ from passlib.context import CryptContext
 from app.functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
 from app.functions.profile import get_tab_by_section
 from app.models.users import User
-from app.backend.db_depends import get_db
+from app.database.db_depends import get_db
 from app.config import Config
 from app.schemas import ProfileUpdate, PasswordUpdate
 

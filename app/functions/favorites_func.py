@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import logger
 from app.models import Favorites
-from app.backend.db_depends import get_db
+from app.database.db_depends import get_db
 
 
 async def get_favorite_product_ids(user_id: int,

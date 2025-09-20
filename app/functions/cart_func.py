@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import select
 
 from app.main import logger
-from app.backend.db_depends import get_db
+from app.database.db_depends import get_db
 from app.functions.product_func import check_stock
 from app.models import Cart
 from app.schemas import CartUpdate

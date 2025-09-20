@@ -9,7 +9,7 @@ from starlette.responses import HTMLResponse, Response
 import httpx
 import jwt
 
-from app.backend.db_depends import get_db
+from app.database.db_depends import get_db
 from app.config import Config
 from app.models import Product
 from app.models.cart import Cart

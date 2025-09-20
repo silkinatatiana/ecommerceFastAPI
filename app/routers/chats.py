@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, status, HTTPException, Cookie, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import update
-from sqlalchemy import select
+from sqlalchemy import update, select
 
-from app.backend.db_depends import get_db
+from app.database.chats import update_chat_status
+from app.database.db_depends import get_db
 from app.schemas import ChatCreate
 from app.models import *
 from app.config import Config
@@ -120,7 +120,6 @@ async def chat_by_id(chat_id: int,
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-#TODO  Сделать так, чтобы при создании чата отправлялась та тема, в зависимости от того, на какой странице открыт чат при создании
 
 @router.post('/create', status_code=status.HTTP_201_CREATED)
 async def chat_create(chat_data: ChatCreate,
@@ -157,12 +156,7 @@ async def chat_create(chat_data: ChatCreate,
 async def chats_close(chat_id: int,
                       db: AsyncSession = Depends(get_db)):
     try:
-        query = update(Chats).where(Chats.id == chat_id).values(active=False)
-        result = await db.execute(query)
-
-        if result.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Chat not found")
-        await db.commit()
+        await update_chat_status(chat_id=chat_id, db=db)
 
     except HTTPException:
         raise

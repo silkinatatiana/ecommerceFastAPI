@@ -15,8 +15,8 @@ import httpx
 import jwt
 
 from app.routers import category, products, auth, permission, reviews, favorites, cart, orders, chats, messages
-from app.backend.db_depends import get_db
-from app.backend.db import Base, engine
+from app.database.db_depends import get_db
+from app.database.db import Base, engine
 from app.models import *
 from app.config import Config
 from app.functions.favorites_func import get_favorite_product_ids
