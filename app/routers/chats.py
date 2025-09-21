@@ -9,6 +9,7 @@ from sqlalchemy import update, select
 
 from app.database.chats import update_chat_status, create_chat, get_chat
 from app.database.db_depends import get_db
+from app.database.messages import get_message
 from app.schemas import ChatCreate
 from app.models import *
 from app.config import Config
@@ -33,13 +34,10 @@ async def get_all_chats(db: AsyncSession = Depends(get_db),
                                 detail='Чаты не найдены')
 
         for chat in chats:
-            last_msg_query = (
-                select(Messages)
-                .where(Messages.chat_id == chat.id)
-                .order_by(Messages.created_at.desc())
-                .limit(1)
-            )
-            last_msg = await db.scalar(last_msg_query)
+            last_msg = await get_message(chat_id=chat.id,
+                                         sort_desc=True,
+                                         db=db)
+
             chat.last_message = last_msg
 
         return chats
@@ -73,13 +71,11 @@ async def get_chats_partial(
         chats = chats_with_extra[:limit]
 
         for chat in chats:
-            last_msg_query = (
-                select(Messages)
-                .where(Messages.chat_id == chat.id)
-                .order_by(Messages.created_at.desc())
-                .limit(1)
-            )
-            chat.last_message = await db.scalar(last_msg_query)
+            last_msg = await get_message(chat_id=chat.id,
+                                         sort_desc=True,
+                                         limit=1,
+                                         db=db)
+            chat.last_message = last_msg
 
         return templates.TemplateResponse("profile/chat_items.html", {
             "request": request,
@@ -176,12 +172,16 @@ async def view_chat(
             )
 
         employee = await db.scalar(select(User).where(User.id == chat.employee_id))
-        messages_query = (
-            select(Messages)
-            .where(Messages.chat_id == chat_id)
-            .order_by(Messages.created_at.asc())
-        )
-        messages = (await db.execute(messages_query)).scalars().all()
+        # messages_query = (
+        #     select(Messages)
+        #     .where(Messages.chat_id == chat_id)
+        #     .order_by(Messages.created_at.asc())
+        # )
+        # messages = (await db.execute(messages_query)).scalars().all()
+        messages = await get_message(
+                                    chat_id=chat_id,
+                                    sort_asc=True,
+                                    db=db)
 
         current_user = await db.scalar(select(User).where(User.id == user_id))
 

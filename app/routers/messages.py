@@ -1,24 +1,16 @@
-from typing import Annotated, Optional
+from typing import Optional
 
-from fastapi import APIRouter, Depends, status, HTTPException, Request, Query, Cookie
+from fastapi import APIRouter, Depends, status, HTTPException, Query, Cookie
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import joinedload
-from sqlalchemy import select, func, or_
-import httpx
-import jwt
-from loguru import logger
+from sqlalchemy import select
 
+from app.database.chats import get_chat
 from app.database.db_depends import get_db
-from app.schemas import CreateProduct, ProductOut
+from app.database.messages import create_message
 from app.models import *
-from app.models import Review
-from app.functions.cart_func import get_in_cart_product_ids
-from app.functions.auth_func import get_current_user, get_user_id_by_token
+from app.functions.auth_func import get_user_id_by_token
 from app.schemas import MessageCreate
-from app.config import Config
 
 router = APIRouter(prefix='/messages', tags=['messages'])
 templates = Jinja2Templates(directory='app/templates/')
@@ -26,10 +18,10 @@ templates = Jinja2Templates(directory='app/templates/')
 
 @router.get('/by_chat/{chat_id}')
 async def messages_by_chat_id(
-    chat_id: int,
-    page: int = Query(1, ge=1),
-    limit: int = Query(15, ge=1, le=50),
-    db: AsyncSession = Depends(get_db)
+        chat_id: int,
+        page: int = Query(1, ge=1),
+        limit: int = Query(15, ge=1, le=50),
+        db: AsyncSession = Depends(get_db)
 ):
     try:
         offset = (page - 1) * limit
@@ -48,8 +40,8 @@ async def messages_by_chat_id(
 
         messages = []
         for row in rows:
-            msg = row[0]  # Messages instance
-            sender_name = row[1]  # username
+            msg = row[0]
+            sender_name = row[1]
             msg_dict = {
                 "id": msg.id,
                 "chat_id": msg.chat_id,
@@ -71,9 +63,9 @@ async def messages_by_chat_id(
 
 @router.post('/create', status_code=status.HTTP_201_CREATED)
 async def messages_create(
-    message_data: MessageCreate,
-    db: AsyncSession = Depends(get_db),
-    token: Optional[str] = Cookie(None, alias='token')
+        message_data: MessageCreate,
+        db: AsyncSession = Depends(get_db),
+        token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
         if not token:
@@ -81,28 +73,20 @@ async def messages_create(
 
         user_id = get_user_id_by_token(token)
 
-        # Используем chat_id из запроса, а не ищем активный
-        query = select(Chats).where(
-            Chats.id == message_data.chat_id,
-            Chats.user_id == user_id,  # защита: только свои чаты
-            Chats.active == True       # только активные
-        )
-        chat = await db.execute(query)
-        chat = chat.scalar_one_or_none()
+        chat = await get_chat(chat_id=message_data.chat_id,
+                              user_id=user_id,
+                              is_active=True,
+                              db=db)
 
         if not chat:
             raise HTTPException(status_code=404, detail="Активный чат не найден")
 
-        message_item = Messages(
+        await create_message(
             chat_id=message_data.chat_id,
             message=message_data.message,
-            sender_id=user_id
+            sender_id=user_id,
+            db=db
         )
-
-        db.add(message_item)
-        await db.commit()
-
-        return {"message_id": message_item.id}  # полезно для фронтенда
 
     except HTTPException:
         raise
