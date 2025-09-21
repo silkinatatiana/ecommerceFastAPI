@@ -20,8 +20,12 @@ bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
 
 
-async def create_access_token(username: str, user_id: int, is_admin: bool, role: str,
-                              expires_delta: timedelta):
+def create_access_token(username: str,
+                        user_id: int,
+                        expires_delta: timedelta,
+                        is_admin: bool = False,
+                        role: str = "customer"
+                        ):
     payload = {
         'sub': username,
         'id': user_id,

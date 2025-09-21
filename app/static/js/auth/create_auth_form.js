@@ -9,25 +9,21 @@ function showPasswordReset() {
 }
 
 function switchTab(tabName) {
-    // Переключение активной вкладки
     document.querySelectorAll('.auth-tab').forEach(tab => {
         tab.classList.remove('active');
     });
     document.querySelector(`.auth-tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
 
-    // Переключение активной формы
     document.querySelectorAll('.auth-form').forEach(form => {
         form.style.display = 'none';
     });
 
-    // Показываем выбранную форму
     if (tabName === 'login') {
         document.getElementById('login-form').style.display = 'block';
     } else if (tabName === 'register') {
         document.getElementById('register-form').style.display = 'block';
     }
 
-    // Скрываем все сообщения об ошибках
     document.querySelectorAll('.error-message, .success-message').forEach(msg => {
         msg.style.display = 'none';
     });
@@ -47,7 +43,7 @@ document.getElementById('register-form').addEventListener('submit', async functi
             method: 'POST',
             body: formData,
             headers: {
-                'Accept': 'application/json' // Важно!
+                'Accept': 'application/json'
             },
             credentials: 'include'
         });
@@ -67,7 +63,13 @@ document.getElementById('register-form').addEventListener('submit', async functi
         }
     } catch (error) {
         console.error('Ошибка:', error);
-        errorElement.textContent = 'Произошла ошибка при отправке формы';
+
+        if (error.response && error.response.data && error.response.data.detail) {
+            errorElement.textContent = error.response.data.detail;
+        } else {
+            errorElement.textContent = 'Произошла ошибка при отправке формы';
+        }
+
         errorElement.style.display = 'block';
     }
 });

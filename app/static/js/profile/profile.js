@@ -24,7 +24,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Проверяем начальное состояние URL
     const urlParams = new URLSearchParams(window.location.search);
     const section = urlParams.get('section');
     const page = urlParams.get('page');

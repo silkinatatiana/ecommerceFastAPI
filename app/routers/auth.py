@@ -9,6 +9,7 @@ from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
+from app.database.crud.users import create_user, get_user, update_user_info
 from app.functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
 from app.functions.profile import get_tab_by_section
 from app.models.users import User
@@ -55,7 +56,7 @@ async def personal_account(
 ):
     try:
         user_dict = await get_current_user(token=token)
-        user = await db.scalar(select(User).where(User.id == user_dict['id']))
+        user = await get_user(user_id=user_dict['id'], db=db)
         response = await get_tab_by_section(section, templates, request, user, page, db, user_dict)
         return response
 
@@ -92,18 +93,31 @@ async def register(
         )
 
     try:
-        await db.execute(insert(User).values(
-            first_name=first_name,
-            last_name=last_name,
-            username=username,
-            email=email,
-            hashed_password=bcrypt_context.hash(password))
+        user = await create_user(first_name=first_name,
+                                 last_name=last_name,
+                                 username=username,
+                                 email=email,
+                                 hashed_password=bcrypt_context.hash(password),
+                                 db=db)
+
+        token_expires = timedelta(minutes=60)
+        token = create_access_token(
+            username=user.username,
+            user_id=user.id,
+            expires_delta=token_expires
         )
-        await db.commit()
-        return JSONResponse(
-            content={"redirect_url": "/auth/account"},
-            status_code=status.HTTP_200_OK
+
+        response_data = {"redirect_url": "/auth/account"}
+        response = JSONResponse(content=response_data, status_code=200)
+        response.set_cookie(
+            key="token",
+            value=token,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+            max_age=3600
         )
+        return response
 
     except Exception as e:
         await db.rollback()
@@ -114,7 +128,7 @@ async def register(
         )
 
 
-@router.post('/login', response_class=HTMLResponse)
+@router.post('/login')
 async def login(request: Request,
                 db: AsyncSession = Depends(get_db),
                 username: str = Form(...),
@@ -122,15 +136,16 @@ async def login(request: Request,
                 ):
     try:
         user = await authenticate_user(db, username, password)
-        token = await create_access_token(
-            user.username,
-            user.id,
-            user.is_admin,
-            user.role,
-            timedelta(minutes=20)
+        token = create_access_token(
+            username=user.username,
+            user_id=user.id,
+            is_admin=user.is_admin,
+            role=user.role,
+            expires_delta=timedelta(minutes=20)
         )
 
         response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+
         response.set_cookie(
             key="token",
             value=token,
@@ -166,34 +181,20 @@ async def update_profile(profile_update: ProfileUpdate,
                          token: Optional[str] = Cookie(None, alias='token'),
                          db: AsyncSession = Depends(get_db)
                          ):
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Для обновления данных необходимо авторизоваться'
-        )
-
-    user = await get_current_user(token)
-
-    update_data = {}
-    if profile_update.first_name is not None:
-        update_data['first_name'] = profile_update.first_name
-    if profile_update.last_name is not None:
-        update_data['last_name'] = profile_update.last_name
-    if profile_update.email is not None:
-        update_data['email'] = profile_update.email
-
-    if not update_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Не указаны данные для обновления'
-        )
-
-    query = update(User).where(User.id == user['id']).values(**update_data)
-
     try:
-        await db.execute(query)
-        await db.commit()
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Для обновления данных необходимо авторизоваться'
+            )
 
+        user = await get_current_user(token)
+
+        await update_user_info(user_id=user['id'],
+                               first_name=profile_update.first_name,
+                               last_name=profile_update.last_name,
+                               email=profile_update.email,
+                               db=db)
         return {"message": "Данные профиля успешно обновлены"}
 
     except Exception as e:
@@ -223,17 +224,18 @@ async def update_password(data: PasswordUpdate,
             )
 
         data_user = await get_current_user(token)
-        user = await db.scalar(select(User).where(User.id == data_user['id']))
+        user = await get_user(user_id=data_user['id'], db=db)
 
-        if not verify_password(plain_password=data.new_password,
+        if not verify_password(plain_password=data.old_password,
                                hashed_password=user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail='Неправильный пароль'
             )
-        query = update(User).where(User.id == data_user['id']).values(hashed_password=bcrypt_context.hash(data.new_password))
-        await db.execute(query)
-        await db.commit()
+
+        await update_user_info(db=db,
+                               user_id=data_user['id'],
+                               hashed_password=bcrypt_context.hash(data.new_password))
 
         return {"message": "Данные профиля успешно обновлены"}
 
