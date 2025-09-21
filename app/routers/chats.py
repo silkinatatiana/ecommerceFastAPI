@@ -5,11 +5,11 @@ from fastapi import APIRouter, Depends, status, HTTPException, Cookie, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import update, select
+from sqlalchemy import select
 
-from app.database.chats import update_chat_status, create_chat, get_chat
+from app.database.crud.chats import update_chat_status, create_chat, get_chat
 from app.database.db_depends import get_db
-from app.database.messages import get_message
+from app.database.crud.messages import get_message
 from app.schemas import ChatCreate
 from app.models import *
 from app.config import Config
@@ -172,12 +172,7 @@ async def view_chat(
             )
 
         employee = await db.scalar(select(User).where(User.id == chat.employee_id))
-        # messages_query = (
-        #     select(Messages)
-        #     .where(Messages.chat_id == chat_id)
-        #     .order_by(Messages.created_at.asc())
-        # )
-        # messages = (await db.execute(messages_query)).scalars().all()
+
         messages = await get_message(
                                     chat_id=chat_id,
                                     sort_asc=True,

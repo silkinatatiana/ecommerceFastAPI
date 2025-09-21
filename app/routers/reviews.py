@@ -83,33 +83,7 @@ async def delete_review(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail='Admin access required'
     #     )
-
+    # TODO дописать метод и дополнить фронтенд
     await db.commit()
     return {'message': 'Review deleted successfully'}
 
-
-# @router.get('/product/{product_id}/reviews', response_class=HTMLResponse)
-# async def product_reviews(request: Request, product_id: int, db: AsyncSession = Depends(get_db)):
-#     product = await db.get(Product, product_id)
-#     if not product:
-#         return templates.TemplateResponse(
-#             "exceptions/not_found.html",
-#             {"request": request}
-#         )
-#
-#     reviews = await db.execute(
-#         select(Review)
-#         .where(Review.product_id == product_id)
-#         .options(joinedload(Review.user))
-#     )
-#
-#     return templates.TemplateResponse("products/reviews.html", {
-#         "request": request,
-#         "reviews": [{
-#             "author": r.user.username if r.user else "Аноним",
-#             "date": r.comment_date.strftime("%d.%m.%Y"),
-#             "rating": r.grade,
-#             "text": r.comment,
-#             "photo_urls": r.photo_urls if r.photo_urls else []
-#         } for r in reviews.scalars()]
-#     })

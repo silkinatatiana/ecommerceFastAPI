@@ -3,7 +3,6 @@ from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 
 
-
 class Category(Base):
     __tablename__ = 'categories'
     __table_args__ = {'extend_existing': True}

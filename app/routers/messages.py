@@ -5,9 +5,9 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.database.chats import get_chat
+from app.database.crud.chats import get_chat
 from app.database.db_depends import get_db
-from app.database.messages import create_message
+from app.database.crud.messages import create_message
 from app.models import *
 from app.functions.auth_func import get_user_id_by_token
 from app.schemas import MessageCreate

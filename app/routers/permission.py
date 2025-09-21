@@ -21,7 +21,8 @@ async def supplier_permission(db: Annotated[AsyncSession, Depends(get_db)],
         user = await db.scalar(select(User).where(User.id == user_id))
 
         if not user:
-            return templates.TemplateResponse('exceptions/not_found.html', {'request': request})
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail='Пользователь не найден')
 
         if user.role == 'seller':
             await db.execute(update(User).where(User.id == user_id).values(is_supplier=False, is_customer=True))

@@ -18,7 +18,6 @@ from app.models import Review
 from app.functions.cart_func import get_in_cart_product_ids
 from app.functions.auth_func import get_current_user
 from app.functions.favorites_func import get_favorite_product_ids
-
 from app.config import Config
 
 router = APIRouter(prefix='/products', tags=['products'])
@@ -316,59 +315,3 @@ async def product_detail_page(
             "descr": Config.descr,
         }
     )
-
-
-# @router.get("/by_category/")
-# async def get_products_by_category(
-#         request: Request,
-#         db: AsyncSession = Depends(get_db),
-#         category_id: int = Query(..., alias="categoryId"),
-#         skip: int = Query(6, alias="skip"),
-#         is_favorite: bool = Query(False, alias="isFavorite"),
-#         user_id: Optional[int] = Query(None)
-# ):
-#     try:
-#         params = {'category_id': category_id}
-#
-#         if is_favorite and user_id:
-#             # 1. Получаем все избранные товары пользователя
-#             fav_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
-#             fav_result = await db.execute(fav_query)
-#             all_favorites = fav_result.scalars().all()
-#
-#             if not all_favorites:
-#                 return []  # Нет избранных товаров вообще
-#
-#             # 2. Получаем товары из нужной категории, которые есть в избранном
-#             products_query = select(Product.id).where(
-#                 Product.id.in_(all_favorites),
-#                 Product.category_id == category_id
-#             )
-#             products_result = await db.execute(products_query)
-#             valid_products = products_result.scalars().all()
-#
-#             if not valid_products:
-#                 return []  # Нет избранных товаров в этой категории
-#
-#             params['product_ids'] = ','.join(map(str, valid_products))
-#
-#         async with httpx.AsyncClient() as client:
-#             response = await client.get(
-#                 f"{Config.url}/products/",
-#                 params=params
-#             )
-#             response.raise_for_status()
-#             products = response.json()
-#
-#             return products[skip - 1:] if skip <= len(products) else []
-#
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(
-#             status_code=502,
-#             detail=f"Product service error: {str(e)}"
-#         )
-#     except Exception as e:
-#         raise HTTPException(
-#             status_code=400,
-#             detail=f"Request processing error: {str(e)}"
-#         )
