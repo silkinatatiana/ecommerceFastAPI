@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import update, select
 
-from app.database.chats import update_chat_status, create_chat
+from app.database.chats import update_chat_status, create_chat, get_chat
 from app.database.db_depends import get_db
 from app.schemas import ChatCreate
 from app.models import *
@@ -27,9 +27,10 @@ async def get_all_chats(db: AsyncSession = Depends(get_db),
 
         user_id = get_user_id_by_token(token)
 
-        query = select(Chats).where(Chats.user_id == user_id).order_by(Chats.created_at.desc())
-        result = await db.execute(query)
-        chats = result.scalars().all()
+        chats = await get_chat(user_id=user_id, sort_desc=True, db=db)
+        if not chats:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail='Чаты не найдены')
 
         for chat in chats:
             last_msg_query = (
@@ -67,16 +68,7 @@ async def get_chats_partial(
         limit = 10
         offset = (page - 1) * limit
 
-        query = (
-            select(Chats)
-            .where(Chats.user_id == user_id)
-            .order_by(Chats.created_at.desc())
-            .offset(offset)
-            .limit(limit + 1)
-        )
-        result = await db.execute(query)
-        chats_with_extra = result.scalars().all()
-
+        chats_with_extra = await get_chat(user_id=user_id, sort_desc=True, offset=offset, limit=(limit + 1), db=db)
         has_more = len(chats_with_extra) > limit
         chats = chats_with_extra[:limit]
 
@@ -105,8 +97,7 @@ async def get_chats_partial(
 async def chat_by_id(chat_id: int,
                      db: AsyncSession = Depends(get_db)):
     try:
-        query = select(Chats).where(Chats.id == chat_id)
-        chat = await db.scalar(query)
+        chat = await get_chat(chat_id=chat_id, db=db)
 
         if not chat:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -139,6 +130,7 @@ async def chat_create(chat_data: ChatCreate,
                           employee_id=choice(employee_ids).id,
                           topic=chat_data.topic,
                           db=db)
+
         return {"message": f"Создан новый чат на тему: '{chat_data.topic}'"}
 
     except HTTPException:
@@ -176,7 +168,7 @@ async def view_chat(
         user_dict = await get_current_user(token=token)
         user_id = user_dict['id']
 
-        chat = await db.scalar(select(Chats).where(Chats.id == chat_id))
+        chat = await get_chat(chat_id=chat_id, db=db)
         if not chat:
             return templates.TemplateResponse(
                 "exceptions/not_found.html",
