@@ -5,14 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Co
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
 from app.database.crud.users import create_user, get_user, update_user_info
 from app.functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
 from app.functions.profile import get_tab_by_section
-from app.models.users import User
 from app.database.db_depends import get_db
 from app.config import Config
 from app.schemas import ProfileUpdate, PasswordUpdate
@@ -183,10 +181,7 @@ async def update_profile(profile_update: ProfileUpdate,
                          ):
     try:
         if not token:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Для обновления данных необходимо авторизоваться'
-            )
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
         user = await get_current_user(token)
 
@@ -212,10 +207,7 @@ async def update_password(data: PasswordUpdate,
                           ):
     try:
         if not token:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Для обновления данных необходимо авторизоваться'
-            )
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
         if data.new_password != data.new_password_one_more_time:
             raise HTTPException(

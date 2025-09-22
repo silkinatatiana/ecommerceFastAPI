@@ -8,6 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, RedirectResponse
 
+from app.database.crud.orders import create_new_order, update_order_status, get_orders
+from app.database.crud.users import get_user
 from app.database.db_depends import get_db
 from app.config import Config, Statuses
 from app.models import User
@@ -29,21 +31,16 @@ async def get_orders_by_user_id(
         db: AsyncSession = Depends(get_db)
 ):
     try:
-        total_count_result = await db.execute(
-            select(func.count()).select_from(Orders).where(Orders.user_id == user_id)
-        )
-        total_count = total_count_result.scalar()
-
+        total_count = await get_orders(func_count=True,
+                                       user_id=user_id,
+                                       db=db)
         offset = (page - 1) * per_page
 
-        result = await db.execute(
-            select(Orders)
-            .where(Orders.user_id == user_id)
-            .order_by(desc(Orders.date))
-            .offset(offset)
-            .limit(per_page)
-        )
-        orders = result.scalars().all()
+        orders = await get_orders(sort_desc=True,
+                                  user_id=user_id,
+                                  offset=offset,
+                                  limit=per_page,
+                                  db=db)
         total_pages = (total_count + per_page - 1) // per_page
 
         return {
@@ -67,8 +64,7 @@ async def get_orders_by_user_id(
 
 @router.get('/{order_id}', response_model=OrderResponse)
 async def get_order_by_id(order_id: int, request: Request, db: AsyncSession = Depends(get_db)):
-    order = await db.scalar(select(Orders).where(Orders.id == order_id))
-
+    order = await get_orders(order_id=order_id, db=db)
     if not order:
         return templates.TemplateResponse(
             "exceptions/not_found.html",
@@ -82,11 +78,13 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
                        db: AsyncSession = Depends(get_db)):
     try:
         if not token:
-            raise HTTPException(status_code=401, detail="Пользователь не авторизован")
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
         user_id = get_user_id_by_token(token)
 
-        user = await db.scalar(select(User).where(User.id == user_id))
+        # user = await db.scalar(select(User).where(User.id == user_id))
+        user = await get_user(user_id=user_id, db=db)
+        print(1)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -115,14 +113,10 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
             }
             total_sum += product['product']['price'] * product['count']
 
-        order = Orders(
-            user_id=user_id,
-            products=products_data,
-            summa=total_sum
-        )
-        db.add(order)
-        await db.flush()
-        await db.commit()
+        order = await create_new_order(user_id=user_id,
+                                       products=products_data,
+                                       summa=total_sum,
+                                       db=db)
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -151,31 +145,9 @@ async def cancel_order(order_id: int,
                        db: AsyncSession = Depends(get_db)):
     try:
         if not token:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Требуется авторизация для отмены заказа'
-            )
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-        user_id = get_user_id_by_token(token=token)
-
-        order = await db.scalar(select(Orders).where(Orders.id == order_id))
-        if not order:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Заказ с ID {order_id} не найден'
-            )
-# TODO вынести в отдельную функцию и переиспользовать в ручках (обработчик ошибок) и при 401 ошибке делать редирект на страничку входа
-        if order.user_id != user_id:
-            raise Exception('Можно отменить только свой заказ')
-
-        if order.status != Statuses.DESIGNED:
-            raise Exception(
-                f"Заказ можно отменить только при статусе 'Оформлен'. Текущий статус заказа: {order.status}")
-
-        query = update(Orders).where(Orders.id == order_id).values(status=Statuses.CANCELLED)
-        await db.execute(query)
-        await db.commit()
-
+        await update_order_status(order_id=order_id, db=db)
         return f'Заказ № {order_id} отменен'
 
     except HTTPException:
@@ -191,6 +163,8 @@ async def cancel_order(order_id: int,
             detail='Произошла внутренняя ошибка при отмене заказа'
         )
 
+# TODO вынести в отдельную функцию и переиспользовать в ручках (обработчик ошибок) и при 401 ошибке делать редирект на страничку входа
+
 
 @router.get('/order/{order_id}', response_class=HTMLResponse)
 async def order_page(request: Request,
@@ -200,20 +174,14 @@ async def order_page(request: Request,
                      ):
     try:
         is_authenticated = False
-        if not token: # TODO взять локал хост из Config
-            return RedirectResponse(url="http://127.0.0.1:8000/auth/create")
+        if not token:
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
         user_id = get_user_id_by_token(token)
         if user_id:
             is_authenticated = True
 
-        order_query = select(Orders).where(
-            (Orders.id == order_id) &
-            (Orders.user_id == user_id)
-        )
-        order_result = await db.execute(order_query)
-        order = order_result.scalar_one_or_none()
-
+        order = await get_orders(order_id=order_id, db=db)
         if not order:
             return templates.TemplateResponse(
                 "exceptions/not_found.html",

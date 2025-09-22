@@ -54,6 +54,7 @@ async def get_message(
             detail=f"Не удалось выполнить запрос в БД: {str(e)}"
         )
 
+
 async def create_message(
         sender_id: int,
         chat_id: int,

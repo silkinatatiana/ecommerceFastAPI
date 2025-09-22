@@ -2,6 +2,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, status, HTTPException, Query, Cookie
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -69,7 +70,7 @@ async def messages_create(
 ):
     try:
         if not token:
-            raise HTTPException(status_code=401, detail="Не авторизован")
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
         user_id = get_user_id_by_token(token)
 

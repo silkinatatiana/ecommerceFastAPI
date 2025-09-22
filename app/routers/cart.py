@@ -2,6 +2,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
@@ -58,7 +59,7 @@ async def add_product_to_cart(
 ):
     try:
         if not token:
-            raise HTTPException(status_code=401, detail="Не авторизован")
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
         user_id = get_user_id_by_token(token)
 
@@ -106,7 +107,7 @@ async def update_count_cart(
 ):
     try:
         if not token:
-            raise HTTPException(status_code=401, detail="Не авторизован")
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
         user_id = get_user_id_by_token(token)
 

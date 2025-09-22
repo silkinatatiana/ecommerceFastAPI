@@ -24,7 +24,7 @@ async def get_all_chats(db: AsyncSession = Depends(get_db),
                         token: Optional[str] = Cookie(None, alias='token')):
     try:
         if not token:
-            raise HTTPException(status_code=401, detail="Не авторизован")
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
         user_id = get_user_id_by_token(token)
 
@@ -58,7 +58,7 @@ async def get_chats_partial(
 ):
     try:
         if not token:
-            raise HTTPException(status_code=401, detail="Не авторизован")
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
         user_dict = await get_current_user(token=token)
         user_id = user_dict['id']
@@ -114,7 +114,7 @@ async def chat_create(chat_data: ChatCreate,
                       token: Optional[str] = Cookie(None, alias='token')):
     try:
         if not token:
-            raise HTTPException(status_code=401, detail="Не авторизован")
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
         user_id = get_user_id_by_token(token)
 
