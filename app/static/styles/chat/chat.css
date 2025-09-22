@@ -126,6 +126,7 @@
 
 .message-support .message-info {
     text-align: left;
+    color: var(--dark-color);
 }
 
 .message-support .sender-name {

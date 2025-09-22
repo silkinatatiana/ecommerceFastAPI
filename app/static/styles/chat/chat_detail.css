@@ -52,6 +52,21 @@
     color: #721c24;
 }
 
+.btn-primary {
+    background-color: #f1f3f4;
+    color: var(--text-color);
+    border: none;
+    outline: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-primary:hover {
+    background-color: #e9ecef;
+}
+
 .messages-container {
     background: #f9f9f9;
     border-radius: var(--border-radius);
