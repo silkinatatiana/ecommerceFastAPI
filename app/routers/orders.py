@@ -163,8 +163,6 @@ async def cancel_order(order_id: int,
             detail='Произошла внутренняя ошибка при отмене заказа'
         )
 
-# TODO вынести в отдельную функцию и переиспользовать в ручках (обработчик ошибок) и при 401 ошибке делать редирект на страничку входа
-
 
 @router.get('/order/{order_id}', response_class=HTMLResponse)
 async def order_page(request: Request,
