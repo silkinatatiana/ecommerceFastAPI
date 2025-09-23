@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 import jwt
 
+from app.database.crud.favorites import get_favorite, create_favorite, delete_favorite
 from app.database.db_depends import get_db
 from app.models.favorites import Favorites
 from app.functions.auth_func import SECRET_KEY, ALGORITHM
@@ -20,12 +21,7 @@ async def get_favorites(
         user_id: int,
         db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Favorites)
-        .where(Favorites.user_id == user_id)
-    )
-
-    favorites = result.scalars().all()
+    favorites = await get_favorite(user_id=user_id, db=db)
     return favorites
 
 
@@ -36,14 +32,9 @@ async def create_favorites(
         db: AsyncSession = Depends(get_db)
 ):
     try:
-        new_favorite = Favorites(
-            user_id=user_id,
-            product_id=product_id
-        )
-
-        db.add(new_favorite)
-        await db.commit()
-        await db.refresh(new_favorite)
+        new_favorite = await create_favorite(user_id=user_id,
+                                             product_id=product_id,
+                                             db=db)
         return new_favorite
 
     except IntegrityError as e:
@@ -64,18 +55,10 @@ async def del_favorite_product(product_id: int,
                                user_id: int,
                                db: AsyncSession = Depends(get_db)):
     try:
-        stmt = (
-            delete(Favorites).where(
-                Favorites.user_id == user_id,
-                Favorites.product_id == product_id,
-            )
-        )
-        result = await db.execute(stmt)
-        await db.commit()
-
-        if result.rowcount == 0:
-            return {'message': 'Товар удален из избранного'}
-        return None
+        result = await delete_favorite(user_id=user_id,
+                                       product_id=product_id,
+                                       db=db)
+        return result
 
     except Exception as e:
         await db.rollback()
@@ -91,18 +74,18 @@ async def toggle_favorite(
         token: Optional[str] = Cookie(None, alias='token'),
         db: AsyncSession = Depends(get_db)
 ):
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    user_id = payload.get("id")
-    existing_favorite = await db.execute(
-        select(Favorites)
-        .where(
-            Favorites.user_id == user_id,
-            Favorites.product_id == product_id
-        )
-    )
-    existing_favorite = existing_favorite.scalar_one_or_none()
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("id")
 
-    if existing_favorite:
-        await del_favorite_product(product_id, user_id, db)
-    else:
-        await create_favorites(product_id, user_id, db)
+        existing_favorite = await get_favorite(product_id=product_id, user_id=user_id, db=db)
+        if existing_favorite:
+            await delete_favorite(product_id=product_id, user_id=user_id, db=db)
+        else:
+            await create_favorite(product_id=product_id, user_id=user_id, db=db)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Ошибка при переключении избранного: {str(e)}'
+        )
