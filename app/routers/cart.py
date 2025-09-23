@@ -3,22 +3,22 @@ from typing import Optional
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select, delete
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
-from starlette.responses import HTMLResponse, Response
+from starlette.responses import HTMLResponse
 import httpx
 import jwt
 
+from app.database.crud.cart import update_cart_quantity, delete_from_cart
+from app.database.crud.users import get_user
 from app.database.db_depends import get_db
 from app.config import Config
 from app.models import Product
 from app.models.cart import Cart
-from app.models.users import User
 from app.schemas import CartItem, CartUpdate
 from app.functions.product_func import check_stock
 from app.functions.auth_func import get_user_id_by_token
-from app.functions.cart_func import update_quantity_cart_add, update_quantity_cart_reduce
 from app.exception import NotMoreProductsException
 
 router = APIRouter(prefix="/cart", tags=["cart"])
@@ -27,7 +27,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 @router.get('/{user_id}')
 async def get_cart_by_user(user_id: int, db: AsyncSession = Depends(get_db)):
-    user = await db.scalar(select(User).where(User.id == user_id))
+    user = await get_user(user_id=user_id, db=db)
 
     if not user:
         raise HTTPException(
@@ -72,24 +72,11 @@ async def add_product_to_cart(
 
         await check_stock(product_id=cart_data.product_id, db=db)
 
-        cart_item = await db.execute(
-            select(Cart)
-            .where(Cart.user_id == user_id)
-            .where(Cart.product_id == cart_data.product_id)
-        )
-        cart_item = cart_item.scalar_one_or_none()
-
-        if cart_item:
-            cart_item.count += cart_data.count
-        else:
-            cart_item = Cart(
-                user_id=user_id,
-                product_id=cart_data.product_id,
-                count=cart_data.count
-            )
-            db.add(cart_item)
-
-        await db.commit()
+        await update_cart_quantity(user_id=user_id,
+                                   product_id=cart_data.product_id,
+                                   count=cart_data.count,
+                                   add=True,
+                                   db=db)
         return {"message": "Товар добавлен в корзину"}
 
     except HTTPException:
@@ -111,22 +98,11 @@ async def update_count_cart(
 
         user_id = get_user_id_by_token(token)
 
-        cart_item = await db.scalar(
-            select(Cart)
-            .where(Cart.user_id == user_id)
-            .where(Cart.product_id == cart_data.product_id)
-        )
-
-        if not cart_item:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='NOT FOUND'
-            )
-
-        if cart_data.add:
-            result = await update_quantity_cart_add(cart_data=cart_data, cart_item=cart_item, db=db)
-        else:
-            result = await update_quantity_cart_reduce(cart_data=cart_data, cart_item=cart_item, db=db)
+        result = await update_cart_quantity(user_id=user_id,
+                                            product_id=cart_data.product_id,
+                                            count=cart_data.count,
+                                            add=cart_data.add,
+                                            db=db)
         return result
 
     except SQLAlchemyError as e:
@@ -150,25 +126,13 @@ async def delete_product_from_cart(product_id: int,
     try:
         user_id = get_user_id_by_token(token)
 
-        cart_item = await db.scalar(
-            select(Cart)
-            .where(Cart.user_id == user_id)
-            .where(Cart.product_id == product_id)
-        )
-        if not cart_item:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='NOT FOUND'
-            )
-
-        await db.delete(cart_item)
-        await db.commit()
-
+        await delete_from_cart(user_id=user_id,
+                               product_id=product_id,
+                               db=db)
     except Exception as e:
-        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Ошибка базы данных: {str(e)}"
+            detail=f"Ошибка при удалении товара из корзины: {str(e)}"
         )
 
 
@@ -179,14 +143,7 @@ async def clear_cart(
 ):
     try:
         user_id = get_user_id_by_token(token)
-
-        result = await db.execute(
-            delete(Cart).where(Cart.user_id == user_id)
-        )
-        await db.commit()
-
-        if result.rowcount == 0:
-            return Response(status_code=status.HTTP_204_NO_CONTENT)
+        await delete_from_cart(user_id=user_id, db=db, clear_cart=True)
 
     except Exception as e:
         await db.rollback()

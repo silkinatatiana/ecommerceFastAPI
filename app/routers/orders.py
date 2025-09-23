@@ -3,7 +3,7 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie, Query
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, func, desc, update
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, RedirectResponse
@@ -11,9 +11,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 from app.database.crud.orders import create_new_order, update_order_status, get_orders
 from app.database.crud.users import get_user
 from app.database.db_depends import get_db
-from app.config import Config, Statuses
-from app.models import User
-from app.models.orders import Orders
+from app.config import Config
 from app.models.products import Product
 from app.functions.auth_func import get_user_id_by_token
 from app.functions.product_func import update_stock
@@ -82,9 +80,7 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
 
         user_id = get_user_id_by_token(token)
 
-        # user = await db.scalar(select(User).where(User.id == user_id))
         user = await get_user(user_id=user_id, db=db)
-        print(1)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

@@ -144,7 +144,6 @@
     font-size: 0.9rem;
 }
 
-/* Панель ввода и кнопок — теперь внутри модалки */
 .chat-bottom-panel {
     padding: 15px;
     border-top: 1px solid var(--light-gray);

@@ -13,5 +13,4 @@ class Messages(Base):
     sender_id = Column(Integer)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-
     chat = relationship("Chats", back_populates="messages")

@@ -70,7 +70,8 @@
 #     .where(Product.id != product.id)
 # )
 
-
+# product = await db.get(Product, cart_data.product_id) # TODO ???
+# TODO из функции add_product_to_cart
 
 #TODO создать продукт
 
