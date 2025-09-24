@@ -8,12 +8,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
-from app.database.crud.users import create_user, get_user, update_user_info
-from app.functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
-from app.functions.profile import get_tab_by_section
-from app.database.db_depends import get_db
+from database.crud.users import create_user, get_user, update_user_info
+from functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
+from functions.profile import get_tab_by_section
+from database.db_depends import get_db
 from app.config import Config
-from app.schemas import ProfileUpdate, PasswordUpdate
+from schemas import ProfileUpdate, PasswordUpdate
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app/templates/')

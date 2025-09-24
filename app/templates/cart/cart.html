@@ -25,11 +25,10 @@
                 <div class="cart-item" data-product-id="{{ product.id }}">
                     <a href="{{ url_for('product_detail_page', product_id=product.id) }}" class="product-link">
                         <div class="product-image">
-                            {% if product.image_urls %}
-                            <img src="{{ product.image_urls[0] }}" alt="{{ product.name }}" loading="lazy">
-                            {% else %}
-                            <div class="no-image">Нет изображения</div>
-                            {% endif %}
+                            <img src="{{ product.image_url if product.image_url else url_for('static', path='/images/default_image.png') }}"
+                                 alt="{{ product.name }}"
+                                 loading="lazy"
+                                 onerror="this.onerror=null; this.src='{{ url_for('static', path='/images/default_image.png') }}'">
                         </div>
                         <div class="product-info">
                             <h3>{{ product.name }}</h3>

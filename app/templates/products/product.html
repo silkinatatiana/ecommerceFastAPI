@@ -19,10 +19,7 @@
     <div class="gallery-section">
         <div class="gallery-container">
             <div class="main-image-container">
-                <img src="{{ product.image_urls[0] if product.image_urls else 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzY2NiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMyAxOWEyIDIgMCAwIDEtMiAySDNhMiAyIDAgMCAxLTItMlY1YTIgMiAwIDAgMSAyLTJoNGwyIDJoMTBsMi0yaDRhMiAyIDAgMCAxIDIgMnoiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEwIiByPSIzIi8+PHBhdGggZD0iTTE5IDIxYTIgMiAwIDAgMS0yLTJWNyAyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYxMmEyIDIgMCAwIDEtMiAyeiIvPjwvc3ZnPg==' }}"
-                     alt="{{ product.name }}"
-                     class="product-main-image"
-                     id="mainProductImage">
+                <img alt="{{ product.name }}" class="product-main-image" id="mainProductImage">
                 <button class="nav-button prev" onclick="navigate(-1)">❮</button>
                 <button class="nav-button next" onclick="navigate(1)">❯</button>
             </div>

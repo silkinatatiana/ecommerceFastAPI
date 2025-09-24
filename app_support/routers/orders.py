@@ -1,17 +1,11 @@
-from typing import Annotated, Optional
-import asyncio
-
-from fastapi import APIRouter, Depends, status, HTTPException, Request, Query, Cookie
+from fastapi import APIRouter, Depends, status, HTTPException, Query
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
-from app_support.database.crud.orders import get_orders, update_status
-from app_support.database.db_depends import get_db
-from app_support.schemas import OrderResponse
-from app.models import *
-
+from database.crud.orders import get_orders, update_status
+from database.db_depends import get_db
+from schemas import OrderResponse
 
 router = APIRouter(prefix='/support/orders', tags=['orders'])
 templates = Jinja2Templates(directory='app_support/templates/')
@@ -79,6 +73,11 @@ async def change_status(order_id: int,
             detail=f"Ошибка базы данных: {str(e)}"
         )
 
+@router.get('/order_page')
+async def get_order_detail(order_id):
+    pass
 
 
-
+@router.get('/all_chats')
+async def get_all_chats(order_id):
+    pass

@@ -8,14 +8,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, RedirectResponse
 
-from app.database.crud.orders import create_new_order, update_order_status, get_orders
-from app.database.crud.users import get_user
-from app.database.db_depends import get_db
+from database.crud.orders import create_new_order, update_order_status, get_orders
+from database.crud.users import get_user
+from database.db_depends import get_db
 from app.config import Config
-from app.models.products import Product
-from app.functions.auth_func import get_user_id_by_token
-from app.functions.product_func import update_stock
-from app.schemas import OrderResponse
+from models import Product
+from functions.auth_func import get_user_id_by_token
+from functions.product_func import update_stock
+from schemas import OrderResponse
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 templates = Jinja2Templates(directory="app/templates")

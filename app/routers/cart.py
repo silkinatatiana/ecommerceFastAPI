@@ -10,15 +10,15 @@ from starlette.responses import HTMLResponse
 import httpx
 import jwt
 
-from app.database.crud.cart import update_cart_quantity, delete_from_cart
-from app.database.crud.users import get_user
-from app.database.db_depends import get_db
+from database.crud.cart import update_cart_quantity, delete_from_cart
+from database.crud.users import get_user
+from database.db_depends import get_db
 from app.config import Config
-from app.models import Product
-from app.models.cart import Cart
-from app.schemas import CartItem, CartUpdate
-from app.functions.product_func import check_stock
-from app.functions.auth_func import get_user_id_by_token
+from models import Product
+from models import Cart
+from schemas import CartItem, CartUpdate
+from functions.product_func import check_stock
+from functions.auth_func import get_user_id_by_token
 from app.exception import NotMoreProductsException
 
 router = APIRouter(prefix="/cart", tags=["cart"])
@@ -35,7 +35,7 @@ async def get_cart_by_user(user_id: int, db: AsyncSession = Depends(get_db)):
             detail='NOT FOUND'
         )
 
-    query = await db.execute(
+    query = await db.execute( # TODO
         select(Cart, Product)
         .join(Product, Cart.product_id == Product.id)
         .where(Cart.user_id == user_id)

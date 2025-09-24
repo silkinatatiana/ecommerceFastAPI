@@ -1,23 +1,26 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Cookie
+from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.database.db_depends import get_db
-from app.schemas import CreateReviews
-from app.models import *
-from app.models import Review
+from database.crud.review import get_reviews, create_new_review, delete_review
+from database.crud.users import get_user
+from database.db_depends import get_db
+from functions.auth_func import get_user_id_by_token
+from schemas import CreateReviews
+from models import *
 
 router = APIRouter(prefix='/reviews', tags=['reviews'])
 templates = Jinja2Templates(directory='app/templates/')
 
 
 @router.get('/', response_model=list[CreateReviews])
-async def all_reviews(db: Annotated[AsyncSession, Depends(get_db)]):
-    reviews = await db.scalars(select(Review))
-    return reviews.all() or []
+async def all_reviews(db: AsyncSession = Depends(get_db)):
+    reviews = await get_reviews(db=db)
+    return reviews or []
 
 
 @router.get('/{product_id}', response_model=list[CreateReviews])
@@ -32,11 +35,8 @@ async def product_reviews(
             detail='NOT FOUND'
         )
 
-    reviews = await db.scalars(
-        select(Review)
-        .where(Review.product_id == product.id)
-    )
-    return reviews.all()
+    reviews = await get_reviews(product_id=product_id, db=db)
+    return reviews
 
 
 @router.post("/create_by/{product_id}")
@@ -48,42 +48,48 @@ async def create_review(
     if review_data.photo_urls and len(review_data.photo_urls) > 5:
         raise HTTPException(400, "Можно прикрепить не более 5 фото")
 
-    review = Review(
-        user_id=review_data.user_id,
-        product_id=product_id,
-        comment=review_data.comment,
-        grade=review_data.grade,
-        photo_urls=review_data.photo_urls or []
-    )
-    db.add(review)
-    await db.commit()
-    await db.refresh(review)
-    return {
-        "message": "Отзыв сохранен",
-        "review_id": review.id,
-        "product_id": review.product_id
-    }
+    result = await create_new_review(user_id=review_data.user_id,
+                                     product_id=product_id,
+                                     comment=review_data.comment,
+                                     grade=review_data.grade,
+                                     photo_urls=review_data.photo_urls,
+                                     db=db)
+    return result
 
 
-@router.delete('/{review_id}', status_code=status.HTTP_200_OK)
-async def delete_review(
-        review_id: int,
-        db: Annotated[AsyncSession, Depends(get_db)]
-        # в аргументы функции нужно будет передать реального пользователя (current_user: Annotated[dict, Depends(get_current_user)] )
+@router.delete('/{review_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_review_by_id(review_id: int,
+                              db: Annotated[AsyncSession, Depends(get_db)],
+                              token: str = Cookie(None, alias='token')
 ):
-    review = await db.scalar(select(Review).where(Review.id == review_id))
-    if not review:
+    try:
+        if not token:
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
+        user_id = get_user_id_by_token(token)
+
+        current_user = await get_user(user_id=user_id, db=db)
+
+        if not current_user.get('is_admin'):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Admin access required'
+            )
+
+        # review = await db.scalar(select(Review).where(Review.id == review_id))
+        review = await delete_review(review_id=review_id, db=db)
+        if not review:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='NOT FOUND'
+            )
+        return review
+
+    except Exception as e:
+        await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='NOT FOUND'
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Не удалось удалить комментарий: {str(e)}"
         )
 
-    # if not current_user.get('is_admin'):
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail='Admin access required'
-    #     )
-    # TODO дописать метод и дополнить фронтенд
-    await db.commit()
-    return {'message': 'Review deleted successfully'}
 

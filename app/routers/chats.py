@@ -7,13 +7,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.database.crud.chats import update_chat_status, create_chat, get_chat
-from app.database.db_depends import get_db
-from app.database.crud.messages import get_message
-from app.schemas import ChatCreate
-from app.models import *
+from database.crud.chats import update_chat_status, create_chat, get_chat
+from database.db_depends import get_db
+from database.crud.messages import get_message
+from schemas import ChatCreate
+from models import *
 from app.config import Config
-from app.functions.auth_func import get_user_id_by_token, get_current_user
+from functions.auth_func import get_user_id_by_token, get_current_user
 
 router = APIRouter(prefix='/chats', tags=['chats'])
 templates = Jinja2Templates(directory='app/templates/')

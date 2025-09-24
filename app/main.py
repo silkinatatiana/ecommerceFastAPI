@@ -15,12 +15,12 @@ import httpx
 import jwt
 
 from app.routers import category, products, auth, permission, reviews, favorites, cart, orders, chats, messages
-from app.database.db_depends import get_db
-from app.database.db import Base, engine
-from app.models import *
+from database.db_depends import get_db
+from database.db import Base, engine
+from models import *
 from app.config import Config
-from app.functions.favorites_func import get_favorite_product_ids
-from app.functions.cart_func import get_in_cart_product_ids
+from functions.favorites_func import get_favorite_product_ids
+from functions.cart_func import get_in_cart_product_ids
 from app.log.log import LOGGER
 
 logger = LOGGER

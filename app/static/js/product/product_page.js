@@ -2,6 +2,7 @@ let currentImageIndex = 0;
 let productImages = [];
 let currentReviewIndex = 0;
 let currentReviewImages = [];
+const defaultImageUrl = "/static/images/default_image.png";
 
 document.addEventListener('DOMContentLoaded', function() {
     initGallery();
@@ -20,12 +21,16 @@ function initGallery() {
     const thumbnails = document.querySelectorAll('.thumbnail');
     productImages = Array.from(thumbnails).map(thumb => thumb.src);
 
-    if (productImages.length > 0) {
-        const mainImage = document.getElementById('mainProductImage');
-        if (mainImage) {
-            mainImage.style.cursor = 'pointer';
-            mainImage.addEventListener('click', () => openFullscreen(currentImageIndex));
+    const mainImage = document.getElementById('mainProductImage');
+    if (mainImage) {
+        if (productImages.length > 0 && mainImage.src !== productImages[0]) {
+            mainImage.src = productImages[0];
+            currentImageIndex = 0;
         }
+
+        mainImage.style.cursor = 'pointer';
+        mainImage.addEventListener('click', () => openFullscreen(currentImageIndex));
+        mainImage.onerror = function() { tryNextProductImage(this); }; // <-- Обработчик ошибок
 
         thumbnails.forEach((thumb, index) => {
             thumb.style.cursor = 'pointer';
@@ -47,20 +52,17 @@ function initGallery() {
         navigateFullscreen(1);
     });
 
-    // Закрытие по клику на фон
     fullscreenGallery.addEventListener('click', function(e) {
         if (e.target === this) {
             closeFullscreen();
         }
     });
 
-    // Закрытие по клику на крестик
     document.querySelector('.close-fullscreen')?.addEventListener('click', function(e) {
         e.stopPropagation();
         closeFullscreen();
     });
 
-    // Клавиатурная навигация
     document.addEventListener('keydown', function(e) {
         const isFullscreenOpen = window.getComputedStyle(fullscreenGallery).display === 'flex';
         if (!isFullscreenOpen) return;
@@ -340,4 +342,16 @@ function handleReviewKeydown(e) {
     } else if (e.key === 'Escape') {
         closeFullscreenReviewModal();
     }
+}
+
+function tryNextProductImage(imgElement) {
+    if (currentImageIndex >= productImages.length - 1) {
+        imgElement.src = defaultImageUrl;
+        console.log("Все изображения продукта недоступны, показываем дефолтное.");
+        return;
+    }
+
+    currentImageIndex++;
+    imgElement.src = productImages[currentImageIndex];
+    console.log(`Пробуем изображение #${currentImageIndex + 1}: ${productImages[currentImageIndex]}`);
 }

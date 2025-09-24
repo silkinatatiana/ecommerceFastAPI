@@ -2,15 +2,13 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, status, HTTPException, Cookie
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 import jwt
 
-from app.database.crud.favorites import get_favorite, create_favorite, delete_favorite
-from app.database.db_depends import get_db
-from app.models.favorites import Favorites
-from app.functions.auth_func import SECRET_KEY, ALGORITHM
+from database.crud.favorites import get_favorite, create_favorite, delete_favorite
+from database.db_depends import get_db
+from functions.auth_func import SECRET_KEY, ALGORITHM
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 templates = Jinja2Templates(directory="app/templates")
