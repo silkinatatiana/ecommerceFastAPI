@@ -4,7 +4,6 @@ function closeAllFilters() {
     });
 }
 
-// Переключение фильтра
 document.querySelectorAll('.filter-trigger').forEach(trigger => {
     trigger.addEventListener('click', function(e) {
         const container = this.closest('.dropdown-filter-container');
@@ -17,10 +16,12 @@ document.querySelectorAll('.filter-trigger').forEach(trigger => {
     });
 });
 
-// Закрытие при клике вне
-document.addEventListener('click', closeAllFilters);
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.dropdown-filter-container')) {
+        closeAllFilters();
+    }
+});
 
-// Поиск в фильтре
 function filterDropdown(input, filterKey) {
     const container = input.closest('.dropdown-filter');
     const labels = container.querySelectorAll('.filter-options label');
@@ -31,11 +32,9 @@ function filterDropdown(input, filterKey) {
     });
 }
 
-// Применение фильтров
 function applyFilters() {
     const params = new URLSearchParams();
 
-    // Собираем чекбоксы из активных фильтров
     document.querySelectorAll('.dropdown-filter-container[data-filter]').forEach(container => {
         const filterName = container.dataset.filter;
         const checks = container.querySelectorAll('input[type="checkbox"]:checked');

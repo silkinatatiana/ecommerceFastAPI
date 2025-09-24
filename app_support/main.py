@@ -39,26 +39,20 @@ app.include_router(auth.router)
 
 
 @app.get('/', response_class=HTMLResponse)
-async def get_all_orders_page(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    token: Optional[str] = Cookie(None, alias='token'),
-    # Фильтры — множественные
-    status: Optional[List[str]] = Query(None),
-    user_id: Optional[List[int]] = Query(None),
-    order_id: Optional[List[int]] = Query(None),
-    # Диапазоны
-    date_start: Optional[str] = None,
-    date_end: Optional[str] = None,
-    sum_from: Optional[float] = None,
-    sum_to: Optional[float] = None,
-    # Сортировка
-    sort_by: str = Query("date"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$"),
-    # Пагинация
-    page: int = Query(1, ge=1),
+async def get_all_orders_page(request: Request,
+                              db: AsyncSession = Depends(get_db),
+                              token: Optional[str] = Cookie(None, alias='token'),
+                              status: Optional[List[str]] = Query(None),
+                              user_id: Optional[List[int]] = Query(None),
+                              order_id: Optional[List[int]] = Query(None),
+                              date_start: Optional[str] = None,
+                              date_end: Optional[str] = None,
+                              sum_from: Optional[float] = None,
+                              sum_to: Optional[float] = None,
+                              sort_by: str = Query("date"),
+                              sort_order: str = Query("desc", regex="^(asc|desc)$"),
+                              page: int = Query(1, ge=1)
 ):
-    # === Авторизация ===
     current_employee = None
     if token:
         try:
@@ -66,48 +60,40 @@ async def get_all_orders_page(
         except HTTPException:
             current_employee = None
 
-    # === Все возможные статусы заказа ===
-    ALL_STATUSES = [
+    all_statuses = [
         value for attr, value in vars(Statuses).items()
         if attr.isupper() and not attr.startswith('__')
     ]
 
-    # === Получение пользователей ===
     users_result = await db.execute(select(User))
     unique_users = users_result.scalars().all()
     user_dict = {user.id: user for user in unique_users}
 
-    # === Все ID заказов (ограничено для производительности) ===
     all_orders_ids_result = await db.execute(select(Orders.id))
     all_order_ids = [r[0] for r in all_orders_ids_result.fetchall()]
     all_order_ids = sorted(all_order_ids, reverse=True)[:1000]  # последние 1000
 
-    # === Базовый запрос ===
     stmt = select(Orders)
 
-    # === Применение фильтров ===
     if order_id:
         stmt = stmt.where(Orders.id.in_(order_id))
     if user_id:
         stmt = stmt.where(Orders.user_id.in_(user_id))
     if status:
-        valid_statuses = [s for s in status if s in ALL_STATUSES]
+        valid_statuses = [s for s in status if s in all_statuses]
         if valid_statuses:
             stmt = stmt.where(Orders.status.in_(valid_statuses))
 
-    # === Фильтрация по дате (только дата, без времени) ===
     date_start_dt = None
     date_end_dt = None
     if date_start:
         try:
-            # input type="date" даёт YYYY-MM-DD → добавим время 00:00:00
             date_start_dt = datetime.fromisoformat(date_start + "T00:00:00")
             stmt = stmt.where(Orders.date >= date_start_dt)
         except ValueError:
             pass
     if date_end:
         try:
-            # до конца дня
             date_end_dt = datetime.fromisoformat(date_end + "T23:59:59")
             stmt = stmt.where(Orders.date <= date_end_dt)
         except ValueError:
@@ -142,7 +128,6 @@ async def get_all_orders_page(
     stmt = stmt.offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE)
     orders = (await db.execute(stmt)).scalars().all()
 
-    # === Формат даты для input type="date" ===
     def to_date_str(dt: Optional[datetime]) -> str:
         if dt:
             return dt.strftime('%Y-%m-%d')
@@ -151,7 +136,6 @@ async def get_all_orders_page(
     date_start_date = to_date_str(date_start_dt)
     date_end_date = to_date_str(date_end_dt)
 
-    # === Хелперы для URL ===
     def build_pagination_url(**overrides):
         params = {}
         if order_id: params['order_id'] = order_id
@@ -170,7 +154,6 @@ async def get_all_orders_page(
         return f"/?{query}" if query else "/"
 
     def build_sort_url(new_sort_by: str, new_order: str):
-        """Генерация URL для конкретного направления сортировки"""
         params = {}
         if order_id: params['order_id'] = order_id
         if user_id: params['user_id'] = user_id
@@ -187,7 +170,6 @@ async def get_all_orders_page(
         query = urlencode(clean, doseq=True)
         return f"/?{query}" if query else "/"
 
-    # === Ответ ===
     return templates.TemplateResponse('orders.html', {
         "request": request,
         "shop_name": Config.shop_name,
@@ -195,9 +177,8 @@ async def get_all_orders_page(
         "orders": orders,
         "user_dict": user_dict,
         "unique_users": unique_users,
-        "unique_statuses": ALL_STATUSES,
+        "unique_statuses": all_statuses,
         "all_order_ids": all_order_ids,
-        # Фильтры
         "order_ids": order_id or [],
         "user_ids": user_id or [],
         "status": status or [],
@@ -205,14 +186,11 @@ async def get_all_orders_page(
         "date_end_date": date_end_date,
         "sum_from": sum_from,
         "sum_to": sum_to,
-        # Сортировка
         "current_sort_by": sort_by,
         "current_sort_order": sort_order,
-        # Пагинация
         "page": page,
         "total_pages": total_pages,
         "is_authenticated": current_employee is not None,
-        # Хелперы
         "build_pagination_url": build_pagination_url,
         "build_sort_url": build_sort_url,
     })

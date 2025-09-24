@@ -40,7 +40,9 @@
 .filter-with-sort {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.8rem;
+    width: 100%;
 }
 
 .filter-label {
@@ -121,6 +123,8 @@
 
 .dropdown-filter-container {
     position: relative;
+    flex: 1;
+    min-width: 0;
 }
 
 .dropdown-filter {
