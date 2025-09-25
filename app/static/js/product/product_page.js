@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initGallery();
     initReviewForm();
     initReviewsSection();
-    initReviewGalleries();
 });
 
 function initGallery() {
@@ -30,7 +29,7 @@ function initGallery() {
 
         mainImage.style.cursor = 'pointer';
         mainImage.addEventListener('click', () => openFullscreen(currentImageIndex));
-        mainImage.onerror = function() { tryNextProductImage(this); }; // <-- Обработчик ошибок
+        mainImage.onerror = function() { tryNextProductImage(this); };
 
         thumbnails.forEach((thumb, index) => {
             thumb.style.cursor = 'pointer';
@@ -260,7 +259,6 @@ async function submitReview() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                user_id: 1,
                 comment: formData.get('comment'),
                 grade: parseInt(formData.get('rating')),
                 photo_urls: Array.from(formData.getAll('photo_urls')).filter(url => url.trim() !== '')

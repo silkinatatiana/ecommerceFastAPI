@@ -39,16 +39,24 @@ async def product_reviews(
     return reviews
 
 
-@router.post("/create_by/{product_id}")
+@router.post("/create_by/{product_id}") # TODO исправить пользователя в комментариях (ставится пользователь чей товар)
 async def create_review(
         review_data: CreateReviews,
         product_id: int,
+        token: str = Cookie(None, alias='token'),
         db: AsyncSession = Depends(get_db),
 ):
+    user_id = None
+    if token:
+        try:
+            user_id = get_user_id_by_token(token)
+        except HTTPException:
+            user_id = None
+
     if review_data.photo_urls and len(review_data.photo_urls) > 5:
         raise HTTPException(400, "Можно прикрепить не более 5 фото")
 
-    result = await create_new_review(user_id=review_data.user_id,
+    result = await create_new_review(user_id=user_id,
                                      product_id=product_id,
                                      comment=review_data.comment,
                                      grade=review_data.grade,

@@ -39,19 +39,19 @@ app.include_router(auth.router)
 
 
 @app.get('/', response_class=HTMLResponse)
-async def get_all_orders_page(request: Request,
-                              db: AsyncSession = Depends(get_db),
-                              token: Optional[str] = Cookie(None, alias='token'),
-                              status: Optional[List[str]] = Query(None),
-                              user_id: Optional[List[int]] = Query(None),
-                              order_id: Optional[List[int]] = Query(None),
-                              date_start: Optional[str] = None,
-                              date_end: Optional[str] = None,
-                              sum_from: Optional[float] = None,
-                              sum_to: Optional[float] = None,
-                              sort_by: str = Query("date"),
-                              sort_order: str = Query("desc", regex="^(asc|desc)$"),
-                              page: int = Query(1, ge=1)
+async def get_main_page(request: Request, # TODO доступна только авторизованным + role == seller or is_admin == True
+                          db: AsyncSession = Depends(get_db),
+                          token: Optional[str] = Cookie(None, alias='token'),
+                          status: Optional[List[str]] = Query(None),
+                          user_id: Optional[List[int]] = Query(None),
+                          order_id: Optional[List[int]] = Query(None),
+                          date_start: Optional[str] = None,
+                          date_end: Optional[str] = None,
+                          sum_from: Optional[float] = None,
+                          sum_to: Optional[float] = None,
+                          sort_by: str = Query("date"),
+                          sort_order: str = Query("desc", regex="^(asc|desc)$"),
+                          page: int = Query(1, ge=1)
 ):
     current_employee = None
     if token:
@@ -66,12 +66,12 @@ async def get_all_orders_page(request: Request,
     ]
 
     users_result = await db.execute(select(User))
-    unique_users = users_result.scalars().all()
+    unique_users = users_result.scalars().all() # TODO выводить только тех юзеров, где есть заказы в crud с заказами
     user_dict = {user.id: user for user in unique_users}
 
     all_orders_ids_result = await db.execute(select(Orders.id))
     all_order_ids = [r[0] for r in all_orders_ids_result.fetchall()]
-    all_order_ids = sorted(all_order_ids, reverse=True)[:1000]  # последние 1000
+    all_order_ids = sorted(all_order_ids, reverse=True)[:100]
 
     stmt = select(Orders)
 
@@ -104,7 +104,7 @@ async def get_all_orders_page(request: Request,
     if sum_to is not None:
         stmt = stmt.where(Orders.summa <= sum_to)
 
-    sort_column_map = {
+    sort_column_map = { #TODO вынести в отдельную функцию 107-120
         "id": Orders.id,
         "user": Orders.user_id,
         "date": Orders.date,
@@ -118,7 +118,7 @@ async def get_all_orders_page(request: Request,
     else:
         stmt = stmt.order_by(sort_col.desc())
 
-    PAGE_SIZE = 10
+    PAGE_SIZE = 10 # TODO вывести в отдельную переменную
     count_stmt = select(func.count()).select_from(Orders)
     if stmt.whereclause is not None:
         count_stmt = count_stmt.where(stmt.whereclause)
@@ -136,7 +136,7 @@ async def get_all_orders_page(request: Request,
     date_start_date = to_date_str(date_start_dt)
     date_end_date = to_date_str(date_end_dt)
 
-    def build_pagination_url(**overrides):
+    def build_pagination_url(**overrides): # TODO вынести все функции из роута, если короткие - переписать в lambda
         params = {}
         if order_id: params['order_id'] = order_id
         if user_id: params['user_id'] = user_id
@@ -172,7 +172,7 @@ async def get_all_orders_page(request: Request,
 
     return templates.TemplateResponse('orders.html', {
         "request": request,
-        "shop_name": Config.shop_name,
+        "shop_name": Config.shop_name, # TODO объединить в объекты по логике переменных
         "descr": Config.descr,
         "orders": orders,
         "user_dict": user_dict,

@@ -43,7 +43,7 @@ async def get_reviews(
         )
 
 
-async def create_new_review(user_id: int,
+async def create_new_review(user_id: int | None,
                             product_id: int,
                             comment: str,
                             grade: int,

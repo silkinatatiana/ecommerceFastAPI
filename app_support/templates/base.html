@@ -47,7 +47,7 @@
     </header>
     <nav>
         {% if is_authenticated %}
-            <a href="{{ url_for('get_all_orders_page') }}"> | Все заказы</a>
+            <a href="{{ url_for('get_main_page') }}"> | Все заказы</a>
             <a href="{{ url_for('get_all_chats') }}"> | Все чаты</a>
         {% endif %}
     </nav>
