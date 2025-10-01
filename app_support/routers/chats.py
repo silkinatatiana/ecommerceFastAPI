@@ -114,7 +114,7 @@ async def get_chats_partial(
         last_msg = await get_message(chat_id=chat.id, sort_desc=True, limit=1, db=db)
         chat.last_message = last_msg
 
-    return templates.TemplateResponse("chat/chat_items.html", {
+    return templates.TemplateResponse("chats/chat_items.html", {
         "request": request,
         "chats": chats,
         "has_more": has_more,

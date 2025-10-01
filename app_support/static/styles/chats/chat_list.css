@@ -183,6 +183,27 @@
     box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
 }
 
+#load-more-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+#load-more-container .btn {
+    background-color: white;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 8px 24px;
+    font-size: 0.95rem;
+}
+
+#load-more-container .btn:hover {
+    color: #495057;
+    border-color: #adb5bd;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
 @media (max-width: 768px) {
     .section {
         padding: 0 15px;
