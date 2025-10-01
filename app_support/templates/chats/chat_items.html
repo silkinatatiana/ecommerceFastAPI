@@ -1,0 +1,25 @@
+{% for chat in chats %}
+<div class="chat-item" onclick="window.location.href='/support/chats/{{ chat.id }}/view'">
+    <div class="chat-info">
+        <h3>Чат #{{ chat.id }}</h3>
+        <p><strong>Тема:</strong> {{ chat.topic or "Без темы" }}</p>
+        <p><strong>Статус:</strong>
+            <span class="status-{{ 'active' if chat.active else 'closed' }}">
+                {{ 'Активен' if chat.active else 'Завершён' }}
+            </span>
+        </p>
+        <p><strong>Начат:</strong> {{ chat.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+        {% if chat.last_message %}
+            <p><strong>Последнее сообщение:</strong> {{ chat.last_message.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+            <p class="last-message-preview">«{{ chat.last_message.message | truncate(50) }}»</p>
+        {% else %}
+            <p class="no-messages">Сообщений пока нет</p>
+        {% endif %}
+    </div>
+    <div class="chat-arrow">→</div>
+</div>
+{% endfor %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/chats/chat_list.css') }}?v=1.2">
+{% endblock %}

@@ -133,9 +133,7 @@ async def login(request: Request,
                 password: str = Form(...)
                 ):
     try:
-        print(0)
         user = await authenticate_user(db, username, password)
-        print(1)
         token = create_access_token(
             username=user.username,
             user_id=user.id,
@@ -143,9 +141,7 @@ async def login(request: Request,
             role=user.role,
             expires_delta=timedelta(minutes=20)
         )
-        print(2)
         response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-        print(3)
         response.set_cookie(
             key="token",
             value=token,
@@ -155,7 +151,6 @@ async def login(request: Request,
             samesite='lax',
             path='/'
         )
-        print(4)
         return response
 
     except HTTPException:

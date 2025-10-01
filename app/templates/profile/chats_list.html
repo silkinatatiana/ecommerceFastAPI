@@ -2,7 +2,7 @@
 
 {% block account_content %}
 <div class="section">
-    <h2 class="section-title">Мои чаты</h2>
+
 
     {% if chats and chats|length > 0 %}
         <div class="chats-list" id="chatsList">
@@ -52,4 +52,8 @@
 </div>
 
 <script src="/static/js/chat/chats_list.js"></script>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/chats/chat_list.css') }}?v=1.1">
 {% endblock %}

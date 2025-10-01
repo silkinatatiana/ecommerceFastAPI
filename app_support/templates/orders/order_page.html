@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Заказ {{ order.id }} — Поддержка{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='styles/orders/order_page.css') }}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<div class="container admin-order-page">
+    <div class="order-header">
+        <h1>Заказ #{{ order.id }}</h1>
+        <div class="order-status-badge status-{{ order.status|lower|replace(' ', '_') }}">
+            {{ order.status }}
+        </div>
+    </div>
+
+    <div class="order-info-grid">
+        <div class="info-card">
+            <h3>Информация о заказе</h3>
+            <p><strong>ID заказа:</strong> {{ order.id }}</p>
+            <p><strong>Дата создания:</strong> {{ order.created_at }}</p>
+            <p><strong>Общая сумма:</strong> <span class="price">{{ order.total_sum }} руб.</span></p>
+            <p><strong>Количество товаров:</strong> {{ products|length }}</p>
+
+            <div class="status-control">
+                <label for="order-status">Статус заказа:</label>
+                <select id="order-status" data-order-id="{{ order.id }}">
+                    <option value="Оформлен" {% if order.status == 'Оформлен' %}selected{% endif %}>Оформлен</option>
+                    <option value="В обработке" {% if order.status == 'В обработке' %}selected{% endif %}>В обработке</option>
+                    <option value="Отменён" {% if order.status == 'Отменён' %}selected{% endif %}>Отменён</option>
+                    <option value="Отправлен" {% if order.status == 'Отправлен' %}selected{% endif %}>Отправлен</option>
+                    <option value="Доставлен" {% if order.status == 'Доставлен' %}selected{% endif %}>Доставлен</option>
+                </select>
+                <button class="btn btn-primary" onclick="updateOrderStatus({{ order.id }})">Сохранить</button>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <h3>Покупатель</h3>
+            <p><strong>Имя:</strong> {{ order.user_name or 'Не указано' }}</p>
+            <p><strong>Email:</strong> {{ order.user_email or '—' }}</p>
+            <p><strong>Телефон:</strong> {{ order.user_phone or '—' }}</p>
+        </div>
+    </div>
+
+    <div class="products-section">
+        <h3>Товары в заказе</h3>
+        <div class="product-list">
+            {% for product in products %}
+            <div class="product-item">
+                {% if product.image_url %}
+                    <img src="{{ product.image_url }}" alt="{{ product.name }}" class="product-image"
+                         onerror="this.src='/static/images/placeholder-product.jpg'">
+                {% else %}
+                    <img src="/static/images/placeholder-product.jpg" alt="Нет изображения" class="product-image">
+                {% endif %}
+
+                <div class="product-info">
+                    <div class="product-name">
+                            {{ product.name }}
+                    </div>
+                </div>
+
+                <div class="product-details">
+                    <span class="product-quantity">{{ product.count }} шт.</span>
+                    <span class="product-price">{{ product.price }} руб.</span>
+                    <span class="product-total">{{ product.item_total }} руб.</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="actions">
+            Назад к списку заказов
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/orders/order_page.js') }}?v=1.0"></script>
+{% endblock %}

@@ -3,8 +3,8 @@ from typing import Optional, List
 from datetime import datetime
 from urllib.parse import urlencode
 
-from fastapi import FastAPI, Request, HTTPException, Query, Depends, Cookie
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, Query, Depends, Cookie
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +12,7 @@ from starlette.staticfiles import StaticFiles
 
 from models import Orders, User
 from functions.auth_func import get_current_user
-from app_support.routers import orders, auth #chats, messages
+from app_support.routers import orders, auth, chats, messages
 from database.db_depends import get_db
 from app_support.config import Config, Statuses
 
@@ -34,31 +34,34 @@ app.mount("/static", NoCacheStaticFiles(directory="app_support/static"), name="s
 
 app.include_router(orders.router)
 app.include_router(auth.router)
-# app.include_router(chats.router)
-# app.include_router(messages.router)
+app.include_router(chats.router)
+app.include_router(messages.router)
 
 
 @app.get('/', response_class=HTMLResponse)
-async def get_main_page(request: Request, # TODO доступна только авторизованным + role == seller or is_admin == True
-                          db: AsyncSession = Depends(get_db),
-                          token: Optional[str] = Cookie(None, alias='token'),
-                          status: Optional[List[str]] = Query(None),
-                          user_id: Optional[List[int]] = Query(None),
-                          order_id: Optional[List[int]] = Query(None),
-                          date_start: Optional[str] = None,
-                          date_end: Optional[str] = None,
-                          sum_from: Optional[float] = None,
-                          sum_to: Optional[float] = None,
-                          sort_by: str = Query("date"),
-                          sort_order: str = Query("desc", regex="^(asc|desc)$"),
-                          page: int = Query(1, ge=1)
+async def get_main_page(request: Request,
+                        db: AsyncSession = Depends(get_db),
+                        token: Optional[str] = Cookie(None, alias='token'),
+                        status: Optional[List[str]] = Query(None),
+                        user_id: Optional[List[int]] = Query(None),
+                        order_id: Optional[List[int]] = Query(None),
+                        date_start: Optional[str] = None,
+                        date_end: Optional[str] = None,
+                        sum_from: Optional[float] = None,
+                        sum_to: Optional[float] = None,
+                        sort_by: str = Query("date"),
+                        sort_order: str = Query("desc", regex="^(asc|desc)$"),
+                        page: int = Query(1, ge=1)
 ):
-    current_employee = None
-    if token:
-        try:
-            current_employee = await get_current_user(token=token)
-        except HTTPException:
-            current_employee = None
+    if not token:
+        return RedirectResponse(url='/auth/create')
+    try:
+        current_employee = await get_current_user(token=token)
+    except Exception:
+        return RedirectResponse(url='/auth/create')
+
+    if current_employee['role'] != 'seller' and not current_employee['is_admin']:
+        return RedirectResponse(url='/auth/create')
 
     all_statuses = [
         value for attr, value in vars(Statuses).items()
@@ -170,7 +173,7 @@ async def get_main_page(request: Request, # TODO доступна только �
         query = urlencode(clean, doseq=True)
         return f"/?{query}" if query else "/"
 
-    return templates.TemplateResponse('orders.html', {
+    return templates.TemplateResponse('orders/orders.html', {
         "request": request,
         "shop_name": Config.shop_name, # TODO объединить в объекты по логике переменных
         "descr": Config.descr,

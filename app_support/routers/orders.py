@@ -1,13 +1,17 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Query
+from fastapi import APIRouter, Depends, status, HTTPException, Query, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import select
+from starlette.responses import HTMLResponse
 
+from app_support.config import Config
 from database.crud.orders import get_orders, update_status
 from database.db_depends import get_db
 from schemas import OrderResponse
+from models import *
 
-router = APIRouter(prefix='/support/orders', tags=['orders'])
+router = APIRouter(prefix='/support', tags=['orders'])
 templates = Jinja2Templates(directory='app_support/templates/')
 
 
@@ -73,11 +77,58 @@ async def change_status(order_id: int,
             detail=f"Ошибка базы данных: {str(e)}"
         )
 
-@router.get('/order_page')
-async def get_order_detail(order_id):
-    pass
 
+@router.get('/order/{order_id}', response_class=HTMLResponse)
+async def get_order_detail(request: Request,
+                           order_id: int,
+                           db: AsyncSession = Depends(get_db)
+):
+    try:
+        order = await get_orders(order_id=order_id, db=db)
+        if not order:
+            return templates.TemplateResponse(
+                "exceptions/not_found.html",
+                {"request": request}
+            )
 
-@router.get('/all_chats')
-async def get_all_chats(order_id):
-    pass
+        order_products = []
+        total_amount = 0
+
+        query = select(User).where(User.id == order.user_id)
+        user = await db.scalar(query)
+
+        for product_id, product_data in order.products.items():
+            product_query = select(Product).where(Product.id == int(product_id))
+            product_result = await db.execute(product_query)
+            product = product_result.scalar_one_or_none()
+
+            if product:
+                item_total = product_data['count'] * product_data['price']
+                order_products.append({
+                    'id': product.id,
+                    'name': product.name,
+                    'price': product_data['price'],
+                    'count': product_data['count'],
+                    'image_url': product.image_urls[0],
+                    'item_total': item_total
+                })
+                total_amount += item_total
+
+        context = {
+            'request': request,
+            'order': order,
+            'products': order_products,
+            'total_amount': total_amount,
+            'user': user,
+            'shop_name': Config.shop_name,
+            'descr': Config.descr
+        }
+        return templates.TemplateResponse("orders/order_page.html", context)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка при загрузке страницы заказа: {str(e)}"
+        )

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="section">
+
+    <!-- Фильтры: активные/все и сортировка -->
+    <div class="chat-filters">
+        <!-- Фильтр чатов -->
+        <div class="filter-group">
+            <a href="?status_filter=all&sort={{ sort }}"
+               hx-get="/support/chats?status_filter=all&sort={{ sort }}"
+               hx-target="#chat-content"
+               hx-push-url="true"
+               class="filter-option {{ 'active' if status_filter == 'all' else '' }}">
+                Все
+            </a>
+            <a href="?status_filter=active&sort={{ sort }}"
+               hx-get="/support/chats?status_filter=active&sort={{ sort }}"
+               hx-target="#chat-content"
+               hx-push-url="true"
+               class="filter-option {{ 'active' if status_filter == 'active' else '' }}">
+                Активные
+            </a>
+        </div>
+
+        <!-- Сортировка -->
+        <div class="filter-group">
+            <a href="?status_filter={{ status_filter }}&sort=desc"
+               hx-get="/support/chats?status_filter={{ status_filter }}&sort=desc"
+               hx-target="#chat-content"
+               hx-push-url="true"
+               class="filter-option {{ 'active' if sort == 'desc' else '' }}">
+                Сначала новые
+            </a>
+            <a href="?status_filter={{ status_filter }}&sort=asc"
+               hx-get="/support/chats?status_filter={{ status_filter }}&sort=asc"
+               hx-target="#chat-content"
+               hx-push-url="true"
+               class="filter-option {{ 'active' if sort == 'asc' else '' }}">
+                Сначала старые
+            </a>
+        </div>
+    </div>
+
+    <!-- Контент чатов -->
+    <div id="chat-content">
+        {% if chats and chats|length > 0 %}
+            <div class="chats-list" id="chat-list">
+                {% include "chats/chat_items.html" %}
+            </div>
+
+            {% if has_more %}
+            <div id="load-more-container">
+                <button
+                    hx-get="/support/chats/load-more?page={{ next_page }}&status_filter={{ status_filter }}&sort={{ sort }}"
+                    hx-target="#load-more-container"
+                    hx-swap="outerHTML"
+                    class="btn btn-secondary">
+                    Загрузить ещё
+                </button>
+            </div>
+            {% else %}
+            <div class="load-more-container">
+                <p>Больше чатов нет</p>
+            </div>
+            {% endif %}
+
+        {% else %}
+            <div class="empty-state">
+                <p>У вас пока нет чатов.</p>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/chats/chat_list.css') }}?v=1.2">
+{% endblock %}

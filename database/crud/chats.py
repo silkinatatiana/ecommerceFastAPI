@@ -10,7 +10,8 @@ async def get_chat(
         db: AsyncSession,
         chat_id: int = None,
         user_id: int = None,
-        is_active: bool = False,
+        employee_id: int = None,
+        active: bool = False,
         limit: int = None,
         offset: int = None,
         sort_asc: bool = False,
@@ -24,8 +25,11 @@ async def get_chat(
         if user_id:
             query = query.where(Chats.user_id == user_id)
 
-        if is_active:
-            query = query.where(Chats.active == is_active)
+        if employee_id:
+            query = query.where(Chats.employee_id == employee_id)
+
+        if active:
+            query = query.where(Chats.active == active)
 
         if sort_asc:
             query = query.order_by(Chats.created_at.asc())

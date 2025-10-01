@@ -28,9 +28,6 @@
                                  alt="Меню пользователя"
                                  title="Меню пользователя">
                             <div class="user-dropdown" id="userDropdown">
-                                <a href="/auth/account?section=profile_tab" class="nav-link {% if active_section == 'profile_tab' %}active{% endif %}" data-section="profile">
-                                    Профиль
-                                </a>
                                 <a href="{{ url_for('logout') }}" class="logout">Выйти</a>
                             </div>
                         </div>
@@ -47,8 +44,8 @@
     </header>
     <nav>
         {% if is_authenticated %}
-            <a href="{{ url_for('get_main_page') }}"> | Все заказы</a>
-            <a href="{{ url_for('get_all_chats') }}"> | Все чаты</a>
+            <a href="{{ url_for('get_all_chats') }}">Все чаты</a> |
+            <a href="{{ url_for('get_main_page') }}">Все заказы</a>
         {% endif %}
     </nav>
 

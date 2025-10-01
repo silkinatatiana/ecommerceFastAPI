@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Чат #{{ chat.id }} — {{ shop_name }}</title>
+    <style>
+        .message { margin: 8px 0; padding: 8px; }
+        .sent { background: #e3f2fd; text-align: right; }
+        .received { background: #f5f5f5; }
+        .chat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .form-group { margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="chat-header">
+        <h2>Чат #{{ chat.id }} с {{ employee.full_name or 'сотрудником' }}</h2>
+        {% if is_active %}
+            <form method="post" action="/chat/{{ chat.id }}/complete" style="display:inline;">
+                <button type="submit" style="background: red; color: white; border: none; padding: 6px 12px; cursor: pointer;">
+                    Завершить чат
+                </button>
+            </form>
+        {% else %}
+            <span style="color: gray;">Чат завершён</span>
+        {% endif %}
+    </div>
+
+    <div id="messages">
+        {% for msg in messages %}
+        <div class="message {{ 'sent' if msg.sender_id == user.id else 'received' }}">
+            <strong>{{ 'Вы' if msg.sender_id == user.id else employee.full_name or 'Сотрудник' }}:</strong>
+            {{ msg.content }}
+            <br><small>{{ msg.created_at.strftime('%d.%m %Y %H:%M') }}</small>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if is_active %}
+    <form method="post" action="/chat/{{ chat.id }}/send" class="form-group">
+        <textarea name="content" rows="3" placeholder="Введите сообщение..." required></textarea><br>
+        <button type="submit">Отправить</button>
+    </form>
+    {% endif %}
+
+    <br>
+    <a href="/chat/">← Назад к списку чатов</a>
+</body>
+</html>

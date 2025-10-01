@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Все заказы - {{ shop_name }}{% endblock %}
+
+{% block content %}
+<div class="orders-container">
+    <div class="filters-panel">
+        <div class="filters-row filters-row-1">
+            <div class="filter-wrapper">
+                <div class="filter-with-sort">
+                    <div class="dropdown-filter-container" data-filter="order_id">
+                        <div class="filter-trigger {% if (order_ids | length) > 0 %}active{% endif %}">Номер заказа</div>
+                        <div class="dropdown-filter">
+                            <div class="filter-options">
+                                {% for order_id in all_order_ids %}
+                                <label>
+                                    <input type="checkbox" value="{{ order_id }}"
+                                        {% if order_id in (order_ids or []) %}checked{% endif %}>
+                                    Заказ #{{ order_id }}
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sort-arrows-inline">
+                        <a href="{{ build_sort_url('id', 'asc') }}" class="sort-btn {% if current_sort_by == 'id' and current_sort_order == 'asc' %}active{% endif %}">↑</a>
+                        <a href="{{ build_sort_url('id', 'desc') }}" class="sort-btn {% if current_sort_by == 'id' and current_sort_order == 'desc' %}active{% endif %}">↓</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-wrapper">
+                <div class="filter-with-sort">
+                    <div class="dropdown-filter-container" data-filter="user_id">
+                        <div class="filter-trigger {% if (user_ids | length) > 0 %}active{% endif %}">Пользователь</div>
+                        <div class="dropdown-filter">
+                            <input type="text" placeholder="Поиск..." class="filter-search" oninput="filterDropdown(this, 'user_id')">
+                            <div class="filter-options">
+                                {% for user in unique_users %}
+                                <label>
+                                    <input type="checkbox" value="{{ user.id }}"
+                                        {% if user.id in (user_ids or []) %}checked{% endif %}>
+                                    {{ (user.first_name or '') + ' ' + (user.last_name or '') | trim or 'Без имени' }} (ID: {{ user.id }})
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sort-arrows-inline">
+                        <a href="{{ build_sort_url('user', 'asc') }}" class="sort-btn {% if current_sort_by == 'user' and current_sort_order == 'asc' %}active{% endif %}">↑</a>
+                        <a href="{{ build_sort_url('user', 'desc') }}" class="sort-btn {% if current_sort_by == 'user' and current_sort_order == 'desc' %}active{% endif %}">↓</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-wrapper">
+                <div class="filter-with-sort">
+                    <div class="dropdown-filter-container" data-filter="status">
+                        <div class="filter-trigger {% if (status | length) > 0 %}active{% endif %}">Статус</div>
+                        <div class="dropdown-filter">
+                            <div class="filter-options">
+                                {% for st in unique_statuses %}
+                                <label>
+                                    <input type="checkbox" value="{{ st }}"
+                                        {% if st in (status or []) %}checked{% endif %}>
+                                        {{ st.replace('_', ' ') | title }}
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="filters-row filters-row-2">
+            <div class="filter-wrapper">
+                <div class="filter-with-sort">
+                    <div class="range-filter">
+                        <input type="date" name="date_start_filter" value="{{ date_start_date }}" placeholder="От">
+                        <span>–</span>
+                        <input type="date" name="date_end_filter" value="{{ date_end_date }}" placeholder="До">
+                    </div>
+                    <div class="sort-arrows-inline">
+                        <a href="{{ build_sort_url('date', 'asc') }}" class="sort-btn {% if current_sort_by == 'date' and current_sort_order == 'asc' %}active{% endif %}">↑</a>
+                        <a href="{{ build_sort_url('date', 'desc') }}" class="sort-btn {% if current_sort_by == 'date' and current_sort_order == 'desc' %}active{% endif %}">↓</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-wrapper">
+                <div class="filter-with-sort">
+                    <div class="range-filter">
+                        <input type="number" name="sum_from_filter" placeholder="Сумма от" value="{{ sum_from }}">
+                        <span>–</span>
+                        <input type="number" name="sum_to_filter" placeholder="Сумма до" value="{{ sum_to }}">
+                    </div>
+                    <div class="sort-arrows-inline">
+                        <a href="{{ build_sort_url('summa', 'asc') }}" class="sort-btn {% if current_sort_by == 'summa' and current_sort_order == 'asc' %}active{% endif %}">↑</a>
+                        <a href="{{ build_sort_url('summa', 'desc') }}" class="sort-btn {% if current_sort_by == 'summa' and current_sort_order == 'desc' %}active{% endif %}">↓</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="filters-actions">
+            <button type="button" class="btn-action apply" onclick="applyFilters()">Применить</button>
+            <a href="/" class="btn-action">Сбросить фильтры</a>
+        </div>
+    </div>
+    <div class="orders-table-wrapper">
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th>Номер заказа</th>
+                    <th>Пользователь</th>
+                    <th>Дата заказа</th>
+                    <th>Статус</th>
+                    <th>Сумма</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if orders %}
+                    {% for order in orders %}
+                    <tr class="clickable-row" data-href="support/orders/order/{{ order.id }}">
+                        <td><strong>{{ order.id }}</strong></td>
+                        <td>
+                            {% set user = user_dict.get(order.user_id) %}
+                            {% if user %}
+                                {{ (user.first_name or '') + ' ' + (user.last_name or '') | trim or 'Без имени' }}
+                            {% else %}
+                                Без имени
+                            {% endif %}
+                            (ID: {{ order.user_id }})
+                        </td>
+                        <td>{{ order.date.strftime('%d.%m.%Y') }}</td>
+                        <td><span class="status-{{ order.status }}">{{ order.status | replace('_', ' ') | title }}</span></td>
+                        <td class="product-price">{{ "{:,}".format(order.summa).replace(',', ' ') }} ₽</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="no-orders">Заказы не найдены</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}
+            <a href="{{ build_pagination_url(page=page-1) }}" class="pagination-link">&laquo; Назад</a>
+        {% endif %}
+        {% for page_num in range(1, total_pages + 1) %}
+            {% if page_num == page %}
+                <span class="current-page">{{ page_num }}</span>
+            {% else %}
+                <a href="{{ build_pagination_url(page=page_num) }}" class="pagination-link">{{ page_num }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page < total_pages %}
+            <a href="{{ build_pagination_url(page=page+1) }}" class="pagination-link">Вперед &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/orders/orders.css') }}?v=1.1">
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/orders/orders.js') }}?v=1.0"></script>
+{% endblock %}
