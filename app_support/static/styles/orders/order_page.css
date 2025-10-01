@@ -1,21 +1,3 @@
-:root {
-    --ocean-deep: #1e466d;
-    --ocean-dark: #2c5f8a;
-    --ocean-light: #4a7ca5;
-    --ocean-accent: #6b8ca6;
-    --secondary-color: #166088;
-    --accent-color: #4fc3f7;
-    --dark-color: #2d3142;
-    --light-color: #f5f5f5;
-    --light-gray: #e0e0e0;
-    --success-color: #4caf50;
-    --warning-color: #ff9800;
-    --error-color: #f44336;
-    --border-radius: 8px;
-    --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    --transition: all 0.3s ease;
-}
-
 * {
     margin: 0;
     padding: 0;
@@ -364,4 +346,64 @@ body {
 .btn-cancel:disabled {
     background-color: #ccc;
     cursor: not-allowed;
+}
+
+/* Модальное окно пользователя */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 10% auto;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+
+.close {
+    position: absolute;
+    right: 1.2rem;
+    top: 1rem;
+    font-size: 1.8rem;
+    font-weight: bold;
+    cursor: pointer;
+    color: #999;
+}
+
+.close:hover {
+    color: #333;
+}
+
+.customer-link {
+    color: var(--ocean-deep);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.customer-link:hover {
+    opacity: 0.8;
+}
+
+/* Уменьшенная кнопка "Сохранить" */
+.btn-small {
+    padding: 0.4rem 0.9rem !important;
+    font-size: 0.85rem !important;
+    transform: none !important;
+    box-shadow: 0 2px 6px rgba(26, 54, 93, 0.2) !important;
+}
+
+.btn-small:hover {
+    transform: none !important;
+    box-shadow: 0 3px 8px rgba(26, 54, 93, 0.25) !important;
 }

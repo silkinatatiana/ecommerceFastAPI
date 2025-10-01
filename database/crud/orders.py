@@ -3,7 +3,7 @@ from sqlalchemy import select, update, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import Statuses
+from app_support.config import Statuses
 from models import Orders
 
 

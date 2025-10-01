@@ -30,8 +30,7 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
                 form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     user = await authenticate_user(db, form_data.username, form_data.password)
 
-    token = await create_access_token(user.username, user.id, user.is_admin, user.role,
-                                      expires_delta=timedelta(minutes=Config.minutes))
+    token = create_access_token(user.username, user.id, timedelta(minutes=Config.minutes), user.is_admin, user.role)
     return {
         'access_token': token,
         'token_type': 'bearer'

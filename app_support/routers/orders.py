@@ -1,25 +1,18 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, status, HTTPException, Query, Request, Cookie
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import select
-from starlette.responses import HTMLResponse
+from starlette.responses import HTMLResponse, RedirectResponse
 
 from app_support.config import Config
 from database.crud.orders import get_orders, update_status
 from database.db_depends import get_db
-from schemas import OrderResponse
+from schemas import OrderResponse, ChangeOrderStatus
 from models import *
 
 router = APIRouter(prefix='/support', tags=['orders'])
 templates = Jinja2Templates(directory='app_support/templates/')
-
-
-@router.get('/order/{order_id}', response_model=OrderResponse | None)
-async def get_order_by_id(order_id: int,
-                          db: AsyncSession = Depends(get_db)):
-    result = await get_orders(order_id=order_id, db=db)
-    return result
 
 
 @router.get('/user/{user_id}')
@@ -63,10 +56,14 @@ async def get_orders_by_user_id(
 
 @router.patch('/change_status/{order_id}')
 async def change_status(order_id: int,
-                        new_status: str,
+                        status_obj: ChangeOrderStatus,
+                        token: str = Cookie(None, alias='token'),
                         db: AsyncSession = Depends(get_db)) -> dict:
     try:
-        await update_status(order_id=order_id, new_status=new_status, db=db)
+        if not token:
+            return RedirectResponse(url='/auth/create')
+
+        await update_status(order_id=order_id, new_status=status_obj.new_status, db=db)
 
         return {'message': f'Статус заказа изменен'}
 
@@ -81,9 +78,12 @@ async def change_status(order_id: int,
 @router.get('/order/{order_id}', response_class=HTMLResponse)
 async def get_order_detail(request: Request,
                            order_id: int,
+                           token: str = Cookie(None, alias='token'),
                            db: AsyncSession = Depends(get_db)
 ):
     try:
+        if not token:
+            return RedirectResponse(url='/auth/create')
         order = await get_orders(order_id=order_id, db=db)
         if not order:
             return templates.TemplateResponse(
@@ -120,6 +120,7 @@ async def get_order_detail(request: Request,
             'products': order_products,
             'total_amount': total_amount,
             'user': user,
+            'is_authenticated': True,
             'shop_name': Config.shop_name,
             'descr': Config.descr
         }

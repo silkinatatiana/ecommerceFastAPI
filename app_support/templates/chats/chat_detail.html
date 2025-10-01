@@ -41,11 +41,14 @@
                 </div>
               </form>
 
-            <form method="post" action="/support/chats/{{ chat.id }}/complete" style="display:inline;">
-                <button type="submit" class="btn-complete" style="margin-top:10px;">
-                    × Завершить чат
-                </button>
-                </form>
+            <button
+                type="button"
+                class="btn-complete"
+                style="margin-top:10px;"
+                onclick="completeChat({{ chat.id }})"
+            >
+                × Завершить чат
+            </button>
         {% else %}
 
         {% endif %}

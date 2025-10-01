@@ -3,7 +3,7 @@
 {% block title %}Заказ {{ order.id }} — Поддержка{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', path='styles/orders/order_page.css') }}?v=1.0">
+<link rel="stylesheet" href="{{ url_for('static', path='styles/orders/order_page.css') }}?v=1.1">
 {% endblock %}
 
 {% block content %}
@@ -19,28 +19,36 @@
         <div class="info-card">
             <h3>Информация о заказе</h3>
             <p><strong>ID заказа:</strong> {{ order.id }}</p>
-            <p><strong>Дата создания:</strong> {{ order.created_at }}</p>
-            <p><strong>Общая сумма:</strong> <span class="price">{{ order.total_sum }} руб.</span></p>
+            <p><strong>Дата создания:</strong> {{ order.date }}</p>
+            <p><strong>Общая сумма:</strong> <span>{{ order.summa }} руб.</span></p>
             <p><strong>Количество товаров:</strong> {{ products|length }}</p>
+            <p><strong>Статус:</strong> {{ order.status }}</p>
+
+
+            <div class="customer-info">
+                <p><strong>Покупатель:</strong>
+                    {% if user %}
+                        <span class="customer-link" onclick="openUserModal({{ user.id }})">
+                            {{ user.first_name or '' }} {{ user.last_name or '' }}
+                        </span>
+                    {% else %}
+                        <em>Пользователь не найден</em>
+                    {% endif %}
+                </p>
+            </div>
 
             <div class="status-control">
-                <label for="order-status">Статус заказа:</label>
+                <label for="order-status">Изменить на:</label>
                 <select id="order-status" data-order-id="{{ order.id }}">
-                    <option value="Оформлен" {% if order.status == 'Оформлен' %}selected{% endif %}>Оформлен</option>
-                    <option value="В обработке" {% if order.status == 'В обработке' %}selected{% endif %}>В обработке</option>
-                    <option value="Отменён" {% if order.status == 'Отменён' %}selected{% endif %}>Отменён</option>
-                    <option value="Отправлен" {% if order.status == 'Отправлен' %}selected{% endif %}>Отправлен</option>
-                    <option value="Доставлен" {% if order.status == 'Доставлен' %}selected{% endif %}>Доставлен</option>
+                    <option value="DESIGNED">Оформлен</option>
+                    <option value="ON_ASSEMBLY">На сборке</option>
+                    <option value="SENT">Отправлен</option>
+                    <option value="DELIVERED">Доставлен</option>
+                    <option value="COMPLETED">Завершен</option>
+                    <option value="CANCELLED">Отменен</option>
                 </select>
-                <button class="btn btn-primary" onclick="updateOrderStatus({{ order.id }})">Сохранить</button>
+                <button class="btn btn-small" onclick="updateOrderStatus({{ order.id }})">Сохранить</button>
             </div>
-        </div>
-
-        <div class="info-card">
-            <h3>Покупатель</h3>
-            <p><strong>Имя:</strong> {{ order.user_name or 'Не указано' }}</p>
-            <p><strong>Email:</strong> {{ order.user_email or '—' }}</p>
-            <p><strong>Телефон:</strong> {{ order.user_phone or '—' }}</p>
         </div>
     </div>
 
@@ -57,9 +65,7 @@
                 {% endif %}
 
                 <div class="product-info">
-                    <div class="product-name">
-                            {{ product.name }}
-                    </div>
+                    <div class="product-name">{{ product.name }}</div>
                 </div>
 
                 <div class="product-details">
@@ -73,12 +79,27 @@
     </div>
 
     <div class="actions">
-            Назад к списку заказов
-        </button>
+        <a href="{{ url_for('get_main_page') }}" class="btn">Назад к списку заказов</a>
+    </div>
+</div>
+
+<div id="userModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeUserModal()">&times;</span>
+        <h3>Данные покупателя</h3>
+        {% if user %}
+        <p><strong>ID:</strong> {{ user.id }}</p>
+        <p><strong>Имя:</strong> {{ user.first_name or '—' }}</p>
+        <p><strong>Фамилия:</strong> {{ user.last_name or '—' }}</p>
+        <p><strong>Email:</strong> {{ user.email or '—' }}</p>
+        <p><strong>Телефон:</strong> {{ user.phone or '—' }}</p>
+        {% else %}
+        <p>Пользователь не найден.</p>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', path='/js/orders/order_page.js') }}?v=1.0"></script>
+<script src="{{ url_for('static', path='/js/orders/order_page.js') }}?v=1.1"></script>
 {% endblock %}

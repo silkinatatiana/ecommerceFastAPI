@@ -1,14 +1,13 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, status, HTTPException, Cookie, Request, Query, Form
+from fastapi import APIRouter, Depends, status, HTTPException, Cookie, Request, Query
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.functions.auth_func import get_user_id_by_token
 from database.crud.chats import update_chat_status, get_chat
 from database.db_depends import get_db
 from database.crud.messages import get_message
@@ -45,7 +44,7 @@ async def get_all_chats(
     # )
     query = ( # чтобы не было ошибки с загрузкой
         select(Chats)
-        .options(selectinload(Chats.employee))  # ← загружаем employee сразу
+        .options(selectinload(Chats.employee))
         .where(Chats.employee_id == employee_id)
     )
 
@@ -198,7 +197,7 @@ async def view_chat(
     })
 
 
-@router.post('/{chat_id}/complete')
+@router.patch('/{chat_id}/complete')
 async def complete_chat(
     chat_id: int,
     token: Optional[str] = Cookie(None, alias='token'),
@@ -215,4 +214,4 @@ async def complete_chat(
     chat.completed_at = datetime.utcnow()
     await db.commit()
 
-    return RedirectResponse(url=f"/support/chats/chat/{chat_id}/view", status_code=303)
+    return RedirectResponse(url=f"/support/chats/{chat_id}/view", status_code=303)

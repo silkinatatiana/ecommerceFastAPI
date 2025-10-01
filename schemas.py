@@ -131,3 +131,6 @@ class MessageCreate(BaseModel):
     chat_id: int
 
 
+class ChangeOrderStatus(BaseModel):
+    new_status: str
+
