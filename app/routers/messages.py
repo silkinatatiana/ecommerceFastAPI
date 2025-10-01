@@ -14,7 +14,7 @@ from functions.auth_func import get_user_id_by_token
 from schemas import MessageCreate
 
 router = APIRouter(prefix='/messages', tags=['messages'])
-templates = Jinja2Templates(directory='app/templates/')
+templates = Jinja2Templates(directory='app_support/templates/')
 
 
 @router.get('/by_chat/{chat_id}')

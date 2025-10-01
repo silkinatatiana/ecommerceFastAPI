@@ -3,9 +3,7 @@
 {% block content %}
 <div class="section">
 
-    <!-- Фильтры: активные/все и сортировка -->
     <div class="chat-filters">
-        <!-- Фильтр чатов -->
         <div class="filter-group">
             <a href="?status_filter=all&sort={{ sort }}"
                hx-get="/support/chats?status_filter=all&sort={{ sort }}"
@@ -23,7 +21,6 @@
             </a>
         </div>
 
-        <!-- Сортировка -->
         <div class="filter-group">
             <a href="?status_filter={{ status_filter }}&sort=desc"
                hx-get="/support/chats?status_filter={{ status_filter }}&sort=desc"
@@ -42,7 +39,6 @@
         </div>
     </div>
 
-    <!-- Контент чатов -->
     <div id="chat-content">
         {% if chats and chats|length > 0 %}
             <div class="chats-list" id="chat-list">

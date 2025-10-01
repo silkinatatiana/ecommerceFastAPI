@@ -1,48 +1,80 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Чат #{{ chat.id }} — {{ shop_name }}</title>
-    <style>
-        .message { margin: 8px 0; padding: 8px; }
-        .sent { background: #e3f2fd; text-align: right; }
-        .received { background: #f5f5f5; }
-        .chat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .form-group { margin-top: 16px; }
-    </style>
-</head>
-<body>
-    <div class="chat-header">
-        <h2>Чат #{{ chat.id }} с {{ employee.full_name or 'сотрудником' }}</h2>
-        {% if is_active %}
-            <form method="post" action="/chat/{{ chat.id }}/complete" style="display:inline;">
-                <button type="submit" style="background: red; color: white; border: none; padding: 6px 12px; cursor: pointer;">
-                    Завершить чат
-                </button>
-            </form>
-        {% else %}
-            <span style="color: gray;">Чат завершён</span>
-        {% endif %}
+{% extends "base.html" %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-header-info">
+        <div class="info-row">
+            <span><i class="fas fa-tag"></i> Тема: {{ chat.topic or 'Без темы' }}</span>
+            <span><i class="fas fa-user"></i> Пользователь:
+                <a href="#" class="client-name-link" onclick="toggleClientInfo(event)">
+                    {{ client.full_name or client.username or 'Клиент' }}
+                </a>
+            </span>
+            <span><i class="fas fa-headset"></i> Оператор: {{ employee.first_name}}</span>
+            <span><i class="far fa-clock"></i> Начат: {{ chat.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+        </div>
+        <div class="status-badge status-{{ 'active' if is_active else 'closed' }}">
+            {{ 'Активен' if is_active else 'Завершён' }}
+        </div>
     </div>
 
-    <div id="messages">
+    <div class="messages-area" id="messages">
         {% for msg in messages %}
-        <div class="message {{ 'sent' if msg.sender_id == user.id else 'received' }}">
-            <strong>{{ 'Вы' if msg.sender_id == user.id else employee.full_name or 'Сотрудник' }}:</strong>
-            {{ msg.content }}
-            <br><small>{{ msg.created_at.strftime('%d.%m %Y %H:%M') }}</small>
+        <div class="message-bubble {{ 'client-message' if msg.sender_id != employee.id else 'employee-message' }}">
+            {% if msg.sender_id != employee.id %}
+                <div class="sender-label">Пользователь</div>
+            {% endif %}
+            <div class="message-content">
+                {{ msg.message }}
+            </div>
+            <div class="message-time">{{ msg.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
         </div>
         {% endfor %}
     </div>
 
-    {% if is_active %}
-    <form method="post" action="/chat/{{ chat.id }}/send" class="form-group">
-        <textarea name="content" rows="3" placeholder="Введите сообщение..." required></textarea><br>
-        <button type="submit">Отправить</button>
-    </form>
-    {% endif %}
+    <div class="chat-footer">
+        {% if is_active %}
+            <form method="post" action="/support/messages/{{ chat.id }}/send" class="message-form">
+                <textarea name="message" rows="3" placeholder="Введите сообщение..." required></textarea>
+                <div class="form-actions">
+                  <button type="submit" class="btn-send">Отправить</button>
+                </div>
+              </form>
 
-    <br>
-    <a href="/chat/">← Назад к списку чатов</a>
-</body>
-</html>
+            <form method="post" action="/support/chats/{{ chat.id }}/complete" style="display:inline;">
+                <button type="submit" class="btn-complete" style="margin-top:10px;">
+                    × Завершить чат
+                </button>
+                </form>
+        {% else %}
+
+        {% endif %}
+    </div>
+
+    <div class="back-link-container">
+        <a href="/support/chats/" class="back-link">
+            ← Назад к списку чатов
+        </a>
+    </div>
+</div>
+
+<div id="client-info-popup" class="client-info-popup" style="display: none;">
+    <div class="popup-content">
+        <h4>Информация о клиенте</h4>
+        <p><strong>Имя:</strong> {{ client.first_name or '—' }}</p>
+        <p><strong>Фамилия:</strong> {{ client.last_name or '—' }}</p>
+        <p><strong>Никнейм:</strong> @{{ client.username or '—' }}</p>
+        <p><strong>Email:</strong> {{ client.email or '—' }}</p>
+        <p><strong>Телефон:</strong> {{ client.phone or '—' }}</p>
+        <button onclick="closeClientInfo()">Закрыть</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/chats/chat_detail.css') }}?v=1.5">
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/chats/chat_detail.js') }}?v=1.0"></script>
+{% endblock %}

@@ -181,6 +181,38 @@
     text-decoration: underline;
 }
 
+.message {
+    display: flex;
+    flex-direction: column;
+    max-width: 80%;
+}
+
+.message-user {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+
+.message-support {
+    align-self: flex-start;
+    align-items: flex-start;
+}
+
+.message-content {
+    padding: 10px 14px;
+    border-radius: 18px;
+    line-height: 1.4;
+}
+
+.message-user .message-content {
+    background: #0d6efd;
+    color: white;
+}
+
+.message-support .message-content {
+    background: #e9ecef;
+    color: #212529;
+}
+
 @media (max-width: 768px) {
     .chat-detail-container {
         margin: 15px;

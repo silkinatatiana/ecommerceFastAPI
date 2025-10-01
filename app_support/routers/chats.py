@@ -158,34 +158,44 @@ async def chat_by_id(chat_id: int,
 #         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post('/{chat_id}/send')
-async def send_message(
+@router.get('/{chat_id}/view', response_class=HTMLResponse)
+async def view_chat(
+    request: Request,
     chat_id: int,
-    content: str = Form(...),
     token: Optional[str] = Cookie(None, alias='token'),
     db: AsyncSession = Depends(get_db)
 ):
     if not token:
-        raise HTTPException(status_code=403)
+        return RedirectResponse(url='/auth/create', status_code=303)
 
     user_dict = await get_current_user(token=token)
-    user_id = user_dict['id']
+    employee_id = user_dict['id']
 
     chat = await get_chat(chat_id=chat_id, db=db)
-    if not chat or not chat.active:
-        raise HTTPException(status_code=400, detail="Чат неактивен")
+    if not chat:
+        return templates.TemplateResponse("exceptions/not_found.html", {"request": request})
 
-    # Создаём сообщение
-    new_msg = Messages(
-        chat_id=chat_id,
-        sender_id=user_id,
-        content=content,
-        created_at=datetime.utcnow()
-    )
-    db.add(new_msg)
-    await db.commit()
+    client = await db.scalar(select(User).where(User.id == chat.user_id))
+    if not client:
+        return templates.TemplateResponse("exceptions/not_found.html", {"request": request})
 
-    return RedirectResponse(url=f"/chat/{chat_id}/view", status_code=303)
+    employee = await db.scalar(select(User).where(User.id == employee_id))
+    if not employee:
+        return templates.TemplateResponse("exceptions/not_found.html", {"request": request})
+
+    messages = await get_message(chat_id=chat_id, sort_asc=True, db=db)
+
+    return templates.TemplateResponse('chats/chat_detail.html', {
+        'request': request,
+        'chat': chat,
+        'messages': messages,
+        'client': client,
+        'employee': employee,
+        'is_active': chat.active,
+        'shop_name': Config.shop_name,
+        'descr': Config.descr,
+        'is_authenticated': True
+    })
 
 
 @router.post('/{chat_id}/complete')
@@ -205,38 +215,4 @@ async def complete_chat(
     chat.completed_at = datetime.utcnow()
     await db.commit()
 
-    return RedirectResponse(url=f"/chat/{chat_id}/view", status_code=303)
-
-
-@router.get('/{chat_id}/view', response_class=HTMLResponse)
-async def view_chat(
-    request: Request,
-    chat_id: int,
-    token: Optional[str] = Cookie(None, alias='token'),
-    db: AsyncSession = Depends(get_db)
-):
-    if not token:
-        return RedirectResponse(url='/auth/create', status_code=303)
-
-    user_dict = await get_current_user(token=token)
-    user_id = user_dict['id']
-
-    chat = await get_chat(chat_id=chat_id, db=db)
-    if not chat:
-        return templates.TemplateResponse("exceptions/not_found.html", {"request": request})
-
-    employee = await db.scalar(select(User).where(User.id == chat.employee_id))
-    current_user = await db.scalar(select(User).where(User.id == user_id))
-
-    messages = await get_message(chat_id=chat_id, sort_asc=True, db=db)
-
-    return templates.TemplateResponse('chat/chat_detail.html', {
-        'request': request,
-        'chat': chat,
-        'messages': messages,
-        'user': current_user,
-        'employee': employee,
-        'active': chat.active,
-        'shop_name': Config.shop_name,
-        'descr': Config.descr,
-    })
+    return RedirectResponse(url=f"/support/chats/chat/{chat_id}/view", status_code=303)
