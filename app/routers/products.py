@@ -127,21 +127,21 @@ async def all_products(
 
 @router.get('/by_category/{category_id}')
 async def products_by_category(
-       category_id: int,
-       user_id: int,
-       request: Request,
-       per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
-       colors: str = Query(None),
-       built_in_memory: str = Query(None),
-       favorites: list[str] = Query(None),
-       db: AsyncSession = Depends(get_db)):
-
+    category_id: int,
+    user_id: int,
+    request: Request,
+    per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
+    colors: str = Query(None),
+    built_in_memory: str = Query(None),
+    favorites: Optional[list[str]] = Query(None),  # ← лучше Optional
+    db: AsyncSession = Depends(get_db)
+):
     try:
-        page_param_name = f"page_cat_{category_id}"
-        page = int(request.query_params.get(page_param_name, 1))
+        page = int(request.query_params.get("page", 1))
         if page < 1:
             page = 1
 
+        # Проверка категории
         category = await db.scalar(select(Category).where(Category.id == category_id))
         if category is None:
             raise HTTPException(
@@ -149,36 +149,50 @@ async def products_by_category(
                 detail='Category not found'
             )
 
-        query = select(Product).where(Product.category_id == category_id)
+        # Базовый запрос с сортировкой!
+        query = select(Product).where(Product.category_id == category_id).order_by(Product.id)
         count_query = select(func.count()).select_from(Product).where(Product.category_id == category_id)
 
+        # Фильтр по цвету
         if colors:
             colors_list = [color.strip() for color in colors.split(',')]
-            color_conditions = Product.color.in_(colors_list)
-            query = query.where(color_conditions)
-            count_query = count_query.where(color_conditions)
+            color_condition = Product.color.in_(colors_list)
+            query = query.where(color_condition)
+            count_query = count_query.where(color_condition)
 
+        # Фильтр по памяти
         if built_in_memory:
-            built_in_memory_list = [memory.strip() for memory in built_in_memory.split(',')]
-            memory_conditions = Product.built_in_memory_capacity.in_(built_in_memory_list)
-            query = query.where(memory_conditions)
-            count_query = count_query.where(memory_conditions)
+            memory_list = [mem.strip() for mem in built_in_memory.split(',')]
+            memory_condition = Product.built_in_memory_capacity.in_(memory_list)
+            query = query.where(memory_condition)
+            count_query = count_query.where(memory_condition)
 
-        total_count = await db.scalar(count_query)
+        if favorites is not None and user_id:
+            favorite_subq = (
+                select(Favorites.product_id)
+                .where(Favorites.user_id == user_id)
+                .scalar_subquery()
+            )
+            favorite_ids_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
+            favorite_ids = (await db.scalars(favorite_ids_query)).all()
+            if favorite_ids:
+                query = query.where(Product.id.in_(favorite_ids))
+                count_query = count_query.where(Product.id.in_(favorite_ids))
+            else:
+                # Нет избранных → вернуть пустой результат
+                query = query.where(False)
+                count_query = count_query.where(False)
 
+        # Получаем общее количество
+        total_count = await db.scalar(count_query) or 0
+
+        # Применяем пагинацию
         offset = (page - 1) * per_page
         query = query.offset(offset).limit(per_page)
 
-        products_result = await db.scalars(query)
-        products = products_result.all()
+        products = (await db.scalars(query)).all()
 
-        if favorites:
-            favorite_products = await db.scalars(select(Favorites).where(Favorites.user_id == user_id))
-            favorite_products_ids = {fp.product_id for fp in favorite_products}
-            products = [prod for prod in products if prod.id in favorite_products_ids]
-            total_count = len(products)
-
-        total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+        total_pages = max(1, (total_count + per_page - 1) // per_page) if total_count > 0 else 1
         pagination = {
             "page": page,
             "per_page": per_page,

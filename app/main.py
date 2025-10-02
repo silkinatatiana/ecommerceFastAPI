@@ -1,5 +1,5 @@
 import time
-from typing import AsyncGenerator, Optional, Annotated
+from typing import AsyncGenerator, Optional, Annotated, List, Dict, Any
 
 from fastapi import FastAPI, Request, HTTPException, Query, Depends, Cookie
 from fastapi.responses import HTMLResponse
@@ -133,17 +133,101 @@ def sort_func(memory):
     return val, int(num)
 
 
+async def fetch_categories() -> List[Dict[str, Any]]:
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{Config.url}/categories/")
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError:
+        raise HTTPException(502, detail="Сервис каталога недоступен")
+    except Exception as e:
+        raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}")
+
+
+async def fetch_products_for_category(
+    category_id: int,
+    db: AsyncSession,
+    user_id: Optional[int],
+    favorite_product_ids: List[int],
+    colors: Optional[str] = None,
+    built_in_memory: Optional[str] = None,
+    is_favorite: bool = False,
+    current_page: int = 1,
+    per_page: int = 3,
+) -> Dict[str, Any]:
+    params = {
+        "page": current_page,
+        "user_id": user_id or 0,
+    }
+    if colors:
+        params["colors"] = colors
+    if built_in_memory:
+        params["built_in_memory"] = built_in_memory
+    if is_favorite and favorite_product_ids:
+        params["favorites"] = ",".join(map(str, favorite_product_ids))
+
+    try:
+        async with httpx.AsyncClient() as client:
+            url = f"{Config.url}/products/by_category/{category_id}"
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            return response.json()
+    except Exception as e:
+        print(f"Ошибка при запросе продуктов для категории {category_id}: {e}")
+        return {"products": [], "pagination": {}}
+
+
+def format_product_name(product: Dict[str, Any]) -> str:
+    parts = [
+        product.get('name'),
+        product.get('RAM_capacity'),
+        product.get('built_in_memory_capacity'),
+        product.get('screen'),
+        product.get('cpu'),
+        product.get('color')
+    ]
+    return ', '.join(str(p) for p in parts if p is not None)
+
+
+async def get_filtered_values(
+    db: AsyncSession,
+    column,
+    model,
+    category_ids: Optional[List[int]] = None,
+    sort_key=None
+):
+    query = select(distinct(column)).where(column.isnot(None))
+    if category_ids:
+        query = query.where(model.category_id.in_(category_ids))
+    result = await db.execute(query)
+    values = result.scalars().all()
+    if sort_key:
+        return sorted(values, key=sort_key)
+    return sorted(values)
+
+
+def parse_int_list(param: Optional[str]) -> List[int]:
+    if not param:
+        return []
+    try:
+        return [int(cid.strip()) for cid in param.split(',') if cid.strip()]
+    except ValueError:
+        raise HTTPException(400, "Некорректный формат параметра")
+
+
 @app.get('/', response_class=HTMLResponse)
 async def get_main_page(
-        request: Request,
-        db: Annotated[AsyncSession, Depends(get_db)],
-        token: Optional[str] = Cookie(None, alias='token'),
-        category_id: Optional[str] = Query(None),
-        colors: Optional[str] = Query(None),
-        built_in_memory: Optional[str] = Query(None),
-        is_favorite: bool = Query(False),
-        partial: bool = Query(False),
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    token: Optional[str] = Cookie(None, alias='token'),
+    category_id: Optional[str] = Query(None),
+    colors: Optional[str] = Query(None),
+    built_in_memory: Optional[str] = Query(None),
+    is_favorite: bool = Query(False),
+    partial: bool = Query(False),
 ):
+    # === Аутентификация ===
     is_authenticated = False
     user_id = None
     favorite_product_ids = []
@@ -153,117 +237,124 @@ async def get_main_page(
     if token:
         try:
             payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
-            is_authenticated = True
             user_id = payload.get("id")
             role = payload.get("role")
-
-            if is_authenticated:
+            if user_id is not None:
+                is_authenticated = True
                 favorite_product_ids = await get_favorite_product_ids(user_id=user_id, db=db)
                 in_cart_product_ids = await get_in_cart_product_ids(user_id=user_id, db=db)
-
         except Exception as e:
             print(f"Ошибка декодирования токена: {e}")
 
-    try:
-        async with httpx.AsyncClient() as client:
-            categories_response = await client.get(f"{Config.url}/categories/")
-            categories_response.raise_for_status()
-            categories_data = categories_response.json()
+    # === Загрузка категорий ===
+    categories_data = await fetch_categories()
+    selected_category_ids = parse_int_list(category_id)
 
-    except httpx.HTTPStatusError:
-        raise HTTPException(502, detail="Сервис каталога недоступен")
-    except Exception as e:
-        raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}")
+    # === Partial-запрос (для "Показать ещё") ===
+    if partial:
+        cat_id_str = request.query_params.get("category_id")
+        if not cat_id_str:
+            raise HTTPException(400, "Для partial-запроса требуется category_id")
+        target_cat_id = parse_int_list(cat_id_str)[0]
+
+        target_category = next((c for c in categories_data if c["id"] == target_cat_id), None)
+        if not target_category:
+            return HTMLResponse("")
+
+        page_key = f"page_cat_{target_cat_id}"
+        current_page = max(1, int(request.query_params.get(page_key, 1)))
+
+        products_data = await fetch_products_for_category(
+            category_id=target_cat_id,
+            db=db,
+            user_id=user_id,
+            favorite_product_ids=favorite_product_ids,
+            colors=colors,
+            built_in_memory=built_in_memory,
+            is_favorite=is_favorite,
+            current_page=current_page,
+            per_page=3,
+        )
+
+        formatted_products = [
+            {**p, "name": format_product_name(p)} for p in products_data.get("products", [])
+        ]
+
+        pagination_info = products_data.get("pagination", {})
+        has_more = pagination_info.get("has_next", False)
+
+        category_data = {
+            "id": target_cat_id,
+            "page_key": page_key,
+            "products": formatted_products,
+            "pagination": pagination_info,
+            "has_more": has_more,
+            "current_page": current_page,
+            "per_page": 3,
+        }
+
+        context = {
+            "request": request,
+            "category_data": category_data,
+            "is_authenticated": is_authenticated,
+            "favorite_product_ids": favorite_product_ids,
+            "in_cart_product_ids": in_cart_product_ids,
+            "user_id": user_id,
+            "role": role,
+        }
+        return templates.TemplateResponse("products/more_products.html", context)
 
     categories_products = {}
-    selected_category_ids = [int(cid) for cid in category_id.split(',')] if category_id else []
 
     for category in categories_data:
-        if selected_category_ids and category['id'] not in selected_category_ids:
+        if selected_category_ids and category["id"] not in selected_category_ids:
             continue
+
         page_key = f"page_cat_{category['id']}"
-        current_page = int(request.query_params.get(page_key, 1))
-        if current_page < 1:
-            current_page = 1
-        else:
-            current_page += 1
-        per_page = 3
+        current_page = max(1, int(request.query_params.get(page_key, 1)))
 
-        try:
-            products_url = f"{Config.url}/products/by_category/{category['id']}"
-            params = {
-                "page": current_page,
-                "per_page": per_page,
-                "user_id": user_id if user_id else 0,  # TODO передавать токен
-            }
+        products_data = await fetch_products_for_category(
+            category_id=category["id"],
+            db=db,
+            user_id=user_id,
+            favorite_product_ids=favorite_product_ids,
+            colors=colors,
+            built_in_memory=built_in_memory,
+            is_favorite=is_favorite,
+            current_page=current_page,
+            per_page=3,
+        )
 
-            if colors:
-                params["colors"] = colors
-            if built_in_memory:
-                params["built_in_memory"] = built_in_memory
+        formatted_products = [
+            {**p, "name": format_product_name(p)} for p in products_data.get("products", [])
+        ]
 
-            if is_favorite and is_authenticated and favorite_product_ids:  # TODO
-                params["favorites"] = ",".join(map(str, favorite_product_ids))
+        pagination_info = products_data.get("pagination", {})
+        has_more = pagination_info.get("has_next", False)
+        total_count = pagination_info.get("total_count", 0)
+        displayed_count = len(formatted_products) + ((current_page - 1) * 3)
 
-            async with httpx.AsyncClient() as client:
-                products_response = await client.get(products_url, params=params)
-                products_response.raise_for_status()
-                products_data = products_response.json()
-
-        except httpx.HTTPStatusError as e:
-            print(f"Ошибка при запросе продуктов для категории {category['id']}: {e}")
-            products_data = {"products": [], "pagination": {}}
-
-        formatted_products = []
-        for p in products_data.get('products', []):
-            characteristics = [
-                p.get('name'),
-                p.get('RAM_capacity'),
-                p.get('built_in_memory_capacity'),
-                p.get('screen'),
-                p.get('cpu'),
-                p.get('color')
-            ]
-            name_parts = [str(s) for s in characteristics if s is not None]
-
-            formatted_products.append({
-                **p,
-                'name': ', '.join(name_parts)
-            })
-
-        pagination_info = products_data.get('pagination', {})
-        has_more = pagination_info.get('has_next', False)
-        total_count = pagination_info.get('total_count', 0)
-        displayed_count = len(formatted_products) + ((current_page - 1) * per_page)
-
-        categories_products[category['name']] = {
-            "id": category['id'],
+        categories_products[category["name"]] = {
+            "id": category["id"],
+            "page_key": page_key,
             "products": formatted_products,
             "pagination": pagination_info,
             "has_more": has_more,
             "total_count": total_count,
             "displayed_count": displayed_count,
             "current_page": current_page,
-            "per_page": per_page
+            "per_page": 3,
         }
-
-    if partial:
-        template_name = 'products/more_products.html'
-    else:
-        template_name = 'index.html'
 
     filters = await get_filters(db)
 
-    color_query = select(distinct(Product.color)).where(Product.color.isnot(None))
-    if selected_category_ids:
-        color_query = color_query.where(Product.category_id.in_(selected_category_ids))
-    all_colors = (await db.execute(color_query)).scalars().all()
+    all_colors = await get_filtered_values(
+        db, Product.color, Product, selected_category_ids
+    )
 
-    memory_query = select(distinct(Product.built_in_memory_capacity)).where(
-        Product.built_in_memory_capacity.isnot(None))
-    if selected_category_ids:
-        memory_query = memory_query.where(Product.category_id.in_(selected_category_ids))
-    all_built_in_memory = sorted((await db.execute(memory_query)).scalars().all(), key=sort_func)
+    all_built_in_memory = await get_filtered_values(
+        db, Product.built_in_memory_capacity, Product, selected_category_ids, sort_key=sort_func
+    )
 
     selected_colors_list = colors.split(",") if colors else []
     selected_memory_list = built_in_memory.split(",") if built_in_memory else []
@@ -288,11 +379,9 @@ async def get_main_page(
         "favorite_product_ids": favorite_product_ids,
         "in_cart_product_ids": in_cart_product_ids,
         "role": role,
-        "current_page": current_page,
-        "per_page": per_page
     }
 
-    response = templates.TemplateResponse(template_name, context)
+    response = templates.TemplateResponse("index.html", context)
 
     if token and not is_authenticated:
         response.delete_cookie("token")

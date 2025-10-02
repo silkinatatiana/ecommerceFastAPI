@@ -109,25 +109,23 @@
                         {% set has_prev = pagination.has_prev %}
                         {% set current_page = category_data.current_page %}
 
-                        {% if has_next %}
+                        {% if category_data.has_more %}
                             <button
-                                onclick="loadMoreProducts('{{ category_data.id }}', this)"
-                                class="view-all-btn load-more-btn"
-                                data-category-id="{{ category_data.id }}"
-                                data-current-page="{{ category_data.current_page }}"
-                                data-page-key="{{ category_data.page_key }}">
+                                  onclick="loadMoreProducts({{ category_data.id }}, this)"
+                                  class="view-all-btn collapse-btn"
+                                  data-category-id="{{ category_data.id }}"
+                                  data-current-page="{{ category_data.current_page }}"
+                                  {% if not category_data.has_more %}disabled{% endif %}>
                                 Показать еще
                             </button>
-                        {% endif %}
-
-                        {% if not has_next and has_prev %}
+                            {% elif category_data.current_page > 1 %}
                             <button
                                 onclick="collapseProducts('{{ category_data.id }}', this)"
                                 class="view-all-btn collapse-btn"
                                 data-category-id="{{ category_data.id }}">
                                 Свернуть
                             </button>
-                        {% endif %}
+                            {% endif %}
                     </div>
                 </div>
             {% endfor %}

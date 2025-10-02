@@ -1,9 +1,25 @@
-{% for category_name, category_data in categories_products.items() %}
-    <div class="category" data-category-id="{{ category_data.id }}">
-        <div class="products-grid">
-            {% for product in category_data.products %}
-                {% include 'products/product_card.html' %}
-            {% endfor %}
-        </div>
-    </div>
-{% endfor %}
+<div class="products-grid">
+    {% for product in category_data.products %}
+        {% include 'products/product_card.html' %}
+    {% endfor %}
+</div>
+
+<div class="category-actions">
+    {% if category_data.has_more %}
+        <button
+            onclick="loadMoreProducts({{ category_data.id }}, this)"
+            class="view-all-btn collapse-btn"
+            data-category-id="{{ category_data.id }}"
+            data-current-page="{{ category_data.current_page }}"
+        >
+            Показать еще
+        </button>
+    {% elif category_data.current_page > 1 %}
+        <button
+            onclick="collapseProducts('{{ category_data.id }}', this)"
+            class="view-all-btn collapse-btn"
+            data-category-id="{{ category_data.id }}">
+            Свернуть
+        </button>
+    {% endif %}
+</div>
