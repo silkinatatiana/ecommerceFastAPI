@@ -133,7 +133,7 @@ async def products_by_category(
     per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
     colors: str = Query(None),
     built_in_memory: str = Query(None),
-    favorites: Optional[list[str]] = Query(None),  # ← лучше Optional
+    favorites: Optional[list[str]] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     try:
@@ -141,7 +141,6 @@ async def products_by_category(
         if page < 1:
             page = 1
 
-        # Проверка категории
         category = await db.scalar(select(Category).where(Category.id == category_id))
         if category is None:
             raise HTTPException(
@@ -149,18 +148,15 @@ async def products_by_category(
                 detail='Category not found'
             )
 
-        # Базовый запрос с сортировкой!
         query = select(Product).where(Product.category_id == category_id).order_by(Product.id)
         count_query = select(func.count()).select_from(Product).where(Product.category_id == category_id)
 
-        # Фильтр по цвету
         if colors:
             colors_list = [color.strip() for color in colors.split(',')]
             color_condition = Product.color.in_(colors_list)
             query = query.where(color_condition)
             count_query = count_query.where(color_condition)
 
-        # Фильтр по памяти
         if built_in_memory:
             memory_list = [mem.strip() for mem in built_in_memory.split(',')]
             memory_condition = Product.built_in_memory_capacity.in_(memory_list)
@@ -179,14 +175,11 @@ async def products_by_category(
                 query = query.where(Product.id.in_(favorite_ids))
                 count_query = count_query.where(Product.id.in_(favorite_ids))
             else:
-                # Нет избранных → вернуть пустой результат
                 query = query.where(False)
                 count_query = count_query.where(False)
 
-        # Получаем общее количество
         total_count = await db.scalar(count_query) or 0
 
-        # Применяем пагинацию
         offset = (page - 1) * per_page
         query = query.offset(offset).limit(per_page)
 

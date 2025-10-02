@@ -124,7 +124,7 @@ async function clearCart() {
 
     try {
         const response = await fetch('/cart/clear', {
-            method: 'POST',
+            method: 'DELETE',
             credentials: 'include'
         });
 

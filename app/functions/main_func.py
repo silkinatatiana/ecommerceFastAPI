@@ -1,27 +1,13 @@
-import time
-from typing import AsyncGenerator, Optional, Annotated, List, Dict, Any
+from typing import Optional, Annotated, List, Dict, Any
 
-from fastapi import FastAPI, Request, HTTPException, Query, Depends, Cookie
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
+from fastapi import HTTPException, Depends
 from sqlalchemy import select, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.middleware.cors import CORSMiddleware
-from loguru import logger
-from contextlib import asynccontextmanager
-import logging
 import httpx
-import jwt
 
-from app.routers import category, products, auth, permission, reviews, favorites, cart, orders, chats, messages
+from app.routers import products
 from database.db_depends import get_db
-from database.db import Base, engine
-from models import *
 from app.config import Config
-from functions.favorites_func import get_favorite_product_ids
-from functions.cart_func import get_in_cart_product_ids
-from app.log.log import LOGGER
 
 
 async def get_filters(db: Annotated[AsyncSession, Depends(get_db)]) -> dict:

@@ -119,6 +119,23 @@ async def update_count_cart(
         raise f"Ошибка в обновлении количества товара в корзине: {e}"
 
 
+@router.delete('/clear', status_code=status.HTTP_204_NO_CONTENT)
+async def clear_cart(
+        token: Optional[str] = Cookie(None, alias='token'),
+        db: AsyncSession = Depends(get_db)
+):
+    try:
+        user_id = get_user_id_by_token(token)
+        await delete_from_cart(user_id=user_id, db=db, clear_cart=True)
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ошибка при очистке корзины: {str(e)}"
+        )
+
+
 @router.delete('/{product_id}')
 async def delete_product_from_cart(product_id: int,
                                    token: Optional[str] = Cookie(None, alias='token'),
@@ -133,23 +150,6 @@ async def delete_product_from_cart(product_id: int,
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Ошибка при удалении товара из корзины: {str(e)}"
-        )
-
-
-@router.post('/clear', status_code=status.HTTP_204_NO_CONTENT)  # TODO переписать вместе на delete(422)
-async def clear_cart(
-        token: Optional[str] = Cookie(None, alias='token'),
-        db: AsyncSession = Depends(get_db)
-):
-    try:
-        user_id = get_user_id_by_token(token)
-        await delete_from_cart(user_id=user_id, db=db, clear_cart=True)
-
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Ошибка при очистке корзины: {str(e)}"
         )
 
 

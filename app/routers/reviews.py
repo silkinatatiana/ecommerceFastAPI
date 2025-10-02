@@ -39,7 +39,7 @@ async def product_reviews(
     return reviews
 
 
-@router.post("/create_by/{product_id}") # TODO исправить пользователя в комментариях (ставится пользователь чей товар)
+@router.post("/create_by/{product_id}")
 async def create_review(
         review_data: CreateReviews,
         product_id: int,
