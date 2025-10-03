@@ -7,6 +7,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 
 from app_support.config import Config
 from database.crud.orders import get_orders, update_status
+from database.crud.users import get_user
 from database.db_depends import get_db
 from schemas import OrderResponse, ChangeOrderStatus
 from models import *
@@ -94,8 +95,7 @@ async def get_order_detail(request: Request,
         order_products = []
         total_amount = 0
 
-        query = select(User).where(User.id == order.user_id)
-        user = await db.scalar(query)
+        user = await get_user(db=db, user_id=order.user_id)
 
         for product_id, product_data in order.products.items():
             product_query = select(Product).where(Product.id == int(product_id))

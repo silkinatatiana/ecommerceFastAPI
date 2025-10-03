@@ -8,7 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, RedirectResponse
 
-from database.crud.orders import create_new_order, update_order_status, get_orders
+from database.crud.decorators import handler_base_errors
+from database.crud.orders import create_new_order, get_orders, update_status
 from database.crud.users import get_user
 from database.db_depends import get_db
 from app.config import Config
@@ -116,7 +117,7 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
                                        db=db)
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(
+            response = await client.delete(
                 f"{Config.url}/cart/clear",
                 cookies={'token': token}
             )
@@ -144,7 +145,7 @@ async def cancel_order(order_id: int,
         if not token:
             return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-        await update_order_status(order_id=order_id, db=db)
+        await update_status(order_id=order_id, db=db, new_status='CANCELLED')
         return f'Заказ № {order_id} отменен'
 
     except HTTPException:
@@ -162,68 +163,61 @@ async def cancel_order(order_id: int,
 
 
 @router.get('/order/{order_id}', response_class=HTMLResponse)
+@handler_base_errors
 async def order_page(request: Request,
                      order_id: int,
                      token: Optional[str] = Cookie(default=None, alias='token'),
                      db: AsyncSession = Depends(get_db)
-                     ):
-    try:
-        is_authenticated = False
-        if not token:
-            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+):
+    is_authenticated = False
+    if not token:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-        user_id = get_user_id_by_token(token)
-        if user_id:
-            is_authenticated = True
+    user_id = get_user_id_by_token(token)
+    if user_id:
+        is_authenticated = True
 
-        order = await get_orders(order_id=order_id, db=db)
-        if not order:
-            return templates.TemplateResponse(
-                "exceptions/not_found.html",
-                {"request": request}
-            )
-
-        order_products = []
-        total_amount = 0
-
-        for product_id, product_data in order.products.items():
-            product_query = select(Product).where(Product.id == int(product_id))
-            product_result = await db.execute(product_query)
-            product = product_result.scalar_one_or_none()
-
-            if product:
-                item_total = product_data['count'] * product_data['price']
-                order_products.append({
-                    'id': product.id,
-                    'name': product.name,
-                    'price': product_data['price'],
-                    'count': product_data['count'],
-                    'image_url': product.image_urls[0],
-                    'item_total': item_total
-                })
-                total_amount += item_total
-
-        context = {
-            'request': request,
-            'order': {
-                'id': order.id,
-                'created_at': order.date.strftime("%Y-%m-%d %H:%M"),
-                'status': order.status,
-                'total_sum': order.summa
-            },
-            'products': order_products,
-            'total_amount': total_amount,
-            "is_authenticated": is_authenticated,
-            'user_id': user_id,
-            'shop_name': Config.shop_name,
-            'descr': Config.descr
-        }
-        return templates.TemplateResponse("orders/order_page.html", context)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при загрузке страницы заказа: {str(e)}"
+    order = await get_orders(order_id=order_id, db=db)
+    if not order:
+        return templates.TemplateResponse(
+            "exceptions/not_found.html",
+            {"request": request}
         )
+
+    order_products = []
+    total_amount = 0
+
+    for product_id, product_data in order.products.items():
+        product_query = select(Product).where(Product.id == int(product_id))
+        product_result = await db.execute(product_query)
+        product = product_result.scalar_one_or_none()
+
+        if product:
+            item_total = product_data['count'] * product_data['price']
+            order_products.append({
+                'id': product.id,
+                'name': product.name,
+                'price': product_data['price'],
+                'count': product_data['count'],
+                'image_url': product.image_urls[0],
+                'item_total': item_total
+            })
+            total_amount += item_total
+
+    context = {
+        'request': request,
+        'order': {
+            'id': order.id,
+            'created_at': order.date.strftime("%Y-%m-%d %H:%M"),
+            'status': order.status,
+            'total_sum': order.summa
+        },
+        'products': order_products,
+        'total_amount': total_amount,
+        "is_authenticated": is_authenticated,
+        'user_id': user_id,
+        'shop_name': Config.shop_name,
+        'descr': Config.descr
+    }
+    return templates.TemplateResponse("orders/order_page.html", context)
+

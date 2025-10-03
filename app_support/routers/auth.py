@@ -37,12 +37,6 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
         'token_type': 'bearer'
     }
 
-# TODO сделать так чтобы свагер брал токен (token: str = Depends(oauth2_scheme)
-# ):
-#     # Сначала пробуем взять токен из кук
-#     cookie_token = request.cookies.get("token")
-#     actual_token = cookie_token or token)
-
 
 @router.get('/account')
 async def personal_account(
@@ -58,7 +52,7 @@ async def personal_account(
         response = await get_tab_by_section(section, templates, request, user, page, db, user_dict)
         return response
 
-    except HTTPException as e:
+    except HTTPException:
         response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
         return response
 
@@ -131,7 +125,7 @@ async def login(request: Request,
                 db: AsyncSession = Depends(get_db),
                 username: str = Form(...),
                 password: str = Form(...)
-                ):
+):
     try:
         user = await authenticate_user(db, username, password)
         token = create_access_token(

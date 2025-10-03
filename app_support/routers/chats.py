@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from database.crud.chats import update_chat_status, get_chat
+from database.crud.chats import get_chat
+from database.crud.decorators import handler_base_errors
+from database.crud.users import get_user
 from database.db_depends import get_db
 from database.crud.messages import get_message
 from models import *
@@ -20,12 +22,11 @@ templates = Jinja2Templates(directory='app_support/templates')
 
 
 @router.get('/', response_class=HTMLResponse)
-async def get_all_chats(
-    request: Request,
-    status_filter: str = Query("active"),
-    sort: str = Query("desc"),
-    token: Optional[str] = Cookie(None, alias='token'),
-    db: AsyncSession = Depends(get_db)
+async def get_all_chats(request: Request,
+                        status_filter: str = Query("active"),
+                        sort: str = Query("desc"),
+                        token: Optional[str] = Cookie(None, alias='token'),
+                        db: AsyncSession = Depends(get_db)
 ):
     if not token:
         return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
@@ -34,15 +35,8 @@ async def get_all_chats(
     employee_id = user_dict['id']
 
     active = True if status_filter == "active" else None
-    #
-    # chats_with_extra = await get_chat(
-    #     employee_id=employee_id,
-    #     sort_desc=(sort == "desc"),
-    #     active=active,
-    #     limit=11,
-    #     db=db
-    # )
-    query = ( # чтобы не было ошибки с загрузкой
+
+    query = ( # запрос напрямую, чтобы не было ошибки с загрузкой
         select(Chats)
         .options(selectinload(Chats.employee))
         .where(Chats.employee_id == employee_id)
@@ -80,13 +74,12 @@ async def get_all_chats(
 
 
 @router.get('/load-more', response_class=HTMLResponse)
-async def get_chats_partial(
-    request: Request,
-    page: int = 1,
-    status_filter: str = Query("active"),
-    sort: str = Query("desc"),
-    token: Optional[str] = Cookie(None, alias='token'),
-    db: AsyncSession = Depends(get_db)
+async def get_chats_partial(request: Request,
+                            page: int = 1,
+                            status_filter: str = Query("active"),
+                            sort: str = Query("desc"),
+                            token: Optional[str] = Cookie(None, alias='token'),
+                            db: AsyncSession = Depends(get_db)
 ):
     if not token:
         return HTMLResponse("")
@@ -125,36 +118,16 @@ async def get_chats_partial(
 
 
 @router.get('/{chat_id}')
+@handler_base_errors
 async def chat_by_id(chat_id: int,
-                     db: AsyncSession = Depends(get_db)):
-    try:
-        chat = await get_chat(chat_id=chat_id, db=db)
+                     db: AsyncSession = Depends(get_db)
+):
+    chat = await get_chat(chat_id=chat_id, db=db)
 
-        if not chat:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail='Чат не найден')
-        return chat
-
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
-#
-# @router.patch('/close', status_code=status.HTTP_204_NO_CONTENT)
-# async def chats_close(chat_id: int,
-#                       db: AsyncSession = Depends(get_db)):
-#     try:
-#         await update_chat_status(chat_id=chat_id, db=db)
-#
-#     except HTTPException:
-#         raise
-#
-#     except Exception as e:
-#         await db.rollback()
-#         raise HTTPException(status_code=500, detail=str(e))
+    if not chat:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail='Чат не найден')
+    return chat
 
 
 @router.get('/{chat_id}/view', response_class=HTMLResponse)
@@ -174,11 +147,11 @@ async def view_chat(
     if not chat:
         return templates.TemplateResponse("exceptions/not_found.html", {"request": request})
 
-    client = await db.scalar(select(User).where(User.id == chat.user_id))
+    client = await get_user(db=db, user_id=chat.user_id)
     if not client:
         return templates.TemplateResponse("exceptions/not_found.html", {"request": request})
 
-    employee = await db.scalar(select(User).where(User.id == employee_id))
+    employee = await get_user(db=db, user_id=employee_id)
     if not employee:
         return templates.TemplateResponse("exceptions/not_found.html", {"request": request})
 

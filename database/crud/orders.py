@@ -4,41 +4,30 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app_support.config import Statuses
+from database.crud.decorators import handle_db_errors
 from models import Orders
 
 
-async def create_new_order(user_id: int,
+@handle_db_errors
+async def create_new_order(db: AsyncSession,
+                           user_id: int,
                            products: dict,
                            summa: int,
-                           db: AsyncSession
+
 ):
-    try:
-        order = Orders(
-            user_id=user_id,
-            products=products,
-            summa=summa
-        )
-        db.add(order)
-        await db.flush()
-        await db.commit()
+    order = Orders(
+        user_id=user_id,
+        products=products,
+        summa=summa
+    )
+    db.add(order)
+    await db.flush()
+    await db.commit()
 
-        return order
-
-    except SQLAlchemyError as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка базы данных: {str(e)}"
-        )
-
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Не удалось выполнить запрос в БД: {str(e)}"
-        )
+    return order
 
 
+@handle_db_errors
 async def get_orders(db: AsyncSession,
                      order_id: int = None,
                      user_id: int = None,
@@ -46,82 +35,63 @@ async def get_orders(db: AsyncSession,
                      offset: int = None,
                      sort_asc: bool = False,
                      sort_desc: bool = False,
-                     func_count: bool = False # добавить фильтр по статусу (может быть несколько [list])
+                     func_count: bool = False# добавить фильтр по статусу (может быть несколько [list])
 ):
-    try:
-        query = select(Orders)
+    query = select(Orders)
 
-        if func_count:
-            query = select(func.count()).select_from(Orders)
+    if func_count:
+        query = select(func.count()).select_from(Orders)
 
-        if order_id:
-            query = query.where(Orders.id == order_id)
+    if order_id:
+        query = query.where(Orders.id == order_id)
 
-        if user_id:
-            query = query.where(Orders.user_id == user_id)
+    if user_id:
+        query = query.where(Orders.user_id == user_id)
 
-        if sort_asc:
-            query = query.order_by(Orders.date.asc())
+    if sort_asc:
+        query = query.order_by(Orders.date.asc())
 
-        if sort_desc:
-            query = query.order_by(Orders.date.desc())
+    if sort_desc:
+        query = query.order_by(Orders.date.desc())
 
-        if limit:
-            query = query.limit(limit)
+    if limit:
+        query = query.limit(limit)
 
-        if offset:
-            query = query.offset(offset)
+    if offset:
+        query = query.offset(offset)
 
-        if func_count or limit == 1 or order_id:
-            result = await db.scalar(query)
+    if func_count or limit == 1 or order_id:
+        result = await db.scalar(query)
 
-        else:
-            chats = await db.execute(query)
-            result = chats.scalars().all()
+    else:
+        chats = await db.execute(query)
+        result = chats.scalars().all()
 
-        return result
+    return result
 
-    except SQLAlchemyError as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка базы данных: {str(e)}"
-        )
-
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Не удалось выполнить запрос в БД: {str(e)}"
-        )
-
-
-async def update_order_status(order_id: int, db: AsyncSession):
-    try:
-        order = await db.scalar(select(Orders).where(Orders.id == order_id))
-
-        if not order:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Заказ с ID {order_id} не найден'
-            )
-
-        if order.status != Statuses.DESIGNED:
-            raise Exception(
-                f"Заказ можно отменить только при статусе 'Оформлен'. Текущий статус заказа: {order.status}")
-
-        query = update(Orders).where(Orders.id == order_id).values(status=Statuses.CANCELLED)
-        await db.execute(query)
-        await db.commit()
-
-    except SQLAlchemyError as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка базы данных: {str(e)}"
-        )
+#
+# @handle_db_errors
+# async def update_order_status(db: AsyncSession,
+#                               order_id: int
+# ):
+#     order = await db.scalar(select(Orders).where(Orders.id == order_id))
+#
+#     if not order:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail=f'Заказ с ID {order_id} не найден'
+#         )
+#
+#     if order.status != Statuses.DESIGNED:
+#         raise Exception(
+#             f"Заказ можно отменить только при статусе 'Оформлен'. Текущий статус заказа: {order.status}")
+#
+#     query = update(Orders).where(Orders.id == order_id).values(status=Statuses.CANCELLED)
+#     await db.execute(query)
+#     await db.commit()
 
 
+@handle_db_errors
 async def get_orders(db: AsyncSession,
                      order_id: int = None,
                      user_id: int = None,
@@ -131,96 +101,76 @@ async def get_orders(db: AsyncSession,
                      sort_desc: bool = False,
                      func_count: bool = False
 ):
-    try:
-        query = select(Orders)
+    query = select(Orders)
 
-        if func_count:
-            query = select(func.count()).select_from(Orders)
+    if func_count:
+        query = select(func.count()).select_from(Orders)
 
-        if order_id:
-            query = query.where(Orders.id == order_id)
+    if order_id:
+        query = query.where(Orders.id == order_id)
 
-        if user_id:
-            query = query.where(Orders.user_id == user_id)
+    if user_id:
+        query = query.where(Orders.user_id == user_id)
 
-        if sort_asc:
-            query = query.order_by(Orders.date.asc())
+    if sort_asc:
+        query = query.order_by(Orders.date.asc())
 
-        if sort_desc:
-            query = query.order_by(Orders.date.desc())
+    if sort_desc:
+        query = query.order_by(Orders.date.desc())
 
-        if limit:
-            query = query.limit(limit)
+    if limit:
+        query = query.limit(limit)
 
-        if offset:
-            query = query.offset(offset)
+    if offset:
+        query = query.offset(offset)
 
-        if func_count or limit == 1 or order_id:
-            result = await db.scalar(query)
+    if func_count or limit == 1 or order_id:
+        result = await db.scalar(query)
 
-        else:
-            chats = await db.execute(query)
-            result = chats.scalars().all()
+    else:
+        chats = await db.execute(query)
+        result = chats.scalars().all()
 
-        return result
+    return result
 
-    except SQLAlchemyError as e:
-        await db.rollback()
+
+@handle_db_errors
+async def update_status(db: AsyncSession,
+                        order_id: int,
+                        new_status: str
+):
+    order = await get_orders(order_id=order_id, db=db)
+
+    if not order:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка базы данных: {str(e)}"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f'Заказ с ID {order_id} не найден'
         )
 
-    except Exception as e:
-        await db.rollback()
+    allowed_previous_status = Statuses.changing_statuses.get(new_status)
+    if allowed_previous_status is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Не удалось выполнить запрос в БД: {str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Недопустимый новый статус'
         )
 
-
-async def update_status(order_id: int,
-                              new_status: str,
-                              db: AsyncSession):
-    try:
-        order = await get_orders(order_id=order_id, db=db)
-
-        if not order:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Заказ с ID {order_id} не найден'
-            )
-
-        allowed_previous_status = Statuses.changing_statuses.get(new_status)
-        if allowed_previous_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Недопустимый новый статус'
-            )
-
-        if allowed_previous_status != order.status:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Недопустимый переход статуса. Текущий статус: "{order.status}"'
-            )
-
-        new_status_text = getattr(Statuses, new_status, None)
-        if new_status_text is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Недопустимый новый статус'
-            )
-
-        query = update(Orders).where(Orders.id == order_id).values(status=new_status_text)
-        await db.execute(query)
-        await db.commit()
-
-    except SQLAlchemyError as e:
-        await db.rollback()
+    if allowed_previous_status != order.status:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка базы данных: {str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Недопустимый переход статуса. Текущий статус: "{order.status}"'
         )
+
+    new_status_text = getattr(Statuses, new_status, None)
+    if new_status_text is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Недопустимый новый статус'
+        )
+
+    query = update(Orders).where(Orders.id == order_id).values(status=new_status_text)
+    await db.execute(query)
+    await db.commit()
+
 
 
 

@@ -10,7 +10,6 @@ from sqlalchemy import select, func, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.staticfiles import StaticFiles
 
-import app_support
 from app_support.functions.main_func import get_sort_column, build_pagination_url, build_sort_url, to_date_str
 from models import Orders, User
 from functions.auth_func import get_current_user

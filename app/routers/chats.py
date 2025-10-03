@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from database.crud.chats import update_chat_status, create_chat, get_chat
+from database.crud.decorators import handler_base_errors
+from database.crud.users import get_user
 from database.db_depends import get_db
 from database.crud.messages import get_message
 from schemas import ChatCreate
@@ -20,33 +22,27 @@ templates = Jinja2Templates(directory='app/templates/')
 
 
 @router.get('/my')
+@handler_base_errors
 async def get_all_chats(db: AsyncSession = Depends(get_db),
                         token: Optional[str] = Cookie(None, alias='token')):
-    try:
-        if not token:
-            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+    if not token:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-        user_id = get_user_id_by_token(token)
+    user_id = get_user_id_by_token(token)
 
-        chats = await get_chat(user_id=user_id, sort_desc=True, db=db)
-        if not chats:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail='Чаты не найдены')
+    chats = await get_chat(user_id=user_id, sort_desc=True, db=db)
+    if not chats:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail='Чаты не найдены')
 
-        for chat in chats:
-            last_msg = await get_message(chat_id=chat.id,
-                                         sort_desc=True,
-                                         db=db)
+    for chat in chats:
+        last_msg = await get_message(chat_id=chat.id,
+                                     sort_desc=True,
+                                     db=db)
 
-            chat.last_message = last_msg
+        chat.last_message = last_msg
 
-        return chats
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    return chats
 
 
 @router.get('/load-more', response_class=HTMLResponse)
@@ -90,72 +86,52 @@ async def get_chats_partial(
 
 
 @router.get('/{chat_id}')
+@handler_base_errors
 async def chat_by_id(chat_id: int,
-                     db: AsyncSession = Depends(get_db)):
-    try:
-        chat = await get_chat(chat_id=chat_id, db=db)
+                     db: AsyncSession = Depends(get_db)
+):
+    chat = await get_chat(chat_id=chat_id, db=db)
 
-        if not chat:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail='Чат не найден')
-        return chat
-
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    if not chat:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail='Чат не найден')
+    return chat
 
 
 @router.post('/create', status_code=status.HTTP_201_CREATED)
+@handler_base_errors
 async def chat_create(chat_data: ChatCreate,
                       db: AsyncSession = Depends(get_db),
-                      token: Optional[str] = Cookie(None, alias='token')):
-    try:
-        if not token:
-            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+                      token: Optional[str] = Cookie(None, alias='token')
+):
+    if not token:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-        user_id = get_user_id_by_token(token)
+    user_id = get_user_id_by_token(token)
 
-        query_employee_ids = select(User).where(User.role == 'seller')
-        result = await db.execute(query_employee_ids)
-        employee_ids = result.scalars().all()
+    employee_ids = await get_user(db=db, role='seller')
 
-        await create_chat(user_id=user_id,
-                          employee_id=choice(employee_ids).id,
-                          topic=chat_data.topic,
-                          db=db)
+    await create_chat(user_id=user_id,
+                      employee_id=choice(employee_ids).id,
+                      topic=chat_data.topic,
+                      db=db)
 
-        return {"message": f"Создан новый чат на тему: '{chat_data.topic}'"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"message": f"Создан новый чат на тему: '{chat_data.topic}'"}
 
 
 @router.patch('/close', status_code=status.HTTP_204_NO_CONTENT)
+@handler_base_errors
 async def chats_close(chat_id: int,
-                      db: AsyncSession = Depends(get_db)):
-    try:
-        await update_chat_status(chat_id=chat_id, db=db)
-
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+                      db: AsyncSession = Depends(get_db)
+):
+    await update_chat_status(chat_id=chat_id, db=db)
 
 
 @router.get('/{chat_id}/view', response_class=HTMLResponse)
-async def view_chat(
-        request: Request,
-        chat_id: int,
-        token: Optional[str] = Cookie(None, alias='token'),
-        db: AsyncSession = Depends(get_db)
+async def view_chat(request: Request,
+                    chat_id: int,
+                    token: Optional[str] = Cookie(None, alias='token'),
+                    db: AsyncSession = Depends(get_db)
 ):
     try:
         if not token:
@@ -171,14 +147,13 @@ async def view_chat(
                 {"request": request}
             )
 
-        employee = await db.scalar(select(User).where(User.id == chat.employee_id))
+        employee = await get_user(db=db, user_id=chat.employee_id)
 
-        messages = await get_message(
-                                    chat_id=chat_id,
-                                    sort_asc=True,
-                                    db=db)
+        messages = await get_message(chat_id=chat_id,
+                                     sort_asc=True,
+                                     db=db)
 
-        current_user = await db.scalar(select(User).where(User.id == user_id))
+        current_user = await get_user(db=db, user_id=user_id)
 
         return templates.TemplateResponse('chat/chat_detail.html', {
             'request': request,

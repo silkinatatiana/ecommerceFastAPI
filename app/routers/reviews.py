@@ -84,7 +84,6 @@ async def delete_review_by_id(review_id: int,
                 detail='Admin access required'
             )
 
-        # review = await db.scalar(select(Review).where(Review.id == review_id))
         review = await delete_review(review_id=review_id, db=db)
         if not review:
             raise HTTPException(
