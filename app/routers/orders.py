@@ -10,6 +10,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 
 from database.crud.decorators import handler_base_errors
 from database.crud.orders import create_new_order, get_orders, update_status
+from database.crud.products import get_product
 from database.crud.users import get_user
 from database.db_depends import get_db
 from app.config import Config
@@ -155,7 +156,7 @@ async def cancel_order(order_id: int,
         print(f"Общая ошибка SQLAlchemy: {e}")
         await db.rollback()
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Произошла внутренняя ошибка при отмене заказа'
@@ -188,9 +189,7 @@ async def order_page(request: Request,
     total_amount = 0
 
     for product_id, product_data in order.products.items():
-        product_query = select(Product).where(Product.id == int(product_id))
-        product_result = await db.execute(product_query)
-        product = product_result.scalar_one_or_none()
+        product = await get_product(db=db, product_id=int(product_id))
 
         if product:
             item_total = product_data['count'] * product_data['price']

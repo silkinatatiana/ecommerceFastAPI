@@ -35,7 +35,7 @@ async def get_cart_by_user(user_id: int, db: AsyncSession = Depends(get_db)):
             detail='NOT FOUND'
         )
 
-    query = await db.execute( # TODO
+    query = await db.execute(
         select(Cart, Product)
         .join(Product, Cart.product_id == Product.id)
         .where(Cart.user_id == user_id)

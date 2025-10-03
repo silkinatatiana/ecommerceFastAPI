@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
 
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Query, Cookie
 from fastapi.templating import Jinja2Templates
@@ -10,13 +10,16 @@ from sqlalchemy import select, func
 import httpx
 import jwt
 from loguru import logger
+from starlette.responses import RedirectResponse
 
+from database.crud.category import get_category
+from database.crud.products import get_product, get_products_with_filters
 from database.db_depends import get_db
 from schemas import CreateProduct, ProductOut
 from models import *
 from models import Review
 from functions.cart_func import get_in_cart_product_ids
-from functions.auth_func import get_current_user
+from functions.auth_func import get_current_user, get_user_id_by_token
 from functions.favorites_func import get_favorite_product_ids
 from app.config import Config
 
@@ -46,7 +49,7 @@ async def create_product_form(
                 }
             )
 
-    except Exception as e:
+    except Exception:
         return templates.TemplateResponse(
             "products/create_product.html",
             {
@@ -60,26 +63,23 @@ async def create_product_form(
 @router.post('/create', response_model=ProductOut)
 async def create_product(
         db: Annotated[AsyncSession, Depends(get_db)],
-        product_data: CreateProduct
+        product_data: CreateProduct,
+        token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
-        category = await db.scalar(
-            select(Category).where(Category.id == product_data.category_id)
-        )
+        if not token:
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
+        supplier_id = get_user_id_by_token(token)
+        category = await get_category(db=db, category_id=product_data.category_id)
+
         if not category:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='NOT FOUND'
             )
 
-        product = Product(
-            **product_data.dict(exclude_unset=True),
-            supplier_id=1  # когда добавлю ЛК, это поле будет браться из таблицы user
-        )
-
-        db.add(product)
-        await db.commit()
-        await db.refresh(product)
+        product = await create_product(db=db, product_data=product_data, supplier_id=supplier_id)
 
         return product
 
@@ -92,33 +92,31 @@ async def create_product(
 
 
 @router.get("/")
-async def all_products(
-        db: AsyncSession = Depends(get_db),
-        category_id: Optional[str] = Query(None),
-        colors: Optional[str] = Query(None),
-        built_in_memory: Optional[str] = Query(None),
-        product_ids: Optional[str] = Query(None)
+async def all_products(db: AsyncSession = Depends(get_db),
+                       category_id: Optional[str] = Query(None),
+                       colors: Optional[str] = Query(None),
+                       built_in_memory: Optional[str] = Query(None),
+                       product_ids: Optional[str] = Query(None)
 ):
     try:
-        query = select(Product)
+        params = {}
 
         if category_id:
             categ_ids = [int(categ_id) for categ_id in category_id.split(",")]
-            query = query.where(Product.category_id.in_(categ_ids))
+            params['categ_ids'] = categ_ids
 
         if product_ids:
             ids_list = [int(id_) for id_ in product_ids.split(",")]
-            query = query.where(Product.id.in_(ids_list))
+            params['ids_list'] = ids_list
 
         if colors:
-            query = query.where(Product.color.in_(colors.split(",")))
+            params['colors'] = colors.split(",")
 
         if built_in_memory:
-            query = query.where(Product.built_in_memory_capacity.in_(built_in_memory.split(",")))
+            params['built_in_memory'] = built_in_memory.split(",")
 
-        result = await db.execute(query)
-        products = result.scalars().all()
-        return products or []
+        products = await get_product(db=db, **params)
+        return products
 
     except Exception as e:
         logger.error(f"Error fetching products: {repr(e)}")
@@ -133,78 +131,48 @@ async def products_by_category(
     per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
     colors: str = Query(None),
     built_in_memory: str = Query(None),
-    favorites: Optional[list[str]] = Query(None),
+    favorites: Optional[List[str]] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
+    category = await get_category(db=db, category_id=category_id)
+    if category is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Category not found'
+        )
+
     try:
         page = int(request.query_params.get("page", 1))
         if page < 1:
             page = 1
+    except (TypeError, ValueError):
+        page = 1
 
-        category = await db.scalar(select(Category).where(Category.id == category_id))
-        if category is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='Category not found'
-            )
+    products, total_count = await get_products_with_filters(
+        db=db,
+        category_id=category_id,
+        page=page,
+        per_page=per_page,
+        colors=colors,
+        built_in_memory=built_in_memory,
+        user_id=user_id,
+        favorites=favorites
+    )
 
-        query = select(Product).where(Product.category_id == category_id).order_by(Product.id)
-        count_query = select(func.count()).select_from(Product).where(Product.category_id == category_id)
+    total_pages = max(1, (total_count + per_page - 1) // per_page) if total_count > 0 else 1
+    pagination = {
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "total_pages": total_pages,
+        "has_next": page < total_pages,
+        "has_prev": page > 1
+    }
 
-        if colors:
-            colors_list = [color.strip() for color in colors.split(',')]
-            color_condition = Product.color.in_(colors_list)
-            query = query.where(color_condition)
-            count_query = count_query.where(color_condition)
-
-        if built_in_memory:
-            memory_list = [mem.strip() for mem in built_in_memory.split(',')]
-            memory_condition = Product.built_in_memory_capacity.in_(memory_list)
-            query = query.where(memory_condition)
-            count_query = count_query.where(memory_condition)
-
-        if favorites is not None and user_id:
-            favorite_subq = (
-                select(Favorites.product_id)
-                .where(Favorites.user_id == user_id)
-                .scalar_subquery()
-            )
-            favorite_ids_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
-            favorite_ids = (await db.scalars(favorite_ids_query)).all()
-            if favorite_ids:
-                query = query.where(Product.id.in_(favorite_ids))
-                count_query = count_query.where(Product.id.in_(favorite_ids))
-            else:
-                query = query.where(False)
-                count_query = count_query.where(False)
-
-        total_count = await db.scalar(count_query) or 0
-
-        offset = (page - 1) * per_page
-        query = query.offset(offset).limit(per_page)
-
-        products = (await db.scalars(query)).all()
-
-        total_pages = max(1, (total_count + per_page - 1) // per_page) if total_count > 0 else 1
-        pagination = {
-            "page": page,
-            "per_page": per_page,
-            "total_count": total_count,
-            "total_pages": total_pages,
-            "has_next": page < total_pages,
-            "has_prev": page > 1
-        }
-
-        return {
-            "products": products,
-            "pagination": pagination
-        }
-
-    except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error: {str(e)}"
-        )
+    return {
+        "products": products,
+        "pagination": pagination
+    }
 
 
 @router.get('/{product_id}', response_class=HTMLResponse)

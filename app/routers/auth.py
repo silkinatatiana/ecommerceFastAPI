@@ -36,12 +36,6 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
         'token_type': 'bearer'
     }
 
-# TODO сделать так чтобы свагер брал токен (token: str = Depends(oauth2_scheme)
-# ):
-#     # Сначала пробуем взять токен из кук
-#     cookie_token = request.cookies.get("token")
-#     actual_token = cookie_token or token)
-
 
 @router.get('/account')
 async def personal_account(

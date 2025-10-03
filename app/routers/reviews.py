@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from database.crud.products import get_product
 from database.crud.review import get_reviews, create_new_review, delete_review
 from database.crud.users import get_user
 from database.db_depends import get_db
@@ -28,7 +29,7 @@ async def product_reviews(
         db: Annotated[AsyncSession, Depends(get_db)],
         product_id: int
 ):
-    product = await db.scalar(select(Product).where(Product.id == product_id))
+    product = await get_product(db=db, product_id=product_id)
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

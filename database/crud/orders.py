@@ -69,27 +69,6 @@ async def get_orders(db: AsyncSession,
 
     return result
 
-#
-# @handle_db_errors
-# async def update_order_status(db: AsyncSession,
-#                               order_id: int
-# ):
-#     order = await db.scalar(select(Orders).where(Orders.id == order_id))
-#
-#     if not order:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail=f'Заказ с ID {order_id} не найден'
-#         )
-#
-#     if order.status != Statuses.DESIGNED:
-#         raise Exception(
-#             f"Заказ можно отменить только при статусе 'Оформлен'. Текущий статус заказа: {order.status}")
-#
-#     query = update(Orders).where(Orders.id == order_id).values(status=Statuses.CANCELLED)
-#     await db.execute(query)
-#     await db.commit()
-
 
 @handle_db_errors
 async def get_orders(db: AsyncSession,
