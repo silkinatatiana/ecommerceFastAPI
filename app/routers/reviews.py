@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, status, HTTPException, Cookie
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from database.crud.products import get_product
 from database.crud.review import get_reviews, create_new_review, delete_review
@@ -12,7 +11,6 @@ from database.crud.users import get_user
 from database.db_depends import get_db
 from functions.auth_func import get_user_id_by_token
 from schemas import CreateReviews
-from models import *
 
 router = APIRouter(prefix='/reviews', tags=['reviews'])
 templates = Jinja2Templates(directory='app/templates/')

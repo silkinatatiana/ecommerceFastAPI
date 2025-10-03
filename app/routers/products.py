@@ -4,9 +4,8 @@ from fastapi import APIRouter, Depends, status, HTTPException, Request, Query, C
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, func
+from sqlalchemy import select
 import httpx
 import jwt
 from loguru import logger
@@ -246,43 +245,20 @@ async def product_detail_page(
 
     name = ', '.join([str(s) for s in spec if s is not None])
 
+    product.is_favorite = is_favorite
+    product.in_cart = in_cart
+    product.category_name = product.category.name if product.category else "Без категории"
+
     return templates.TemplateResponse(
         "products/product.html",
         {
             "request": request,
             "is_authenticated": is_authenticated,
             "user_id": user_id,
-            "product": {
-                "id": product.id,
-                "name": name,
-                "description": product.description,
-                "price": product.price,
-                "stock": product.stock,
-                "image_urls": product.image_urls,
-                "rating": avg_rating,
-                "category_id": product.category_id,
-                "category_name": product.category.name if product.category else "Без категории",
-                "RAM_capacity": product.RAM_capacity,
-                "built_in_memory_capacity": product.built_in_memory_capacity,
-                "screen": product.screen,
-                "cpu": product.cpu,
-                "number_of_processor_cores": product.number_of_processor_cores,
-                "number_of_graphics_cores": product.number_of_graphics_cores,
-                "color": product.color,
-                "is_favorite": is_favorite,
-                "in_cart": in_cart
-            },
+            "product": product,
             "reviews": formatted_reviews,
             "review_count": review_count,
-            "recommended_products": [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "price": p.price,
-                    "stock": p.stock,
-                    "image_urls": p.image_urls
-                } for p in recommended_products
-            ],
+            "recommended_products": recommended_products,
             "favorite_product_ids": favorite_product_ids,
             "in_cart_product_ids": in_cart_product_ids,
             "url": Config.url,

@@ -203,14 +203,12 @@ async def order_page(request: Request,
             })
             total_amount += item_total
 
+    order.created_at = order.date.strftime("%Y-%m-%d %H:%M")
+    order.total_sum = order.summa
+
     context = {
         'request': request,
-        'order': {
-            'id': order.id,
-            'created_at': order.date.strftime("%Y-%m-%d %H:%M"),
-            'status': order.status,
-            'total_sum': order.summa
-        },
+        'order': order,
         'products': order_products,
         'total_amount': total_amount,
         "is_authenticated": is_authenticated,
