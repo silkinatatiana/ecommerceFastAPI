@@ -1,15 +1,17 @@
 from math import ceil
 from typing import Optional, List
 from datetime import datetime
-from urllib.parse import urlencode
+from functools import partial
 
 from fastapi import FastAPI, Request, Query, Depends, Cookie
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, func
+from sqlalchemy import select, func, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.staticfiles import StaticFiles
 
+import app_support
+from app_support.functions.main_func import get_sort_column, build_pagination_url, build_sort_url, to_date_str
 from models import Orders, User
 from functions.auth_func import get_current_user
 from app_support.routers import orders, auth, chats, messages
@@ -55,9 +57,9 @@ async def get_main_page(request: Request,
 ):
     if not token:
         return RedirectResponse(url='/auth/create')
-    try:
-        current_employee = await get_current_user(token=token)
-    except Exception:
+
+    current_employee = await get_current_user(token=token)
+    if not current_employee:
         return RedirectResponse(url='/auth/create')
 
     if current_employee['role'] != 'seller' and not current_employee['is_admin']:
@@ -68,9 +70,15 @@ async def get_main_page(request: Request,
         if attr.isupper() and not attr.startswith('__')
     ]
 
-    users_result = await db.execute(select(User))
-    unique_users = users_result.scalars().all() # TODO выводить только тех юзеров, где есть заказы в crud с заказами
-    user_dict = {user.id: user for user in unique_users}
+    result = await db.execute(select(Orders.user_id).distinct())
+    users_ids = result.scalars().all()
+
+    if users_ids:
+        users_result = await db.execute(select(User).where(User.id.in_(users_ids)))
+        unique_users = users_result.scalars().all()
+        user_dict = {user.id: user for user in unique_users}
+    else:
+        user_dict = {}
 
     all_orders_ids_result = await db.execute(select(Orders.id))
     all_order_ids = [r[0] for r in all_orders_ids_result.fetchall()]
@@ -107,75 +115,53 @@ async def get_main_page(request: Request,
     if sum_to is not None:
         stmt = stmt.where(Orders.summa <= sum_to)
 
-    sort_column_map = { #TODO вынести в отдельную функцию 107-120
-        "id": Orders.id,
-        "user": Orders.user_id,
-        "date": Orders.date,
-        "status": Orders.status,
-        "summa": Orders.summa,
-    }
-    sort_col = sort_column_map.get(sort_by, Orders.date)
+    sort_col = get_sort_column(sort_by)
 
     if sort_order == "asc":
         stmt = stmt.order_by(sort_col.asc())
     else:
         stmt = stmt.order_by(sort_col.desc())
 
-    PAGE_SIZE = 10 # TODO вывести в отдельную переменную
     count_stmt = select(func.count()).select_from(Orders)
     if stmt.whereclause is not None:
         count_stmt = count_stmt.where(stmt.whereclause)
     total_count = (await db.execute(count_stmt)).scalar()
-    total_pages = ceil(total_count / PAGE_SIZE) if total_count else 1
+    total_pages = ceil(total_count / Config.PAGE_SIZE) if total_count else 1
 
-    stmt = stmt.offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE)
+    stmt = stmt.offset((page - 1) * Config.PAGE_SIZE).limit(Config.PAGE_SIZE)
     orders = (await db.execute(stmt)).scalars().all()
-
-    def to_date_str(dt: Optional[datetime]) -> str:
-        if dt:
-            return dt.strftime('%Y-%m-%d')
-        return ""
 
     date_start_date = to_date_str(date_start_dt)
     date_end_date = to_date_str(date_end_dt)
 
-    def build_pagination_url(**overrides): # TODO вынести все функции из роута, если короткие - переписать в lambda
-        params = {}
-        if order_id: params['order_id'] = order_id
-        if user_id: params['user_id'] = user_id
-        if status: params['status'] = status
-        if date_start: params['date_start'] = date_start
-        if date_end: params['date_end'] = date_end
-        if sum_from is not None: params['sum_from'] = str(sum_from)
-        if sum_to is not None: params['sum_to'] = str(sum_to)
-        params['sort_by'] = sort_by
-        params['sort_order'] = sort_order
-        params['page'] = overrides.get('page', page)
+    pagination_func = partial(
+        build_pagination_url,
+        order_id=order_id,
+        user_id=user_id,
+        status=status,
+        date_start=date_start,
+        date_end=date_end,
+        sum_from=sum_from,
+        sum_to=sum_to,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page
+    )
 
-        clean = {k: v for k, v in params.items() if v is not None and v != ""}
-        query = urlencode(clean, doseq=True)
-        return f"/?{query}" if query else "/"
-
-    def build_sort_url(new_sort_by: str, new_order: str):
-        params = {}
-        if order_id: params['order_id'] = order_id
-        if user_id: params['user_id'] = user_id
-        if status: params['status'] = status
-        if date_start: params['date_start'] = date_start
-        if date_end: params['date_end'] = date_end
-        if sum_from is not None: params['sum_from'] = str(sum_from)
-        if sum_to is not None: params['sum_to'] = str(sum_to)
-        params['sort_by'] = new_sort_by
-        params['sort_order'] = new_order
-        params['page'] = 1
-
-        clean = {k: v for k, v in params.items() if v is not None and v != ""}
-        query = urlencode(clean, doseq=True)
-        return f"/?{query}" if query else "/"
+    sort_func = partial(
+        build_sort_url,
+        order_id=order_id,
+        user_id=user_id,
+        status=status,
+        date_start=date_start,
+        date_end=date_end,
+        sum_from=sum_from,
+        sum_to=sum_to,
+    )
 
     return templates.TemplateResponse('orders/orders.html', {
         "request": request,
-        "shop_name": Config.shop_name, # TODO объединить в объекты по логике переменных
+        "shop_name": Config.shop_name,
         "descr": Config.descr,
         "orders": orders,
         "user_dict": user_dict,
@@ -194,6 +180,6 @@ async def get_main_page(request: Request,
         "page": page,
         "total_pages": total_pages,
         "is_authenticated": current_employee is not None,
-        "build_pagination_url": build_pagination_url,
-        "build_sort_url": build_sort_url,
+        "build_pagination_url": pagination_func,
+        "build_sort_url": sort_func
     })

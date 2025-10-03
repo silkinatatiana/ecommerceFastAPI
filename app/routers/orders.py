@@ -63,6 +63,7 @@ async def get_orders_by_user_id(
 @router.get('/{order_id}', response_model=OrderResponse)
 async def get_order_by_id(order_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     order = await get_orders(order_id=order_id, db=db)
+
     if not order:
         return templates.TemplateResponse(
             "exceptions/not_found.html",

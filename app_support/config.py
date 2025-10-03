@@ -7,6 +7,7 @@ class Config:
     descr = 'Магазин техники и электроники'
     SECRET_KEY = 'a7c3da68e483259507f3857aa85a9379e0cde15a7e4aebd846f957651c748628'
     ALGORITHM = 'HS256'
+    PAGE_SIZE = 10
 
 
 class Statuses:
