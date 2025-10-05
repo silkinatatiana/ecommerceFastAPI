@@ -45,12 +45,13 @@ async def create_review(
         token: str = Cookie(None, alias='token'),
         db: AsyncSession = Depends(get_db),
 ):
-    user_id = None
-    if token:
-        try:
-            user_id = get_user_id_by_token(token)
-        except HTTPException:
-            user_id = None
+    if not token:
+        return RedirectResponse(url='/auth/create')
+
+    try:
+        user_id = get_user_id_by_token(token)
+    except Exception:
+        return RedirectResponse(url='/auth/create')
 
     if review_data.photo_urls and len(review_data.photo_urls) > 5:
         raise HTTPException(400, "Можно прикрепить не более 5 фото")

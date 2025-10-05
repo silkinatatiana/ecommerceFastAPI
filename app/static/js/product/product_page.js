@@ -257,6 +257,7 @@ async function submitReview() {
     try {
         const response = await fetch(`/reviews/create_by/${productId}`, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 comment: formData.get('comment'),
@@ -269,7 +270,8 @@ async function submitReview() {
             alert('Отзыв успешно добавлен!');
             location.reload();
         } else {
-            throw new Error('Ошибка при отправке отзыва');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Неизвестная ошибка сервера');
         }
     } catch (error) {
         console.error('Ошибка:', error);

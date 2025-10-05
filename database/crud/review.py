@@ -1,7 +1,7 @@
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.crud.decorators import handle_db_errors
+from database.crud.decorators import handle_db_errors, handler_base_errors
 from models import Review
 
 
@@ -28,7 +28,7 @@ async def get_reviews(db: AsyncSession,
     return result
 
 
-@handle_db_errors
+@handler_base_errors
 async def create_new_review(db: AsyncSession,
                             user_id: int | None,
                             product_id: int,

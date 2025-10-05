@@ -256,6 +256,7 @@ async def product_detail_page(
             "is_authenticated": is_authenticated,
             "user_id": user_id,
             "product": product,
+            "avg_rating": avg_rating,
             "reviews": formatted_reviews,
             "review_count": review_count,
             "recommended_products": recommended_products,
