@@ -113,6 +113,7 @@ async def get_order_detail(request: Request,
                     'item_total': item_total
                 })
                 total_amount += item_total
+        order.date = order.date.strftime("%Y-%m-%d %H:%M")
 
         context = {
             'request': request,
