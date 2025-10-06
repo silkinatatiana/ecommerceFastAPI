@@ -83,6 +83,11 @@ body {
     color: white;
 }
 
+.btn-delete {
+    background-color: red;
+    color: white;
+}
+
 .btn-danger {
     background-color: var(--secondary-color);
     color: white;

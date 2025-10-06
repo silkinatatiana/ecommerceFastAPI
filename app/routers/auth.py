@@ -1,14 +1,15 @@
 from typing import Annotated, Optional
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Cookie, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Cookie, Query, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
-from database.crud.users import create_user, get_user, update_user_info
+from app.functions.auth_func import logout_func
+from database.crud.users import create_user, get_user, update_user_info, delete_user_from_db
 from functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
 from functions.profile import get_tab_by_section
 from database.db_depends import get_db
@@ -140,7 +141,7 @@ async def login(request: Request,
         response.set_cookie(
             key="token",
             value=token,
-            httponly=False, # TODO в продакшн заменить на True для безопасности
+            httponly=True, # TODO в продакшн заменить на True для безопасности
             max_age=3600,
             secure=False,
             samesite='lax',
@@ -162,8 +163,7 @@ async def login(request: Request,
 
 @router.get('/logout')
 async def logout():
-    response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
-    response.delete_cookie("token")
+    response = await logout_func()
     return response
 
 
@@ -230,3 +230,27 @@ async def update_password(data: PasswordUpdate,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка при обновлении данных: {str(e)}"
         )
+
+
+@router.delete('/delete')
+async def delete_user(token: Optional[str] = Cookie(None, alias='token'),
+                      db: AsyncSession = Depends(get_db),
+):
+    if not token:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
+    current_user = await get_current_user(token)
+
+    current_user_id = current_user['id']
+    role = current_user.get('role')
+
+    if role == 'seller' or role == 'customer':
+        await delete_user_from_db(db, current_user_id)
+
+        response = await logout_func()
+        return response
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Нет прав для удаления пользователя"
+    )

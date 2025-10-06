@@ -42,3 +42,27 @@ async function sendPatchRequest(event) {
 }
 
 document.getElementById('update-password-form')?.addEventListener('submit', sendPatchRequest);
+
+async function deleteAccount() {
+    if (!confirm("Вы уверены, что хотите удалить аккаунт? Это действие нельзя отменить.")) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/auth/delete', {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            window.location.href = '/auth/create';
+        } else {
+            const errorText = await response.text();
+            alert('Ошибка при удалении аккаунта: ' + errorText);
+        }
+    } catch (error) {
+        console.error('Ошибка сети:', error);
+        alert('Произошла ошибка при подключении к серверу.');
+    }
+}
+

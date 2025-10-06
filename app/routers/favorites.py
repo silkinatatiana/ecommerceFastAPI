@@ -5,20 +5,24 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 import jwt
+from starlette.responses import RedirectResponse
 
 from database.crud.favorites import get_favorite, create_favorite, delete_favorite
 from database.db_depends import get_db
-from functions.auth_func import SECRET_KEY, ALGORITHM
+from functions.auth_func import SECRET_KEY, ALGORITHM, get_user_id_by_token
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get('/')
-async def get_favorites(
-        user_id: int,
-        db: AsyncSession = Depends(get_db),
+async def get_favorites(token: Optional[str] = Cookie(None, alias='token'),
+                        db: AsyncSession = Depends(get_db),
 ):
+    if not token:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
+    user_id = get_user_id_by_token(token)
     favorites = await get_favorite(user_id=user_id, db=db)
     return favorites
 
@@ -26,10 +30,15 @@ async def get_favorites(
 @router.post('/', status_code=status.HTTP_201_CREATED)
 async def create_favorites(
         product_id: int,
-        user_id: int,
+        token: Optional[str] = Cookie(None, alias='token'),
         db: AsyncSession = Depends(get_db)
 ):
     try:
+        if not token:
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
+        user_id = get_user_id_by_token(token)
+
         new_favorite = await create_favorite(user_id=user_id,
                                              product_id=product_id,
                                              db=db)
@@ -50,9 +59,14 @@ async def create_favorites(
 
 @router.delete('/', status_code=status.HTTP_204_NO_CONTENT)
 async def del_favorite_product(product_id: int,
-                               user_id: int,
+                               token: Optional[str] = Cookie(None, alias='token'),
                                db: AsyncSession = Depends(get_db)):
     try:
+        if not token:
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
+        user_id = get_user_id_by_token(token)
+
         result = await delete_favorite(user_id=user_id,
                                        product_id=product_id,
                                        db=db)

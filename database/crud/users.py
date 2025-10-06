@@ -1,4 +1,5 @@
 from fastapi import HTTPException, status
+from httpx import delete
 from sqlalchemy import select, update, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -73,6 +74,12 @@ async def update_user_info(db: AsyncSession,
     await db.commit()
 
 
-
+@handle_db_errors
+async def delete_user_from_db(db: AsyncSession,
+                              user_id: int
+):
+    user = await get_user(db=db, user_id=user_id)
+    await db.delete(user)
+    await db.commit()
 
 

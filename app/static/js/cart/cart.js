@@ -180,7 +180,6 @@ async function addProduct(productId, count = 1) {
         });
 
         if (response.status === 401) {
-            localStorage.removeItem('token');
             const loginConfirmed = confirm('Сессия истекла. Войдите снова.');
             if (loginConfirmed) {
                 window.location.href = '/login';

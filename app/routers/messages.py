@@ -70,7 +70,7 @@ async def messages_create(
 
     chat = await get_chat(chat_id=message_data.chat_id,
                           user_id=user_id,
-                          is_active=True,
+                          active=True,
                           db=db)
 
     if not chat:

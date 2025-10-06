@@ -9,6 +9,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import bcrypt
+from starlette.responses import RedirectResponse
 
 from database.db_depends import get_db
 from models import User
@@ -125,3 +126,9 @@ async def get_current_user_from_cookie(request: Request):
             detail="Not authenticated"
         )
     return await get_current_user(token.replace("Bearer", ""))
+
+
+async def logout_func():
+    response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+    response.delete_cookie("token")
+    return response

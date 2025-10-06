@@ -90,7 +90,8 @@ async def register(
                                  username=username,
                                  email=email,
                                  hashed_password=bcrypt_context.hash(password),
-                                 db=db)
+                                 db=db,
+                                 role='support')
 
         token_expires = timedelta(minutes=60)
         token = create_access_token(

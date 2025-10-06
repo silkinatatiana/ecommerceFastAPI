@@ -14,7 +14,7 @@ import jwt
 
 from app.functions.main_func import fetch_categories, parse_int_list, fetch_products_for_category, format_product_name, \
     get_filters, get_filtered_values, sort_func
-from app.routers import category, products, auth, permission, reviews, favorites, cart, orders, chats, messages
+from app.routers import category, products, auth, reviews, favorites, cart, orders, chats, messages
 from database.db_depends import get_db
 from database.db import Base, engine
 from models import *
@@ -50,7 +50,6 @@ app.mount("/static", NoCacheStaticFiles(directory="app/static"), name="static")
 
 app.include_router(products.router)
 app.include_router(auth.router)
-app.include_router(permission.router)
 app.include_router(category.router)
 app.include_router(reviews.router)
 app.include_router(favorites.router)
@@ -103,7 +102,7 @@ async def log_requests(request: Request, call_next):
         raise
 
 
-@app.get('/', response_class=HTMLResponse)
+@app.get('/', response_class=HTMLResponse) # TODO разделить эту ручку на три функции в этом же файле
 async def get_main_page(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],

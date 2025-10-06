@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.orm import DeclarativeBase
 
 SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg://ecommerce:postgres@localhost:5432/fastapi_ecommerce"
-
+# TODO вынести в config
 
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL
