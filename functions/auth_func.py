@@ -130,7 +130,6 @@ async def checking_access_rights(token: Optional[str],
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail='Пользователь не авторизован')
 
-    print(f'checking_access_rights: {type(token)}')
     user = await get_current_user(token)
 
     if user['role'] not in roles:

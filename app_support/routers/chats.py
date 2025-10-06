@@ -15,7 +15,7 @@ from database.db_depends import get_db
 from database.crud.messages import get_message
 from models import *
 from app_support.config import Config
-from functions.auth_func import get_current_user
+from functions.auth_func import get_current_user, checking_access_rights
 
 router = APIRouter(prefix='/support/chats', tags=['chats'])
 templates = Jinja2Templates(directory='app_support/templates')
@@ -28,11 +28,13 @@ async def get_all_chats(request: Request,
                         token: Optional[str] = Cookie(None, alias='token'),
                         db: AsyncSession = Depends(get_db)
 ):
-    if not token:
+    try:
+        is_authenticated = False
+        employee_id = await checking_access_rights(token=token, roles=['support'])
+        if employee_id:
+            is_authenticated = True
+    except Exception:
         return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
-
-    user_dict = await get_current_user(token=token)
-    employee_id = user_dict['id']
 
     active = True if status_filter == "active" else None
 
@@ -69,7 +71,7 @@ async def get_all_chats(request: Request,
         "sort": sort,
         "shop_name": Config.shop_name,
         "descr": Config.descr,
-        "is_authenticated": True
+        "is_authenticated": is_authenticated
     })
 
 
@@ -81,11 +83,13 @@ async def get_chats_partial(request: Request,
                             token: Optional[str] = Cookie(None, alias='token'),
                             db: AsyncSession = Depends(get_db)
 ):
-    if not token:
-        return HTMLResponse("")
-
-    user_dict = await get_current_user(token=token)
-    employee_id = user_dict['id']
+    is_authenticated = False
+    try:
+        employee_id = await checking_access_rights(token=token, roles=['support'])
+        if employee_id:
+            is_authenticated = True
+    except Exception:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
     active = True if status_filter == "active" else None
     limit = 10
@@ -113,15 +117,21 @@ async def get_chats_partial(request: Request,
         "next_page": page + 1 if has_more else None,
         "status_filter": status_filter,
         "sort": sort,
-        "is_authenticated": True
+        "is_authenticated": is_authenticated
     })
 
 
 @router.get('/{chat_id}')
 @handler_base_errors
 async def chat_by_id(chat_id: int,
-                     db: AsyncSession = Depends(get_db)
+                     db: AsyncSession = Depends(get_db),
+                     token: Optional[str] = Cookie(None, alias='token')
 ):
+    try:
+        await checking_access_rights(token=token, roles=['support'])
+    except Exception:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
     chat = await get_chat(chat_id=chat_id, db=db)
 
     if not chat:
@@ -137,11 +147,10 @@ async def view_chat(
     token: Optional[str] = Cookie(None, alias='token'),
     db: AsyncSession = Depends(get_db)
 ):
-    if not token:
-        return RedirectResponse(url='/auth/create', status_code=303)
-
-    user_dict = await get_current_user(token=token)
-    employee_id = user_dict['id']
+    try:
+        employee_id = await checking_access_rights(token=token, roles=['support'])
+    except Exception:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
     chat = await get_chat(chat_id=chat_id, db=db)
     if not chat:
@@ -176,8 +185,10 @@ async def complete_chat(
     token: Optional[str] = Cookie(None, alias='token'),
     db: AsyncSession = Depends(get_db)
 ):
-    if not token:
-        raise HTTPException(status_code=403)
+    try:
+        await checking_access_rights(token=token, roles=['support'])
+    except Exception:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
     chat = await get_chat(chat_id=chat_id, db=db)
     if not chat:

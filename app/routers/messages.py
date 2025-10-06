@@ -74,7 +74,6 @@ async def messages_create(
     except Exception:
         return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-
     chat = await get_chat(chat_id=message_data.chat_id,
                           user_id=user_id,
                           active=True,

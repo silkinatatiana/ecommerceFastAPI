@@ -9,7 +9,8 @@ from app_support.config import Config
 from database.crud.orders import get_orders, update_status
 from database.crud.users import get_user
 from database.db_depends import get_db
-from schemas import OrderResponse, ChangeOrderStatus
+from functions.auth_func import checking_access_rights
+from schemas import ChangeOrderStatus
 from models import *
 
 router = APIRouter(prefix='/support', tags=['orders'])
@@ -21,9 +22,11 @@ async def get_orders_by_user_id(
         user_id: int,
         page: int = Query(1, ge=1, description="Номер страницы"),
         per_page: int = Query(5, ge=1, le=50, description="Количество заказов на странице"),
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        token: str = Cookie(None, alias='token')
 ):
     try:
+        await checking_access_rights(token=token, roles=['support'])
         total_count = await get_orders(func_count=True,
                                        user_id=user_id,
                                        db=db)
@@ -48,10 +51,15 @@ async def get_orders_by_user_id(
             }
         }
 
-    except SQLAlchemyError as e:
+    except HTTPException as e:
+        if e.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN):
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+        else:
+            raise
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error: {str(e)}"
+            detail=f"Ошибка при загрузке страницы заказа: {str(e)}"
         )
 
 
@@ -61,8 +69,7 @@ async def change_status(order_id: int,
                         token: str = Cookie(None, alias='token'),
                         db: AsyncSession = Depends(get_db)) -> dict:
     try:
-        if not token:
-            return RedirectResponse(url='/auth/create')
+        await checking_access_rights(token=token, roles=['support'])
 
         await update_status(order_id=order_id, new_status=status_obj.new_status, db=db)
 
@@ -83,8 +90,8 @@ async def get_order_detail(request: Request,
                            db: AsyncSession = Depends(get_db)
 ):
     try:
-        if not token:
-            return RedirectResponse(url='/auth/create')
+        await checking_access_rights(token=token, roles=['support'])
+
         order = await get_orders(order_id=order_id, db=db)
         if not order:
             return templates.TemplateResponse(
@@ -127,8 +134,11 @@ async def get_order_detail(request: Request,
         }
         return templates.TemplateResponse("orders/order_page.html", context)
 
-    except HTTPException:
-        raise
+    except HTTPException as e:
+        if e.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN):
+            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+        else:
+            raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
