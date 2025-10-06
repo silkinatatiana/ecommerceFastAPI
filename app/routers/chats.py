@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from functions.auth_func import checking_access_rights
 from database.crud.chats import update_chat_status, create_chat, get_chat
 from database.crud.decorators import handler_base_errors
 from database.crud.users import get_user
@@ -13,7 +14,6 @@ from database.db_depends import get_db
 from database.crud.messages import get_message
 from schemas import ChatCreate
 from app.config import Config
-from functions.auth_func import get_user_id_by_token, get_current_user
 
 router = APIRouter(prefix='/chats', tags=['chats'])
 templates = Jinja2Templates(directory='app/templates/')
@@ -22,11 +22,12 @@ templates = Jinja2Templates(directory='app/templates/')
 @router.get('/my')
 @handler_base_errors
 async def get_all_chats(db: AsyncSession = Depends(get_db),
-                        token: Optional[str] = Cookie(None, alias='token')):
-    if not token:
+                        token: Optional[str] = Cookie(None, alias='token')
+):
+    try:
+        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
+    except:
         return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
-
-    user_id = get_user_id_by_token(token)
 
     chats = await get_chat(user_id=user_id, sort_desc=True, db=db)
     if not chats:
@@ -51,11 +52,7 @@ async def get_chats_partial(
         db: AsyncSession = Depends(get_db)
 ):
     try:
-        if not token:
-            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
-
-        user_dict = await get_current_user(token=token)
-        user_id = user_dict['id']
+        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
 
         limit = 10
         offset = (page - 1) * limit
@@ -80,14 +77,20 @@ async def get_chats_partial(
 
     except Exception as e:
         print(f"Ошибка при подгрузке чатов: {e}")
-        return HTMLResponse(content="")
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get('/{chat_id}')
 @handler_base_errors
 async def chat_by_id(chat_id: int,
-                     db: AsyncSession = Depends(get_db)
+                     db: AsyncSession = Depends(get_db),
+                     token: Optional[str] = Cookie(None, alias='token')
 ):
+    try:
+        await checking_access_rights(token=token, roles=['customer', 'seller'])
+    except:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
     chat = await get_chat(chat_id=chat_id, db=db)
 
     if not chat:
@@ -102,10 +105,10 @@ async def chat_create(chat_data: ChatCreate,
                       db: AsyncSession = Depends(get_db),
                       token: Optional[str] = Cookie(None, alias='token')
 ):
-    if not token:
+    try:
+        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
+    except:
         return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
-
-    user_id = get_user_id_by_token(token)
 
     employee_ids = await get_user(db=db, role='seller')
 
@@ -120,8 +123,14 @@ async def chat_create(chat_data: ChatCreate,
 @router.patch('/close', status_code=status.HTTP_204_NO_CONTENT)
 @handler_base_errors
 async def chats_close(chat_id: int,
-                      db: AsyncSession = Depends(get_db)
+                      db: AsyncSession = Depends(get_db),
+                      token: Optional[str] = Cookie(None, alias='token')
 ):
+    try:
+        await checking_access_rights(token=token, roles=['customer', 'seller'])
+    except Exception:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
     await update_chat_status(chat_id=chat_id, db=db)
 
 
@@ -132,11 +141,7 @@ async def view_chat(request: Request,
                     db: AsyncSession = Depends(get_db)
 ):
     try:
-        if not token:
-            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
-
-        user_dict = await get_current_user(token=token)
-        user_id = user_dict['id']
+        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
 
         chat = await get_chat(chat_id=chat_id, db=db)
         if not chat:

@@ -3,18 +3,17 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie, Query
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, RedirectResponse
 
+from functions.auth_func import checking_access_rights
+from app.routers.cart import get_cart_by_user
 from database.crud.decorators import handler_base_errors
 from database.crud.orders import create_new_order, get_orders, update_status
 from database.crud.products import get_product
-from database.crud.users import get_user
 from database.db_depends import get_db
 from app.config import Config
-from models import Product
 from functions.auth_func import get_user_id_by_token
 from functions.product_func import update_stock
 from schemas import OrderResponse
@@ -24,13 +23,20 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get('/user/{user_id}')
-async def get_orders_by_user_id(
-        user_id: int,
-        page: int = Query(1, ge=1, description="Номер страницы"),
-        per_page: int = Query(5, ge=1, le=50, description="Количество заказов на странице"),
-        db: AsyncSession = Depends(get_db)
+async def get_orders_by_user_id(user_id: int,
+                                page: int = Query(1, ge=1, description="Номер страницы"),
+                                per_page: int = Query(5, ge=1, le=50, description="Количество заказов на странице"),
+                                db: AsyncSession = Depends(get_db),
+                                token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
+        print(f'get_orders_by_user_id: {type(token)}')
+        user_id_from_token = await checking_access_rights(token=token, roles=['customer'])
+
+        if user_id != user_id_from_token:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail='Недостаточно прав для просмотра заказов')
+
         total_count = await get_orders(func_count=True,
                                        user_id=user_id,
                                        db=db)
@@ -63,7 +69,16 @@ async def get_orders_by_user_id(
 
 
 @router.get('/{order_id}', response_model=OrderResponse)
-async def get_order_by_id(order_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+async def get_order_by_id(order_id: int,
+                          request: Request,
+                          db: AsyncSession = Depends(get_db),
+                          token: Optional[str] = Cookie(None, alias='token')
+):
+    try:
+        await checking_access_rights(token=token, roles=['customer'])
+    except Exception:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
     order = await get_orders(order_id=order_id, db=db)
 
     if not order:
@@ -78,22 +93,15 @@ async def get_order_by_id(order_id: int, request: Request, db: AsyncSession = De
 async def create_order(token: Optional[str] = Cookie(None, alias='token'),
                        db: AsyncSession = Depends(get_db)):
     try:
-        if not token:
-            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+        user_id = await checking_access_rights(token=token, roles=['customer'])
 
-        user_id = get_user_id_by_token(token)
-
-        user = await get_user(user_id=user_id, db=db)
-        if not user:
+        if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Пользователь не найден'
             )
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{Config.url}/cart/{user_id}")
-            order_products = response.json()
-
+        order_products = await get_cart_by_user(token=token, db=db)
         if not order_products:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -140,11 +148,12 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
 
 @router.patch('/cancel_order/{order_id}')
 async def cancel_order(order_id: int,
-                       token: Optional[str] = Cookie(default=None, alias='token'),
-                       db: AsyncSession = Depends(get_db)):
+                       token: Optional[str] = Cookie(None, alias='token'),
+                       db: AsyncSession = Depends(get_db)
+):
+
     try:
-        if not token:
-            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+        await checking_access_rights(token=token, roles=['customer'])
 
         await update_status(order_id=order_id, db=db, new_status='CANCELLED')
         return f'Заказ № {order_id} отменен'
@@ -171,10 +180,11 @@ async def order_page(request: Request,
                      db: AsyncSession = Depends(get_db)
 ):
     is_authenticated = False
-    if not token:
+    try:
+        user_id = await checking_access_rights(token=token, roles=['customer'])
+    except Exception:
         return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-    user_id = get_user_id_by_token(token)
     if user_id:
         is_authenticated = True
 

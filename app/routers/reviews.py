@@ -9,7 +9,7 @@ from database.crud.products import get_product
 from database.crud.review import get_reviews, create_new_review, delete_review
 from database.crud.users import get_user
 from database.db_depends import get_db
-from functions.auth_func import get_user_id_by_token
+from functions.auth_func import get_user_id_by_token, checking_access_rights
 from schemas import CreateReviews
 
 router = APIRouter(prefix='/reviews', tags=['reviews'])
@@ -45,13 +45,10 @@ async def create_review(
         token: str = Cookie(None, alias='token'),
         db: AsyncSession = Depends(get_db),
 ):
-    if not token:
-        return RedirectResponse(url='/auth/create')
-
     try:
-        user_id = get_user_id_by_token(token)
+        user_id = await checking_access_rights(token=token, roles=['customer'])
     except Exception:
-        return RedirectResponse(url='/auth/create')
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
     if review_data.photo_urls and len(review_data.photo_urls) > 5:
         raise HTTPException(400, "Можно прикрепить не более 5 фото")

@@ -18,7 +18,7 @@ from schemas import CreateProduct, ProductOut
 from models import *
 from models import Review
 from functions.cart_func import get_in_cart_product_ids
-from functions.auth_func import get_current_user, get_user_id_by_token
+from functions.auth_func import get_current_user, get_user_id_by_token, checking_access_rights
 from functions.favorites_func import get_favorite_product_ids
 from app.config import Config
 
@@ -66,10 +66,8 @@ async def create_product(
         token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
-        if not token:
-            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+        supplier_id = await checking_access_rights(token=token, roles=['seller'])
 
-        supplier_id = get_user_id_by_token(token)
         category = await get_category(db=db, category_id=product_data.category_id)
 
         if not category:

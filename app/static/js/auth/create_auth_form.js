@@ -31,7 +31,18 @@ function switchTab(tabName) {
 
 document.getElementById('register-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    const formData = new FormData(this);
+
+    const form = this;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    if (data.password !== data.confirm_password) {
+        const errorElement = document.getElementById('register-error');
+        errorElement.textContent = 'Пароли не совпадают';
+        errorElement.style.display = 'block';
+        return;
+    }
+
     const errorElement = document.getElementById('register-error');
     const successElement = document.getElementById('success-message');
 
@@ -39,12 +50,13 @@ document.getElementById('register-form').addEventListener('submit', async functi
     successElement.style.display = 'none';
 
     try {
-        const response = await fetch(this.action, {
+        const response = await fetch(form.action, {
             method: 'POST',
-            body: formData,
             headers: {
+                'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
+            body: JSON.stringify(data),
             credentials: 'include'
         });
 
@@ -63,13 +75,7 @@ document.getElementById('register-form').addEventListener('submit', async functi
         }
     } catch (error) {
         console.error('Ошибка:', error);
-
-        if (error.response && error.response.data && error.response.data.detail) {
-            errorElement.textContent = error.response.data.detail;
-        } else {
-            errorElement.textContent = 'Произошла ошибка при отправке формы';
-        }
-
+        errorElement.textContent = 'Произошла ошибка при отправке формы';
         errorElement.style.display = 'block';
     }
 });

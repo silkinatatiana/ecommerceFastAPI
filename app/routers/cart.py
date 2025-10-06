@@ -2,23 +2,19 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
-from starlette.responses import HTMLResponse
-import httpx
-import jwt
+from starlette.responses import HTMLResponse, RedirectResponse
 
+from functions.auth_func import checking_access_rights
 from database.crud.cart import update_cart_quantity, delete_from_cart
-from database.crud.users import get_user
 from database.db_depends import get_db
 from app.config import Config
 from models import Product
 from models import Cart
 from schemas import CartItem, CartUpdate
 from functions.product_func import check_stock
-from functions.auth_func import get_user_id_by_token
 from app.exception import NotMoreProductsException
 
 router = APIRouter(prefix="/cart", tags=["cart"])
@@ -26,14 +22,13 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get('/{user_id}')
-async def get_cart_by_user(user_id: int, db: AsyncSession = Depends(get_db)):
-    user = await get_user(user_id=user_id, db=db)
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='NOT FOUND'
-        )
+async def get_cart_by_user(token: Optional[str] = Cookie(None, alias='token'),
+                           db: AsyncSession = Depends(get_db)
+):
+    try:
+        user_id = await checking_access_rights(token=token, roles=['customer'])
+    except:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
     query = await db.execute(
         select(Cart, Product)
@@ -58,10 +53,7 @@ async def add_product_to_cart(
         token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
-        if not token:
-            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
-
-        user_id = get_user_id_by_token(token)
+        user_id = await checking_access_rights(token=token, roles=['customer'])
 
         product = await db.get(Product, cart_data.product_id)
         if not product:
@@ -86,6 +78,7 @@ async def add_product_to_cart(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
 @router.patch('/update')
 async def update_count_cart(
         cart_data: CartUpdate,
@@ -93,10 +86,7 @@ async def update_count_cart(
         token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
-        if not token:
-            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
-
-        user_id = get_user_id_by_token(token)
+        user_id = await checking_access_rights(token=token, roles=['customer'])
 
         result = await update_cart_quantity(user_id=user_id,
                                             product_id=cart_data.product_id,
@@ -120,12 +110,12 @@ async def update_count_cart(
 
 
 @router.delete('/clear', status_code=status.HTTP_204_NO_CONTENT)
-async def clear_cart(
-        token: Optional[str] = Cookie(None, alias='token'),
-        db: AsyncSession = Depends(get_db)
+async def clear_cart(token: Optional[str] = Cookie(None, alias='token'),
+                     db: AsyncSession = Depends(get_db)
 ):
     try:
-        user_id = get_user_id_by_token(token)
+        user_id = await checking_access_rights(token=token, roles=['customer'])
+
         await delete_from_cart(user_id=user_id, db=db, clear_cart=True)
 
     except Exception as e:
@@ -139,9 +129,10 @@ async def clear_cart(
 @router.delete('/{product_id}')
 async def delete_product_from_cart(product_id: int,
                                    token: Optional[str] = Cookie(None, alias='token'),
-                                   db: AsyncSession = Depends(get_db)):
+                                   db: AsyncSession = Depends(get_db)
+):
     try:
-        user_id = get_user_id_by_token(token)
+        user_id = await checking_access_rights(token=token, roles=['customer'])
 
         await delete_from_cart(user_id=user_id,
                                product_id=product_id,
@@ -155,51 +146,41 @@ async def delete_product_from_cart(product_id: int,
 
 @router.get('/', response_class=HTMLResponse)
 async def get_cart_html(request: Request,
-                        token: Optional[str] = Cookie(default=None, alias='token')):
-    is_authenticated = False
-    cart_products = []
-    user_id = None
+                        token: Optional[str] = Cookie(default=None, alias='token'),
+                        db: AsyncSession = Depends(get_db)
+):
+    try:
+        is_authenticated = False
+        cart_products = []
 
-    if token and token != 'None' and token != 'undefined':
-        try:
-            payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
-            user_id = payload.get("id")
-            if user_id:
-                is_authenticated = True
+        user_id = await checking_access_rights(token=token, roles=['customer'])
 
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{Config.url}/cart/{user_id}")
-                response.raise_for_status()
+        if user_id:
+            is_authenticated = True
+        items = await get_cart_by_user(token=token, db=db)
 
-                items = response.json()
+        for product in items:
+            cart_products.append({
+                "id": product['product']['id'],
+                "name": product['product']['name'],
+                "description": product['product']['description'],
+                "price": product['product']['price'],
+                "image_urls": product['product']['image_urls'],
+                "count": product['count'],
+                "price_mult_count": product['product']['price'] * product['count']
+            })
 
-                for product in items:
-                    cart_products.append({
-                        "id": product['product']['id'],
-                        "name": product['product']['name'],
-                        "description": product['product']['description'],
-                        "price": product['product']['price'],
-                        "image_urls": product['product']['image_urls'],
-                        "count": product['count'],
-                        "price_mult_count": product['product']['price'] * product['count']
-                    })
-
-        except jwt.ExpiredSignatureError:
-            print("Токен истёк")
-        except jwt.InvalidTokenError as e:
-            print(f"Невалидный токен: {e}")
-        except Exception as e:
-            print(f"Ошибка при проверке авторизации: {e}")
-
-    return templates.TemplateResponse(
-        "cart/cart.html",
-        {
-            "request": request,
-            "is_authenticated": is_authenticated,
-            "user_id": user_id,
-            "products": cart_products,
-            "url": Config.url,
-            "shop_name": Config.shop_name,
-            "descr": Config.descr
-        }
-    )
+        return templates.TemplateResponse(
+            "cart/cart.html",
+            {
+                "request": request,
+                "is_authenticated": is_authenticated,
+                "user_id": user_id,
+                "products": cart_products,
+                "url": Config.url,
+                "shop_name": Config.shop_name,
+                "descr": Config.descr
+            }
+        )
+    except:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)

@@ -2,16 +2,16 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, status, HTTPException, Query, Cookie
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from starlette.responses import RedirectResponse
 
 from database.crud.chats import get_chat
 from database.crud.decorators import handler_base_errors
 from database.db_depends import get_db
 from database.crud.messages import create_message
 from models import *
-from functions.auth_func import get_user_id_by_token
+from functions.auth_func import checking_access_rights
 from schemas import MessageCreate
 
 router = APIRouter(prefix='/messages', tags=['messages'])
@@ -23,8 +23,14 @@ templates = Jinja2Templates(directory='app_support/templates/')
 async def messages_by_chat_id(chat_id: int,
                               page: int = Query(1, ge=1),
                               limit: int = Query(15, ge=1, le=50),
-                              db: AsyncSession = Depends(get_db)
+                              db: AsyncSession = Depends(get_db),
+                              token: Optional[str] = Cookie(default=None, alias="token")
 ):
+    try:
+        await checking_access_rights(token=token, roles=['customer'])
+    except Exception:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
     offset = (page - 1) * limit
 
     query = (
@@ -63,10 +69,11 @@ async def messages_create(
         db: AsyncSession = Depends(get_db),
         token: Optional[str] = Cookie(None, alias='token')
 ):
-    if not token:
+    try:
+        user_id = await checking_access_rights(token=token, roles=['customer'])
+    except Exception:
         return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-    user_id = get_user_id_by_token(token)
 
     chat = await get_chat(chat_id=message_data.chat_id,
                           user_id=user_id,

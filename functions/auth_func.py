@@ -1,5 +1,5 @@
 from datetime import timedelta, datetime, timezone
-from typing import Annotated, Dict, Any
+from typing import Annotated, Dict, Any, Optional
 
 import jwt
 from jose import jwt, JWTError
@@ -8,6 +8,7 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from starlette.responses import RedirectResponse
 import bcrypt
 
 from database.db_depends import get_db
@@ -51,7 +52,7 @@ def verify_token(token: str,
                             detail='Invalid or expired token')
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(token: str):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -117,11 +118,22 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     )
 
 
-async def get_current_user_from_cookie(request: Request):
-    token = request.cookies.get("token")
+async def logout_func():
+    response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+    response.delete_cookie("token")
+    return response
+
+
+async def checking_access_rights(token: Optional[str],
+                                 roles: Optional[list]):
     if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
-    return await get_current_user(token.replace("Bearer", ""))
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail='Пользователь не авторизован')
+
+    print(f'checking_access_rights: {type(token)}')
+    user = await get_current_user(token)
+
+    if user['role'] not in roles:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail='Нет прав доступа')
+    return user['id']

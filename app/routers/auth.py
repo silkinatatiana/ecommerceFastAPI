@@ -1,20 +1,20 @@
 from typing import Annotated, Optional
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Cookie, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Cookie, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
-from app.functions.auth_func import logout_func
+from functions.auth_func import logout_func
 from database.crud.users import create_user, get_user, update_user_info, delete_user_from_db
 from functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
 from functions.profile import get_tab_by_section
 from database.db_depends import get_db
 from app.config import Config
-from schemas import ProfileUpdate, PasswordUpdate
+from schemas import ProfileUpdate, PasswordUpdate, RegisterData
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app/templates/')
@@ -39,12 +39,11 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
 
 
 @router.get('/account')
-async def personal_account(
-        request: Request,
-        page: int = Query(1, ge=1),
-        section: str = Query('profile_tab'),
-        token: Optional[str] = Cookie(None, alias='token'),
-        db: AsyncSession = Depends(get_db)
+async def personal_account(request: Request,
+                           page: int = Query(1, ge=1),
+                           section: str = Query('profile_tab'),
+                           token: Optional[str] = Cookie(None, alias='token'),
+                           db: AsyncSession = Depends(get_db)
 ):
     try:
         user_dict = await get_current_user(token=token)
@@ -69,27 +68,22 @@ def create_auth_form(request: Request):
 
 
 @router.post('/register')
-async def register(
-        db: AsyncSession = Depends(get_db),
-        first_name: str = Form(...),
-        last_name: str = Form(...),
-        username: str = Form(...),
-        email: str = Form(...),
-        password: str = Form(...),
-        confirm_password: str = Form(...)
+async def register(register_data: RegisterData,
+                   db: AsyncSession = Depends(get_db),
 ):
-    if password != confirm_password:
+    if register_data.password != register_data.confirm_password:
         return JSONResponse(
             content={"detail": "Пароли не совпадают"},
             status_code=status.HTTP_400_BAD_REQUEST
         )
 
     try:
-        user = await create_user(first_name=first_name,
-                                 last_name=last_name,
-                                 username=username,
-                                 email=email,
-                                 hashed_password=bcrypt_context.hash(password),
+        user = await create_user(first_name=register_data.first_name,
+                                 last_name=register_data.last_name,
+                                 username=register_data.username,
+                                 email=register_data.email,
+                                 hashed_password=bcrypt_context.hash(register_data.password),
+                                 role=register_data.role,
                                  db=db)
 
         token_expires = timedelta(minutes=60)

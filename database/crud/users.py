@@ -14,13 +14,15 @@ async def create_user(db: AsyncSession,
                       username: str,
                       email:str,
                       hashed_password: str,
+                      role: str
 ):
     result = await db.execute(insert(User).values(
         first_name=first_name,
         last_name=last_name,
         username=username,
         email=email,
-        hashed_password=hashed_password
+        hashed_password=hashed_password,
+        role=role
     ).returning(User))
 
     await db.commit()

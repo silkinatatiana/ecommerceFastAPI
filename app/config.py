@@ -13,6 +13,7 @@ class Config:
     API_PORT = os.getenv('API_PORT')
     shop_name = os.getenv('SHOP_NAME')
     descr = os.getenv('DESCR')
+    SQLALCHEMY_DATABASE_URL = os.getenv('SQLALCHEMY_DATABASE_URL')
 
 
 class Statuses:
