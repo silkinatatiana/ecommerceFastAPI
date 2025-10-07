@@ -4,6 +4,7 @@ from datetime import datetime
 from functools import partial
 
 from fastapi import FastAPI, Request, Query, Depends, Cookie
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, func, distinct
@@ -12,10 +13,37 @@ from starlette.staticfiles import StaticFiles
 
 from app_support.functions.main_func import get_sort_column, build_pagination_url, build_sort_url, to_date_str
 from models import Orders, User
-from functions.auth_func import get_current_user
+from functions.auth_func import get_current_user, checking_access_rights
 from app_support.routers import orders, auth, chats, messages
 from database.db_depends import get_db
 from app_support.config import Config, Statuses
+
+app = FastAPI()
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="My Support API",
+        version="1.0.0",
+        routes=app.routes,
+    )
+    openapi_schema["components"]["securitySchemes"] = {
+        "CookieAuth": {
+            "type": "apiKey",
+            "in": "cookie",
+            "name": "token"
+        }
+    }
+    for path in openapi_schema["paths"].values():
+        for method in path.values():
+            if "security" not in method:
+                method["security"] = [{"CookieAuth": []}]
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -28,7 +56,6 @@ class NoCacheStaticFiles(StaticFiles):
         return response
 
 
-app = FastAPI()
 templates = Jinja2Templates(directory="app_support/templates")
 app.mount("/static", NoCacheStaticFiles(directory="app_support/static"), name="static")
 
@@ -54,14 +81,9 @@ async def get_main_page(request: Request,
                         sort_order: str = Query("desc", regex="^(asc|desc)$"),
                         page: int = Query(1, ge=1)
 ):
-    if not token:
-        return RedirectResponse(url='/auth/create')
-
-    current_employee = await get_current_user(token=token)
-    if not current_employee:
-        return RedirectResponse(url='/auth/create')
-
-    if current_employee['role'] != 'seller' and not current_employee['is_admin']:
+    try:
+        current_employee = await checking_access_rights(token=token, roles=['support'])
+    except Exception:
         return RedirectResponse(url='/auth/create')
 
     all_statuses = [

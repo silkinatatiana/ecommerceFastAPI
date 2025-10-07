@@ -98,7 +98,7 @@ async def register(register_data: RegisterData,
         response.set_cookie(
             key="token",
             value=token,
-            httponly=True,
+            httponly=False,
             secure=False,
             samesite="lax",
             max_age=3600
@@ -135,7 +135,7 @@ async def login(request: Request,
         response.set_cookie(
             key="token",
             value=token,
-            httponly=True, # TODO в продакшн заменить на True для безопасности
+            httponly=False, # TODO в продакшн заменить на True для безопасности
             max_age=3600,
             secure=False,
             samesite='lax',

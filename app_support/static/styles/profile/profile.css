@@ -1,0 +1,409 @@
+:root {
+    --primary-color: #2c5f8a;
+    --secondary-color: #f1f3f4;
+    --text-color: #202124;
+    --light-text: #5f6368;
+    --border-color: #dadce0;
+    --ocean-deep: #1e466d;
+    --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9fa;
+    color: var(--text-color);
+}
+
+.account-container {
+    max-width: 90%;
+    width: 1800px;
+    margin: 20px auto;
+    padding: 30px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.account-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 30px;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+}
+
+.user-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: bold;
+    margin-right: 20px;
+}
+
+.user-info h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.user-info p {
+    margin: 5px 0 0;
+    color: var(--light-text);
+}
+
+.account-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    border: none;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-delete {
+    background-color: red;
+    color: white;
+}
+
+.btn-danger {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.account-content {
+    display: flex;
+    gap: 30px;
+}
+
+.account-sidebar {
+    width: 250px;
+}
+
+.nav-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-item {
+    margin-bottom: 5px;
+}
+
+.nav-link {
+    display: block;
+    padding: 12px 15px;
+    color: var(--text-color);
+    text-decoration: none;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.nav-link:hover, .nav-link.active {
+    background-color: var(--secondary-color);
+    color: var(--primary-color);
+}
+
+.nav-link i {
+    margin-right: 10px;
+    width: 20px;
+    text-align: center;
+}
+
+.account-main {
+    flex: 1;
+}
+
+.section {
+    background: white;
+    border-radius: 8px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.section-title {
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 20px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.info-label {
+    color: var(--light-text);
+    font-weight: 500;
+}
+
+.info-value {
+    font-weight: 400;
+}
+
+.edit-form {
+    display: none;
+    margin-top: 15px;
+    padding: 15px;
+    background: var(--secondary-color);
+    border-radius: 4px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.orders-list {
+    list-style: none;
+    padding: 0;
+}
+
+.order-item {
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.order-status {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-completed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.btn-secondary {
+background-color: var(--secondary-color);
+color: var(--text-color);
+}
+
+.load-more-container {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.order-card {
+    margin-bottom: 30px;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.order-details {
+    margin-bottom: 15px;
+    line-height: 1.6;
+}
+
+.order-details p {
+    margin: 5px 0;
+    color: #666;
+}
+
+.order-card .btn-primary {
+    background-color: #f5f5f5;
+    color: #666;
+    border: 1px solid #ddd;
+    padding: 8px 16px;
+    text-decoration: none;
+    border-radius: 4px;
+    display: inline-block;
+    margin-top: 15px;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.order-card .btn-primary:hover {
+    background-color: #e8e8e8;
+    color: #333;
+    text-decoration: none;
+}
+
+.load-more-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+    .account-content {
+        flex-direction: column;
+    }
+
+    .account-sidebar {
+        width: 100%;
+        margin-bottom: 20px;
+    }
+
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.chats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.chat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.chat-item:hover {
+    background: #e8e8e8;
+    transform: translateX(4px);
+}
+
+.chat-info h3 {
+    margin: 0 0 8px 0;
+    color: var(--text-color);
+    font-size: 18px;
+}
+
+.chat-info p {
+    margin: 4px 0;
+    font-size: 14px;
+    color: var(--light-text);
+}
+
+.status-active {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-closed {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.last-message-preview {
+    font-style: italic;
+    color: var(--light-text);
+}
+
+.no-messages {
+    font-style: italic;
+    color: var(--light-text);
+}
+
+.chat-arrow {
+    font-size: 20px;
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--light-text);
+}
+
+.empty-state .btn {
+    margin-top: 20px;
+}
+
+.load-more-container {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.load-more-container .btn {
+    margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+    .chat-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .chat-arrow {
+        align-self: flex-end;
+    }
+}

@@ -1,0 +1,56 @@
+{% extends "profile/profile_base.html" %}
+
+{% block title %}Профиль | {{ config.shop_name }}{% endblock %}
+
+{% block account_content %}
+<div id="profile" class="section active">
+    <h3 class="section-title">Личная информация</h3>
+
+    <div class="info-grid">
+        <div class="info-label">Имя:</div>
+        <div class="info-value">{{ user.first_name }}</div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-label">Фамилия:</div>
+        <div class="info-value">{{ user.last_name }}</div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-label">Имя пользователя:</div>
+        <div class="info-value">@{{ user.username }}</div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-label">Email:</div>
+        <div class="info-value">{{ user.email }}</div>
+    </div>
+
+    <button class="btn btn-primary" onclick="toggleEditForm('profile')">Редактировать профиль</button>
+
+    <div id="profile-edit-form" class="edit-form" style="display: none;">
+        <form id="update-profile-form">
+            <div class="form-group">
+                <label for="first_name">Имя</label>
+                <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="last_name">Фамилия</label>
+                <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" value="{{ user.email }}" required>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+                <button type="button" class="btn" onclick="toggleEditForm('profile')">Отмена</button>
+            </div>
+        </form>
+
+    </div>
+</div>
+{% endblock %}

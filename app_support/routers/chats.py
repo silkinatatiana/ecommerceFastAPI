@@ -14,6 +14,7 @@ from database.crud.users import get_user
 from database.db_depends import get_db
 from database.crud.messages import get_message
 from models import *
+from models import Chats
 from app_support.config import Config
 from functions.auth_func import get_current_user, checking_access_rights
 
@@ -31,6 +32,7 @@ async def get_all_chats(request: Request,
     try:
         is_authenticated = False
         employee_id = await checking_access_rights(token=token, roles=['support'])
+
         if employee_id:
             is_authenticated = True
     except Exception:
@@ -57,7 +59,7 @@ async def get_all_chats(request: Request,
     chats_with_extra = result.scalars().all()
     has_more = len(chats_with_extra) > 10
     chats = chats_with_extra[:10]
-
+    print(chats)
     for chat in chats:
         last_msg = await get_message(chat_id=chat.id, sort_desc=True, limit=1, db=db)
         chat.last_message = last_msg

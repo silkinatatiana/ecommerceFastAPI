@@ -2,6 +2,7 @@ import time
 from typing import AsyncGenerator, Optional, Annotated
 
 from fastapi import FastAPI, Request, HTTPException, Query, Depends, Cookie
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -65,6 +66,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="My client API",
+        version="1.0.0",
+        routes=app.routes,
+    )
+    openapi_schema["components"]["securitySchemes"] = {
+        "CookieAuth": {
+            "type": "apiKey",
+            "in": "cookie",
+            "name": "token"
+        }
+    }
+    for path in openapi_schema["paths"].values():
+        for method in path.values():
+            if "security" not in method:
+                method["security"] = [{"CookieAuth": []}]
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 
 @app.on_event("startup")

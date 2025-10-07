@@ -16,7 +16,7 @@ from app_support.config import Config
 from schemas import ProfileUpdate, PasswordUpdate
 
 router = APIRouter(prefix='/auth', tags=['auth'])
-templates = Jinja2Templates(directory='app/templates/')
+templates = Jinja2Templates(directory='app_support/templates/')
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 
@@ -105,7 +105,7 @@ async def register(
         response.set_cookie(
             key="token",
             value=token,
-            httponly=True,
+            httponly=False,
             secure=False,
             samesite="lax",
             max_age=3600

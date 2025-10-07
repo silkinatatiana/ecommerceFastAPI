@@ -13,35 +13,37 @@
 </head>
 <body>
     <header>
-        <div class="header-container">
-            <div class="header-text-left">
-            </div>
-            <div class="header-text-center">
-                <h1>{{ shop_name }}</h1>
-                <p>{{ descr }}</p>
-            </div>
-            <div class="header-icons">
-                <div class="user-icon-container">
-                    {% if is_authenticated %}
-                        <div class="user-icon" id="userIcon">
-                            <img src="{{ url_for('static', path='/images/user_auth.png') }}"
-                                 alt="Меню пользователя"
-                                 title="Меню пользователя">
-                            <div class="user-dropdown" id="userDropdown">
-                                <a href="{{ url_for('logout') }}" class="logout">Выйти</a>
-                            </div>
+    <div class="header-container">
+        <div class="header-text-left">
+        </div>
+        <div class="header-text-center">
+            <h1>{{ shop_name }}</h1>
+            <p>{{ descr }}</p>
+        </div>
+            <div class="user-icon-container">
+                {% if is_authenticated %}
+                    <div class="user-icon" id="userIcon">
+                        <img src="{{ url_for('static', path='/images/user_auth.png') }}"
+                             alt="Меню пользователя"
+                             title="Меню пользователя">
+                        <div class="user-dropdown" id="userDropdown">
+                            <a href="/auth/account?section=profile_tab" class="nav-link {% if active_section == 'profile_tab' %}active{% endif %}" data-section="profile">
+                                Профиль
+                            </a>
+                            <a href="{{ url_for('logout') }}" class="logout">Выйти</a>
                         </div>
-                    {% else %}
-                        <a href="{{ url_for('create_auth_form') }}" class="user-icon">
-                            <img src="{{ url_for('static', path='/images/user.png') }}"
-                                 alt="Войти"
-                                 title="Войти">
-                        </a>
-                    {% endif %}
-                </div>
+                    </div>
+                {% else %}
+                    <a href="{{ url_for('create_auth_form') }}" class="user-icon">
+                        <img src="{{ url_for('static', path='/images/user.png') }}"
+                             alt="Войти"
+                             title="Войти">
+                    </a>
+                {% endif %}
             </div>
         </div>
-    </header>
+    </div>
+</header>
     <nav>
         {% if is_authenticated %}
             <a href="{{ url_for('get_all_chats') }}">Все чаты</a> |
