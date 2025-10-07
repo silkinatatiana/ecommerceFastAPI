@@ -128,7 +128,8 @@ async def log_requests(request: Request, call_next):
         raise
 
 
-@app.get('/', response_class=HTMLResponse) # TODO разделить эту ручку на три функции в этом же файле
+# TODO разделить эту ручку на три функции в этом же файле
+@app.get('/', response_class=HTMLResponse)
 async def get_main_page(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -285,9 +286,9 @@ async def get_main_page(
         "is_favorite": is_favorite,
         "is_authenticated": is_authenticated,
         "user_id": user_id,
-        "favorite_product_ids": favorite_product_ids,
-        "in_cart_product_ids": in_cart_product_ids,
         "role": role,
+        "favorite_product_ids": favorite_product_ids,
+        "in_cart_product_ids": in_cart_product_ids
     }
 
     response = templates.TemplateResponse("index.html", context)
@@ -296,11 +297,3 @@ async def get_main_page(
         response.delete_cookie("token")
 
     return response
-
-# if __name__ == "__main__":
-#     uvicorn.run(
-#         app,
-#         host=Config.API_HOST,
-#         port=Config.API_PORT,
-#         reload=True
-#     )

@@ -1,4 +1,5 @@
 from app.config import Config
+from functions.orders_func import fetch_orders_for_user
 from models import Chats, Messages
 from app.routers.orders import get_orders_by_user_id
 from sqlalchemy import select
@@ -23,7 +24,7 @@ async def get_tab_by_section(section, templates, request, user, page, db, user_d
     }
 
     if section == 'orders_tab':
-        orders_data = await get_orders_by_user_id(user_dict['id'], page, 5, db)
+        orders_data = await fetch_orders_for_user(user_id=user_dict['id'], page=page, per_page=5, db=db)
         return_dict.update({'orders_data': orders_data})
 
     elif section == 'chats_tab':

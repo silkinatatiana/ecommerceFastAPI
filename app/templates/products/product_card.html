@@ -16,22 +16,24 @@
         <div class="product-actions">
             {% include 'products/favorite.html' %}
 
-            {% if product.id in in_cart_product_ids %}
-                <button class="btn-cart remove"
-                        onclick="event.stopPropagation(); removeFromCart('{{ product.id }}')"
-                        title="Удалить из корзины">
-                    <i class="fas fa-shopping-cart"></i>
-                </button>
-            {% else %}
-                <button class="btn-cart add"
-                        onclick="event.stopPropagation(); addProduct('{{ product.id }}')"
-                        title="Добавить в корзину">
-                    <i class="fas fa-shopping-cart"></i>
-                </button>
+            {% if role == 'customer' %}
+                {% if product.id in in_cart_product_ids %}
+                    <button class="btn-cart remove"
+                            onclick="event.stopPropagation(); removeFromCart('{{ product.id }}')"
+                            title="Удалить из корзины">
+                        <i class="fas fa-shopping-cart"></i>
+                    </button>
+                {% else %}
+                    <button class="btn-cart add"
+                            onclick="event.stopPropagation(); addProduct('{{ product.id }}')"
+                            title="Добавить в корзину">
+                        <i class="fas fa-shopping-cart"></i>
+                    </button>
+                {% endif %}
             {% endif %}
         </div>
     {% endif %}
-</div>
+    </div>
 
 {% block scripts %}
 <script src="/static/js/product/product_card.js"></script>

@@ -22,14 +22,14 @@
                 <p>{{ descr }}</p>
             </div>
             <div class="header-icons">
-                {% if is_authenticated %}
-                <div class="cart-icon-container">
-                    <a href="{{ url_for('get_cart_html') }}" class="cart-icon">
-                        <img src="{{ url_for('static', path='/images/cart.png') }}"
-                             alt="Корзина"
-                             title="Корзина">
-                    </a>
-                </div>
+                {% if is_authenticated and role == 'customer' %}
+                    <div class="cart-icon-container">
+                        <a href="{{ url_for('get_cart_html') }}" class="cart-icon">
+                            <img src="/static/images/cart.png"
+                                 alt="Корзина"
+                                 title="Корзина">
+                        </a>
+                    </div>
                 {% endif %}
                 <div class="user-icon-container">
                     {% if is_authenticated %}
@@ -58,7 +58,7 @@
     <nav>
         <a href="/">Главная</a>
         {% if role == 'seller' %}
-            <a href="{{ url_for('create_product_form') }}"> | Добавить товар</a>
+            | <a href="{{ url_for('create_product_form') }}">Добавить товар</a>
         {% endif %}
     </nav>
 

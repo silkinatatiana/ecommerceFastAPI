@@ -72,10 +72,12 @@
 
         <div class="product-actions">
             {% if is_authenticated %}
-                {% if product.in_cart %}
-                    <button class="btn btn-primary" onclick="removeFromCart('{{ product.id }}')">Удалить из корзины</button>
-                {% else %}
-                    <button class="btn btn-primary" onclick="addProduct('{{ product.id }}')">Добавить в корзину</button>
+                {% if role == 'customer' %}
+                    {% if product.in_cart %}
+                        <button class="btn btn-primary" onclick="removeFromCart('{{ product.id }}')">Удалить из корзины</button>
+                    {% else %}
+                        <button class="btn btn-primary" onclick="addProduct('{{ product.id }}')">Добавить в корзину</button>
+                    {% endif %}
                 {% endif %}
 
                 {% include 'products/favorite.html' %}

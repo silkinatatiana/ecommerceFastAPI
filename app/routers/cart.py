@@ -78,7 +78,6 @@ async def add_product_to_cart(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
 @router.patch('/update')
 async def update_count_cart(
         cart_data: CartUpdate,

@@ -14,7 +14,7 @@ from database.crud.orders import create_new_order, get_orders, update_status
 from database.crud.products import get_product
 from database.db_depends import get_db
 from app.config import Config
-from functions.auth_func import get_user_id_by_token
+from functions.orders_func import fetch_orders_for_user
 from functions.product_func import update_stock
 from schemas import OrderResponse
 
@@ -23,49 +23,22 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get('/user/{user_id}')
-async def get_orders_by_user_id(user_id: int,
-                                page: int = Query(1, ge=1, description="Номер страницы"),
-                                per_page: int = Query(5, ge=1, le=50, description="Количество заказов на странице"),
-                                db: AsyncSession = Depends(get_db),
-                                token: Optional[str] = Cookie(None, alias='token')
+async def get_orders_by_user_id(
+        user_id: int,
+        page: int = Query(1, ge=1),
+        per_page: int = Query(5, ge=1, le=50),
+        db: AsyncSession = Depends(get_db),
+        token: Optional[str] = Cookie(None, alias='token')
 ):
-    try:
-        print(f'get_orders_by_user_id: {type(token)}')
-        user_id_from_token = await checking_access_rights(token=token, roles=['customer'])
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
-        if user_id != user_id_from_token:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                detail='Недостаточно прав для просмотра заказов')
+    user_id_from_token = await checking_access_rights(token=token, roles=['customer'])
 
-        total_count = await get_orders(func_count=True,
-                                       user_id=user_id,
-                                       db=db)
-        offset = (page - 1) * per_page
+    if user_id != user_id_from_token:
+        raise HTTPException(status_code=403, detail='Недостаточно прав для просмотра заказов')
 
-        orders = await get_orders(sort_desc=True,
-                                  user_id=user_id,
-                                  offset=offset,
-                                  limit=per_page,
-                                  db=db)
-        total_pages = (total_count + per_page - 1) // per_page
-
-        return {
-            "orders": orders,
-            "pagination": {
-                "page": page,
-                "per_page": per_page,
-                "total_count": total_count,
-                "total_pages": total_pages,
-                "has_next": page < total_pages,
-                "has_prev": page > 1
-            }
-        }
-
-    except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error: {str(e)}"
-        )
+    return await fetch_orders_for_user(user_id, page, per_page, db)
 
 
 @router.get('/{order_id}', response_model=OrderResponse)

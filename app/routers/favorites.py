@@ -19,7 +19,7 @@ async def get_favorites(token: Optional[str] = Cookie(None, alias='token'),
                         db: AsyncSession = Depends(get_db)
 ):
     try:
-        user_id = await checking_access_rights(token=token, roles=['customer'])
+        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
     except Exception:
         return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
@@ -34,7 +34,7 @@ async def create_favorites(
         db: AsyncSession = Depends(get_db)
 ):
     try:
-        user_id = await checking_access_rights(token=token, roles=['customer'])
+        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
 
         new_favorite = await create_favorite(user_id=user_id,
                                              product_id=product_id,
@@ -59,7 +59,7 @@ async def del_favorite_product(product_id: int,
                                token: Optional[str] = Cookie(None, alias='token'),
                                db: AsyncSession = Depends(get_db)):
     try:
-        user_id = await checking_access_rights(token=token, roles=['customer'])
+        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
 
         result = await delete_favorite(user_id=user_id,
                                        product_id=product_id,
@@ -80,7 +80,7 @@ async def toggle_favorite(product_id: int,
                           db: AsyncSession = Depends(get_db)
 ):
     try:
-        user_id = await checking_access_rights(token=token, roles=['customer'])
+        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
 
         existing_favorite = await get_favorite(product_id=product_id, user_id=user_id, db=db)
         if existing_favorite:

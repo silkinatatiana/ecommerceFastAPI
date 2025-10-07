@@ -60,6 +60,7 @@ async def get_current_user(token: str):
     )
 
     try:
+        print(f'get_current_user: {type(token)}') # Cookie
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
         username: str = payload.get("sub")

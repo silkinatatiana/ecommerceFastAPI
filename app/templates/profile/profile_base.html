@@ -30,16 +30,20 @@
                         <i>👤</i> Профиль
                     </a>
                 </li>
+                {% if user.role == 'customer' %}
                 <li class="nav-item">
                     <a href="/auth/account?section=orders_tab" class="nav-link {% if request.query_params.get('section') == 'orders_tab' %}active{% endif %}" data-section="orders">
                         <i>🛒</i> Мои заказы
                     </a>
                 </li>
+                {% endif %}
+                {% if user.role == 'customer' %}
                 <li class="nav-item">
                     <a href="/auth/account?section=chats_tab" class="nav-link {% if request.query_params.get('section') == 'chats_tab' %}active{% endif %}" data-section="chats">
                         <i>💬</i> Мои чаты
                     </a>
                 </li>
+                {% endif %}
                 <li class="nav-item">
                     <a href="/auth/account?section=security_tab" class="nav-link {% if request.query_params.get('section') == 'security_tab' %}active{% endif %}" data-section="security">
                         <i>🔒</i> Безопасность

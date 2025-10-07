@@ -183,6 +183,7 @@ async def product_detail_page(
     is_favorite = False
     in_cart = False
     user_id = None
+    role = None
     favorite_product_ids = []
     in_cart_product_ids = []
 
@@ -190,6 +191,7 @@ async def product_detail_page(
         try:
             current_user = await get_current_user(token)
             user_id = current_user['id']
+            role = current_user['role']
             is_authenticated = True
 
             favorite_product_ids = await get_favorite_product_ids(user_id=current_user['id'], db=db)
@@ -253,6 +255,7 @@ async def product_detail_page(
             "request": request,
             "is_authenticated": is_authenticated,
             "user_id": user_id,
+            "role": role,
             "product": product,
             "avg_rating": avg_rating,
             "reviews": formatted_reviews,
