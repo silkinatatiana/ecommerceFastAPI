@@ -30,9 +30,6 @@ async def get_orders_by_user_id(
         db: AsyncSession = Depends(get_db),
         token: Optional[str] = Cookie(None, alias='token')
 ):
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     user_id_from_token = await checking_access_rights(token=token, roles=['customer'])
 
     if user_id != user_id_from_token:

@@ -15,19 +15,18 @@ class Product(Base):
     image_urls = Column(JSON, default=list)
     stock = Column(Integer)
     category_id = Column(Integer, ForeignKey('categories.id'))
-    RAM_capacity = Column(String, nullable=True)  # Объем оперативной памяти
-    built_in_memory_capacity = Column(String, nullable=True)  # объем встроенной памяти
+    RAM_capacity = Column(String, nullable=True)
+    built_in_memory_capacity = Column(String, nullable=True)
     screen = Column(FLOAT, nullable=True)
     cpu = Column(String, nullable=True)
     number_of_processor_cores = Column(Integer, nullable=True)
-    number_of_graphics_cores = Column(Integer, nullable=True)  # Количество графических ядер
+    number_of_graphics_cores = Column(Integer, nullable=True)
 
     category = relationship("Category", back_populates="products")
     supplier_id = Column(Integer, ForeignKey(User.id))
     supplier = relationship("User", back_populates="products")
     reviews = relationship("Review", back_populates="product")
     carts = relationship('Cart', back_populates='product')
-
 
     class Config:
         json_schema_extra = {

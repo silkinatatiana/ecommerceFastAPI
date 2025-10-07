@@ -1,7 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Script loaded'); // Отладочное сообщение
 
-    // 1. Добавление изображений
     const MAX_IMAGES = 5;
     const addImageBtn = document.getElementById('add-image-btn');
     const imagesContainer = document.getElementById('image-inputs');
@@ -45,7 +43,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 2. Отправка формы
     const productForm = document.getElementById('product-form');
     const alertContainer = document.getElementById('alert-container');
 
@@ -54,21 +51,18 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Form submitted'); // Отладочное сообщение
 
         try {
-            // Собираем данные формы
             const formData = {
                 name: document.getElementById('name').value.trim(),
                 description: document.getElementById('description').value.trim() || null,
                 price: parseFloat(document.getElementById('price').value),
                 stock: parseInt(document.getElementById('stock').value),
                 category_id: parseInt(document.getElementById('category_id').value),
-                supplier_id: parseInt(document.getElementById('supplier_id').value),
                 image_urls: Array.from(document.querySelectorAll('input[name="image_urls[]"]'))
                     .map(input => input.value.trim())
                     .filter(url => url),
                 color: document.getElementById('color').value.trim() || null
             };
 
-            // Проверяем технические характеристики (для ноутбуков)
             const laptopFields = document.getElementById('laptopFields');
             if (laptopFields.style.display === 'block') {
                 formData.RAM_capacity = document.getElementById('RAM_capacity').value.trim() || null;
@@ -79,7 +73,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 formData.number_of_graphics_cores = document.getElementById('number_of_graphics_cores').value ? parseInt(document.getElementById('number_of_graphics_cores').value) : null;
             }
 
-            // Валидация
             const errors = [];
             if (!formData.name) errors.push('Укажите название товара');
             if (isNaN(formData.price) || formData.price <= 0) errors.push('Укажите корректную цену');
@@ -92,8 +85,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Отправка на сервер
-            console.log('Sending data:', formData); // Отладочное сообщение
             const response = await fetch('/products/create', {
                 method: 'POST',
                 headers: {
@@ -119,7 +110,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 3. Показ/скрытие полей для ноутбуков
     const categorySelect = document.getElementById('category_id');
     if (categorySelect) {
         categorySelect.addEventListener('change', function() {
@@ -133,7 +123,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Вспомогательная функция
     function showAlert(message, type = 'info') {
         alertContainer.innerHTML = `
             <div class="alert alert-${type}">

@@ -9,7 +9,7 @@ from schemas import CreateProduct
 
 
 @handle_db_errors
-async def create_product(db: AsyncSession,
+async def create_new_product(db: AsyncSession,
                          product_data: CreateProduct,
                          supplier_id: int,
 ):

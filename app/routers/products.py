@@ -12,7 +12,7 @@ from loguru import logger
 from starlette.responses import RedirectResponse
 
 from database.crud.category import get_category
-from database.crud.products import get_product, get_products_with_filters
+from database.crud.products import get_product, get_products_with_filters, create_new_product
 from database.db_depends import get_db
 from schemas import CreateProduct, ProductOut
 from models import *
@@ -27,10 +27,12 @@ templates = Jinja2Templates(directory='app/templates/')
 
 
 @router.get("/create", response_class=HTMLResponse)
-async def create_product_form(
-        request: Request
+async def create_product_form(request: Request,
+                              token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
+        await checking_access_rights(token=token, roles=['seller'])
+
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{Config.url}/categories/")
             response.raise_for_status()
@@ -60,10 +62,9 @@ async def create_product_form(
 
 
 @router.post('/create', response_model=ProductOut)
-async def create_product(
-        db: Annotated[AsyncSession, Depends(get_db)],
-        product_data: CreateProduct,
-        token: Optional[str] = Cookie(None, alias='token')
+async def create_product(db: Annotated[AsyncSession, Depends(get_db)],
+                         product_data: CreateProduct,
+                         token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
         supplier_id = await checking_access_rights(token=token, roles=['seller'])
@@ -76,7 +77,7 @@ async def create_product(
                 detail='NOT FOUND'
             )
 
-        product = await create_product(db=db, product_data=product_data, supplier_id=supplier_id)
+        product = await create_new_product(db=db, product_data=product_data, supplier_id=supplier_id)
 
         return product
 
