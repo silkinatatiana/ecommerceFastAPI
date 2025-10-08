@@ -135,9 +135,9 @@ async def login(request: Request,
         response.set_cookie(
             key="token",
             value=token,
-            httponly=False, # TODO в продакшн заменить на True для безопасности
+            httponly=True,
             max_age=3600,
-            secure=False,
+            secure=True,
             samesite='lax',
             path='/'
         )
