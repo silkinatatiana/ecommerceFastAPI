@@ -6,7 +6,6 @@ function closeUserModal() {
     document.getElementById('userModal').style.display = 'none';
 }
 
-// Закрытие модалки по клику вне контента
 window.onclick = function(event) {
     const modal = document.getElementById('userModal');
     if (event.target === modal) {

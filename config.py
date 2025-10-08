@@ -1,13 +1,23 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
 class Config:
     Statuses = None
-    url = 'http://127.0.0.1:8001'
+    url = os.getenv('URL')
+    url_support = os.getenv('URL_SUPPORT')
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    ALGORITHM = os.getenv('ALGORITHM')
     minutes = 1
-    API_PORT = 8001
+    API_HOST = os.getenv('API_HOST')
+    API_PORT = os.getenv('API_PORT')
+    API_PORT_SUPPORT = os.getenv('API_PORT_SUPPORT')
     shop_name = 'PEAR'
-    descr = 'Магазин техники и электроники'
-    SECRET_KEY = 'a7c3da68e483259507f3857aa85a9379e0cde15a7e4aebd846f957651c748628'
-    ALGORITHM = 'HS256'
     PAGE_SIZE = 10
+    descr = os.getenv('DESCR')
+    SQLALCHEMY_DATABASE_URL = os.getenv('SQLALCHEMY_DATABASE_URL')
 
 
 class Statuses:

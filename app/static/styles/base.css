@@ -208,7 +208,6 @@ footer {
     display: block !important;
 }
 
-/* Стили для цены - глубокий океанский синий */
 .product-price {
     color: var(--ocean-deep) !important;
     font-weight: bold;

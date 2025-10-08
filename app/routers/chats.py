@@ -13,7 +13,7 @@ from database.crud.users import get_user
 from database.db_depends import get_db
 from database.crud.messages import get_message
 from schemas import ChatCreate
-from app.config import Config
+from config import Config
 
 router = APIRouter(prefix='/chats', tags=['chats'])
 templates = Jinja2Templates(directory='app/templates/')

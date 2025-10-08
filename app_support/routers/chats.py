@@ -14,7 +14,7 @@ from database.crud.users import get_user
 from database.db_depends import get_db
 from database.crud.messages import get_message
 from models import Chats
-from app_support.config import Config
+from config import Config
 from functions.auth_func import checking_access_rights
 
 router = APIRouter(prefix='/support/chats', tags=['chats'])

@@ -13,7 +13,7 @@ from database.crud.decorators import handler_base_errors
 from database.crud.orders import create_new_order, get_orders, update_status
 from database.crud.products import get_product
 from database.db_depends import get_db
-from app.config import Config
+from config import Config
 from functions.orders_func import fetch_orders_for_user
 from functions.product_func import update_stock
 from schemas import OrderResponse

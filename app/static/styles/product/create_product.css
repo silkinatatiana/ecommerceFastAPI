@@ -21,7 +21,7 @@
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  line-height: 1.5;  /* Уменьшено с 1.6 */
+  line-height: 1.5;
   color: var(--dark-color);
   background-color: var(--light-color);
   min-height: 100vh;
@@ -32,32 +32,32 @@ body {
 header {
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   color: white;
-  padding: 1.5rem 1rem;  /* Уменьшено с 2rem */
+  padding: 1.5rem 1rem;
   text-align: center;
   box-shadow: var(--box-shadow);
 }
 
 nav {
   background-color: var(--dark-color);
-  padding: 0.8rem;  /* Уменьшено с 1rem */
+  padding: 0.8rem;
 }
 
 nav a {
   color: white;
   text-decoration: none;
-  padding: 0.5rem 1.2rem;  /* Уменьшено */
-  margin: 0 0.3rem;  /* Уменьшено */
+  padding: 0.5rem 1.2rem;
+  margin: 0 0.3rem;
   border-radius: var(--border-radius);
   transition: var(--transition);
-  font-size: 0.9rem;  /* Уменьшено */
+  font-size: 0.9rem;
 }
 
 .container {
   max-width: 800px;
   width: 80%;
-  margin: 1.5rem auto;  /* Уменьшено с 3rem */
+  margin: 1.5rem auto;
   background: white;
-  padding: 1.8rem;  /* Уменьшено с 3rem */
+  padding: 1.8rem;
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
   flex: 1;
@@ -66,8 +66,8 @@ nav a {
 .container h1 {
   color: var(--secondary-color);
   text-align: center;
-  margin-bottom: 1.5rem;  /* Уменьшено с 3rem */
-  font-size: 1.5rem;  /* Уменьшено */
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
 }
 
 input[type="text"],
@@ -77,59 +77,59 @@ textarea,
 select,
 .form-control {
   width: 100%;
-  padding: 0.8rem;  /* Уменьшено с 1.5rem */
-  border: 1px solid var(--light-gray);  /* Уменьшено с 2px */
+  padding: 0.8rem;
+  border: 1px solid var(--light-gray);
   border-radius: var(--border-radius);
-  font-size: 0.9rem;  /* Уменьшено с 1.1rem */
+  font-size: 0.9rem;
   transition: var(--transition);
 }
 
 .form-group {
-  margin-bottom: 1.2rem;  /* Уменьшено с 2rem */
+  margin-bottom: 1.2rem;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;  /* Уменьшено с 1rem */
+  margin-bottom: 0.5rem;
   font-weight: 600;
   color: var(--dark-color);
-  font-size: 0.95rem;  /* Уменьшено с 1.1rem */
+  font-size: 0.95rem;
 }
 
 textarea.form-control {
   resize: vertical;
-  min-height: 100px;  /* Уменьшено с 180px */
+  min-height: 100px;
 }
 
 .button-wrapper {
   width: 100%;
-  margin: 1.2rem auto 0;  /* Уменьшено с 2.5rem */
+  margin: 1.2rem auto 0;
   text-align: right;
 }
 
 .btn-add {
   display: inline-block;
-  padding: 0.8rem 2rem;  /* Уменьшено с 1.2rem 3rem */
+  padding: 0.8rem 2rem;
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   color: white;
   border: none;
   border-radius: var(--border-radius);
-  font-size: 0.95rem;  /* Уменьшено с 1.2rem */
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
   text-transform: uppercase;
-  letter-spacing: 0.5px;  /* Уменьшено с 1px */
+  letter-spacing: 0.5px;
 }
 
 .btn-add:hover {
-  transform: translateY(-1px);  /* Уменьшено с -2px */
+  transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 @media (max-width: 768px) {
   .container {
-    padding: 1.2rem;  /* Уменьшено с 2rem */
+    padding: 1.2rem;
   }
   
   input[type="text"],
@@ -138,18 +138,18 @@ textarea.form-control {
   textarea,
   select,
   .form-control {
-    padding: 0.7rem;  /* Уменьшено */
+    padding: 0.7rem;
   }
 }
 
 @media (max-width: 480px) {
   .container {
-    padding: 1rem;  /* Уменьшено с 1.5rem */
+    padding: 1rem;
     width: 90%;
   
 }
   .btn-add {
-    padding: 0.7rem;  /* Уменьшено */
+    padding: 0.7rem;
     width: 100%;
   }
 }
@@ -226,7 +226,6 @@ textarea.form-control {
     background-color: #f2dede;
 }
 
-/* Стили для кнопок */
 .primary-btn {
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   color: white;
@@ -258,7 +257,6 @@ textarea.form-control {
   background-color: var(--light-gray);
 }
 
-/* Стили для контейнера изображений */
 #image-inputs {
   display: flex;
   flex-direction: column;
@@ -299,7 +297,6 @@ textarea.form-control {
   visibility: visible;
 }
 
-/* Дополнительные стили формы */
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -313,7 +310,6 @@ textarea.form-control {
   border-bottom: 1px solid var(--light-gray);
 }
 
-/* Стили для кнопки добавления изображений */
 #add-image-btn {
     display: inline-block;
     padding: 8px 15px;
@@ -337,7 +333,6 @@ textarea.form-control {
     cursor: not-allowed;
 }
 
-/* Стили для контейнера изображений */
 #image-inputs {
     display: flex;
     flex-direction: column;
@@ -351,8 +346,8 @@ textarea.form-control {
 }
 
 .remove-image-btn {
-  background: transparent; /* Прозрачный фон */
-  color: #999; /* Серый цвет */
+  background: transparent;
+  color: #999;
   border: none;
   width: 20px;
   height: 20px;

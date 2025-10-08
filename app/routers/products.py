@@ -20,7 +20,7 @@ from models import Review
 from functions.cart_func import get_in_cart_product_ids
 from functions.auth_func import get_current_user, get_user_id_by_token, checking_access_rights
 from functions.favorites_func import get_favorite_product_ids
-from app.config import Config
+from config import Config
 
 router = APIRouter(prefix='/products', tags=['products'])
 templates = Jinja2Templates(directory='app/templates/')

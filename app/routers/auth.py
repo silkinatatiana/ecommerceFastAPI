@@ -13,7 +13,7 @@ from database.crud.users import create_user, get_user, update_user_info, delete_
 from functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
 from functions.profile import get_tab_by_section
 from database.db_depends import get_db
-from app.config import Config
+from config import Config
 from schemas import ProfileUpdate, PasswordUpdate, RegisterData
 
 router = APIRouter(prefix='/auth', tags=['auth'])

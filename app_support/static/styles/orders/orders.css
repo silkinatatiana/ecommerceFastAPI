@@ -382,7 +382,7 @@
         gap: 1rem;
     }
 
-    .filter-wrapper { /* Исправлено: было .filter-group */
+    .filter-wrapper {
         min-width: auto;
     }
 }

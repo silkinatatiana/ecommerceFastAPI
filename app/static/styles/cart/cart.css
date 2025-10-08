@@ -232,19 +232,19 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 20px; /* Уменьшенный размер */
+    width: 20px;
     height: 20px;
 }
 
 .remove-from-cart:hover {
     opacity: 1;
-    background: none; /* Убедимся, что фон отсутствует */
+    background: none;
 }
 
 .remove-from-cart svg {
-    width: 16px; /* Уменьшаем SVG */
+    width: 16px;
     height: 16px;
-    stroke: #888; /* Серый цвет */
+    stroke: #888;
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -385,7 +385,7 @@ body {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-top: 1rem; /* Добавляем отступ сверху */
+    margin-top: 1rem;
 }
 
 .checkout-btn:hover {

@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.sql import func
 
-from app.config import Statuses
+from config import Statuses
 from database.db import Base
 
 

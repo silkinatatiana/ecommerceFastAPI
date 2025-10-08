@@ -120,13 +120,10 @@ function handleBackButtonClick(e) {
     e.preventDefault();
     const button = e.currentTarget;
 
-    // Показываем индикатор загрузки
     setLoadingState(button, true);
 
-    // Аналитика
     trackUserAction('back_to_orders');
 
-    // Переход с задержкой для плавности
     setTimeout(() => {
         window.location.href = button.onclick.toString().match(/\/orders\/user\d+/)[0];
     }, 200);
@@ -201,7 +198,6 @@ function setupImageErrorHandling() {
     const images = document.querySelectorAll('img');
 
     images.forEach(img => {
-        // Сохраняем оригинальный src
         if (!img.hasAttribute('data-original-src')) {
             img.setAttribute('data-original-src', img.src);
         }
@@ -215,7 +211,6 @@ function handleImageError(event) {
     const img = event.target;
     console.warn('Image failed to load:', img.src);
 
-    // Пытаемся загрузить placeholder
     img.src = '/static/images/placeholder-product.jpg';
     img.alt = 'Изображение не найдено';
     img.style.opacity = '0.7';
@@ -227,29 +222,24 @@ function handleImageLoad(event) {
 }
 
 function setupAccessibility() {
-    // Добавляем aria-атрибуты
     const expandButton = document.querySelector('.expand-toggle');
     if (expandButton) {
         expandButton.setAttribute('aria-expanded', 'false');
         expandButton.setAttribute('role', 'button');
     }
 
-    // Настройка focus management
     setupFocusManagement();
 
-    // Keyboard shortcuts
     setupKeyboardShortcuts();
 }
 
 function setupFocusManagement() {
-    // Сохраняем последний активный элемент
     let lastFocusedElement;
 
     document.addEventListener('focusin', function(e) {
         lastFocusedElement = e.target;
     });
 
-    // Восстановление фокуса после взаимодействия с модальными окнами
     window.restoreFocus = function() {
         if (lastFocusedElement) {
             lastFocusedElement.focus();

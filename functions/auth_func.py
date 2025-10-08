@@ -13,8 +13,7 @@ import bcrypt
 
 from database.crud.users import get_user
 from database.db_depends import get_db
-from models import User
-from app.config import Config
+from config import Config
 
 SECRET_KEY = Config.SECRET_KEY
 ALGORITHM = Config.ALGORITHM

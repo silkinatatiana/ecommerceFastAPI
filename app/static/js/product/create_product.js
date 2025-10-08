@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     productForm.addEventListener('submit', async function(e) {
         e.preventDefault();
-        console.log('Form submitted'); // Отладочное сообщение
+        console.log('Form submitted');
 
         try {
             const formData = {

@@ -114,7 +114,6 @@
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
 }
 
-/* Темно-синяя корзинка для товаров в корзине */
 .btn-cart.remove {
     background: var(--dark-blue);
     color: white;
@@ -137,7 +136,6 @@
     transform: scale(1.1);
 }
 
-/* Стили для рекомендуемых товаров */
 .recommended-products .product-card {
     flex: 0 0 250px;
     background: white;
@@ -186,14 +184,13 @@
     justify-content: flex-end;
 }
 
-/* Адаптивность */
 @media (max-width: 768px) {
     .recommended-products .product-card {
         flex: 0 0 200px;
     }
 
     .product-actions {
-        flex-wrap: nowrap; /* Не переносим на мобильных */
+        flex-wrap: nowrap;
         justify-content: flex-end;
     }
 }

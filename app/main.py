@@ -19,7 +19,7 @@ from app.routers import category, products, auth, reviews, favorites, cart, orde
 from database.db_depends import get_db
 from database.db import Base, engine
 from models import *
-from app.config import Config
+from config import Config
 from functions.favorites_func import get_favorite_product_ids
 from functions.cart_func import get_in_cart_product_ids
 from app.log.log import LOGGER

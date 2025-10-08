@@ -41,7 +41,6 @@ function applyFilters() {
         checks.forEach(ch => params.append(filterName, ch.value));
     });
 
-    // Диапазоны
     const dateStart = document.querySelector('[name="date_start_filter"]').value;
     const dateEnd = document.querySelector('[name="date_end_filter"]').value;
     if (dateStart) params.set('date_start', dateStart);

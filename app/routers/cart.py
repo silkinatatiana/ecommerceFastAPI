@@ -10,7 +10,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 from functions.auth_func import checking_access_rights
 from database.crud.cart import update_cart_quantity, delete_from_cart
 from database.db_depends import get_db
-from app.config import Config
+from config import Config
 from models import Product
 from models import Cart
 from schemas import CartItem, CartUpdate

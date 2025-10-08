@@ -196,22 +196,17 @@ function openReviewFullscreen(element, index, total) {
 
     if (!modal || !img || !counter) return;
 
-    // Получаем все изображения из галереи этого отзыва
     const gallery = element.closest('.review-thumbnails');
     currentReviewImages = Array.from(gallery.querySelectorAll('.review-thumbnail')).map(el => el.src);
 
-    // Устанавливаем текущий индекс
     currentReviewIndex = index;
 
-    // Загружаем изображение
     img.src = currentReviewImages[currentReviewIndex];
     counter.textContent = `${currentReviewIndex + 1} / ${currentReviewImages.length}`;
 
-    // Показываем модалку
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
-    // Добавляем обработчик клавиш
     document.addEventListener('keydown', handleReviewKeydown);
 }
 
@@ -318,7 +313,6 @@ function navigateReviewImage(direction) {
 
     currentReviewIndex += direction;
 
-    // Циклическая навигация
     if (currentReviewIndex < 0) {
         currentReviewIndex = currentReviewImages.length - 1;
     } else if (currentReviewIndex >= currentReviewImages.length) {

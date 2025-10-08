@@ -12,7 +12,7 @@ from database.crud.users import create_user, get_user, update_user_info
 from functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
 from functions.profile import get_tab_by_section
 from database.db_depends import get_db
-from app_support.config import Config
+from config import Config
 from schemas import ProfileUpdate, PasswordUpdate
 
 router = APIRouter(prefix='/auth', tags=['auth'])
@@ -63,7 +63,7 @@ def create_auth_form(request: Request):
         "auth/create_auth_form.html",
         {
             "request": request,
-            "config": {"url": Config.url}
+            "config": {"url": Config.url_support}
         }
     )
 
@@ -152,7 +152,7 @@ async def login(request: Request,
             {
                 "request": request,
                 "error": "Неверное имя пользователя или пароль",
-                "config": {"url": Config.url}
+                "config": {"url": Config.url_support}
             },
             status_code=status.HTTP_401_UNAUTHORIZED
         )

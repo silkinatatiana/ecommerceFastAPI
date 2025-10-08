@@ -1,9 +1,8 @@
 from fastapi import HTTPException, status
 from sqlalchemy import select, update, func
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app_support.config import Statuses
+from config import Statuses
 from database.crud.decorators import handle_db_errors
 from models import Orders
 
@@ -71,19 +70,24 @@ async def get_orders(db: AsyncSession,
 
 
 @handle_db_errors
-async def get_orders(db: AsyncSession,
-                     order_id: int = None,
-                     user_id: int = None,
-                     limit: int = None,
-                     offset: int = None,
-                     sort_asc: bool = False,
-                     sort_desc: bool = False,
-                     func_count: bool = False
+async def get_orders(
+    db: AsyncSession,
+    order_id: int = None,
+    user_id: int = None,
+    limit: int = None,
+    offset: int = None,
+    sort_asc: bool = False,
+    sort_desc: bool = False,
+    func_count: bool = False
 ):
-    query = select(Orders)
-
     if func_count:
         query = select(func.count()).select_from(Orders)
+        if user_id:
+            query = query.where(Orders.user_id == user_id)
+        result = await db.scalar(query)
+        return result
+
+    query = select(Orders)
 
     if order_id:
         query = query.where(Orders.id == order_id)
@@ -93,24 +97,19 @@ async def get_orders(db: AsyncSession,
 
     if sort_asc:
         query = query.order_by(Orders.date.asc())
-
     if sort_desc:
         query = query.order_by(Orders.date.desc())
-
     if limit:
         query = query.limit(limit)
-
     if offset:
         query = query.offset(offset)
 
-    if func_count or limit == 1 or order_id:
-        result = await db.scalar(query)
+    result = await db.execute(query)
 
+    if order_id or limit == 1:
+        return result.scalar_one_or_none()
     else:
-        chats = await db.execute(query)
-        result = chats.scalars().all()
-
-    return result
+        return result.scalars().all()
 
 
 @handle_db_errors

@@ -1,4 +1,4 @@
-from app.config import Config
+from config import Config
 from functions.orders_func import fetch_orders_for_user
 from models import Chats, Messages
 from sqlalchemy import select

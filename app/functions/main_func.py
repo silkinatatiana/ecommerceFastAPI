@@ -7,7 +7,7 @@ import httpx
 
 from app.routers import products
 from database.db_depends import get_db
-from app.config import Config
+from config import Config
 
 
 async def get_filters(db: Annotated[AsyncSession, Depends(get_db)]) -> dict:
@@ -52,17 +52,15 @@ async def fetch_categories() -> List[Dict[str, Any]]:
         raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}")
 
 
-async def fetch_products_for_category(
-    category_id: int,
-    db: AsyncSession,
-    user_id: Optional[int],
-    favorite_product_ids: List[int],
-    colors: Optional[str] = None,
-    built_in_memory: Optional[str] = None,
-    is_favorite: bool = False,
-    current_page: int = 1,
-    per_page: int = 3,
-) -> Dict[str, Any]:
+async def fetch_products_for_category(category_id: int,
+                                      db: AsyncSession,
+                                      user_id: Optional[int],
+                                      favorite_product_ids: List[int],
+                                      colors: Optional[str] = None,
+                                      built_in_memory: Optional[str] = None,
+                                      is_favorite: bool = False,
+                                      current_page: int = 1,
+                                      per_page: int = 3) -> Dict[str, Any]:
     params = {
         "page": current_page,
         "user_id": user_id or 0,

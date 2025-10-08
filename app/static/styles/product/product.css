@@ -486,7 +486,7 @@
 }
 
 .add-review-btn {
-    background-color: #4a7ca5; /* Новый океанский синий цвет */
+    background-color: #4a7ca5;
     color: white;
     border: none;
     padding: 12px 20px;
@@ -498,7 +498,7 @@
 }
 
 .add-review-btn:hover {
-    background-color: #3a6a8c; /* Темнее при наведении */
+    background-color: #3a6a8c;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }

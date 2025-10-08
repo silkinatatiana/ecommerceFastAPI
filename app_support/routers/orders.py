@@ -5,7 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import select
 from starlette.responses import HTMLResponse, RedirectResponse
 
-from app_support.config import Config
+from config import Config
 from database.crud.orders import get_orders, update_status
 from database.crud.users import get_user
 from database.db_depends import get_db

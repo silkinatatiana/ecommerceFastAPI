@@ -348,7 +348,6 @@ body {
     cursor: not-allowed;
 }
 
-/* Модальное окно пользователя */
 .modal {
     display: none;
     position: fixed;
@@ -395,7 +394,6 @@ body {
     opacity: 0.8;
 }
 
-/* Уменьшенная кнопка "Сохранить" */
 .btn-small {
     padding: 0.4rem 0.9rem !important;
     font-size: 0.85rem !important;
