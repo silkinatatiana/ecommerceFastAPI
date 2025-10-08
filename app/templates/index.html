@@ -26,7 +26,7 @@
             </div>
         </div>
 
-        {% if is_authenticated %}
+        {% if is_authenticated and role in ['customer', 'seller'] %}
         <div class="filter-block" id="favoritesFilter">
             <h3>Избранное</h3>
             <label class="filter-checkbox">
