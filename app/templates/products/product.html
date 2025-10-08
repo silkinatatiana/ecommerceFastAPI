@@ -71,7 +71,7 @@
         </div>
 
         <div class="product-actions">
-            {% if is_authenticated %}
+            {% if is_authenticated and role in ['customer', 'seller'] %}
                 {% if product.in_cart %}
                     <button class="btn btn-primary" onclick="removeFromCart('{{ product.id }}')">Удалить из корзины</button>
                 {% else %}

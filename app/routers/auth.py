@@ -29,7 +29,7 @@ async def read_current_user(user: dict = Depends(get_current_user)):
 @router.post('/token')
 async def login(db: Annotated[AsyncSession, Depends(get_db)],
                 form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    user = await authenticate_user(db, form_data.username, form_data.password)
+    user = await authenticate_user(db, form_data.username, form_data.password, roles=['customer', 'seller'])
 
     token = create_access_token(user.username, user.id, timedelta(minutes=Config.minutes), user.is_admin, user.role)
     return {
@@ -121,7 +121,7 @@ async def login(request: Request,
                 password: str = Form(...)
                 ):
     try:
-        user = await authenticate_user(db, username, password)
+        user = await authenticate_user(db, username, password, roles=['customer', 'seller'])
         token = create_access_token(
             username=user.username,
             user_id=user.id,

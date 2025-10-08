@@ -18,12 +18,11 @@ templates = Jinja2Templates(directory='app_support/templates/')
 
 
 @router.get('/user/{user_id}')
-async def get_orders_by_user_id(
-        user_id: int,
-        page: int = Query(1, ge=1, description="Номер страницы"),
-        per_page: int = Query(5, ge=1, le=50, description="Количество заказов на странице"),
-        db: AsyncSession = Depends(get_db),
-        token: str = Cookie(None, alias='token')
+async def get_orders_by_user_id(user_id: int,
+                                page: int = Query(1, ge=1, description="Номер страницы"),
+                                per_page: int = Query(5, ge=1, le=50, description="Количество заказов на странице"),
+                                db: AsyncSession = Depends(get_db),
+                                token: str = Cookie(None, alias='token')
 ):
     try:
         await checking_access_rights(token=token, roles=['support'])

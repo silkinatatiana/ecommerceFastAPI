@@ -12,7 +12,7 @@
     <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
         {{product.stock}} шт. в наличии
     </p>
-    {% if is_authenticated %}
+    {% if is_authenticated and role in ['customer', 'seller'] %}
         <div class="product-actions">
             {% include 'products/favorite.html' %}
 

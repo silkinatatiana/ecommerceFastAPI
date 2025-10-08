@@ -11,6 +11,7 @@ from sqlalchemy import select
 from starlette.responses import RedirectResponse
 import bcrypt
 
+from database.crud.users import get_user
 from database.db_depends import get_db
 from models import User
 from app.config import Config
@@ -100,18 +101,19 @@ def get_user_id_by_token(token: str):
     return user_id
 
 
-async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], username: str, password: str):
-    user = await db.scalar(select(User).where(User.username == username))
+async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], username: str, password: str, roles: list):
+    user = await get_user(db=db, username=username)
+
     if not user or not bcrypt_context.verify(password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if user.role not in ['seller', 'customer']:
+    if user.role not in roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail='Личный кабинет доступен только покупателям и продавцам'
+            detail='Нет прав доступа в личный кабинет'
         )
     return user
 

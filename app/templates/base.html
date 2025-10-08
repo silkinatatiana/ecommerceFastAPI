@@ -32,7 +32,7 @@
                     </div>
                 {% endif %}
                 <div class="user-icon-container">
-                    {% if is_authenticated %}
+                    {% if is_authenticated and role in ['customer', 'seller'] %}
                         <div class="user-icon" id="userIcon">
                             <img src="{{ url_for('static', path='/images/user_auth.png') }}"
                                  alt="Меню пользователя"
@@ -71,7 +71,7 @@
         <p>&copy; 2025 {{ shop_name }}. Все права защищены.</p>
     </footer>
 
-    {% if is_authenticated %}
+    {% if is_authenticated and role in ['customer', 'seller'] %}
         <div id="chatButton" class="chat-button">
             <i class="fas fa-comments"></i>
         </div>

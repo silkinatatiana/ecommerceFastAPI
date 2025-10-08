@@ -33,10 +33,15 @@ async def create_user(db: AsyncSession,
 @handle_db_errors
 async def get_user(db: AsyncSession,
                    user_id: int = None,
+                   username: str = None,
                    role: str = None
 ):
     if user_id:
         user = await db.scalar(select(User).where(User.id == user_id))
+        return user
+
+    if username:
+        user = await db.scalar(select(User).where(User.username == username))
         return user
 
     if role:

@@ -28,7 +28,7 @@ async def read_current_user(user: dict = Depends(get_current_user)):
 @router.post('/token')
 async def login(db: Annotated[AsyncSession, Depends(get_db)],
                 form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    user = await authenticate_user(db, form_data.username, form_data.password)
+    user = await authenticate_user(db, form_data.username, form_data.password, roles=['support'])
 
     token = create_access_token(user.username, user.id, timedelta(minutes=Config.minutes), user.is_admin, user.role)
 
@@ -69,22 +69,20 @@ def create_auth_form(request: Request):
 
 
 @router.post('/register')
-async def register(
-        db: AsyncSession = Depends(get_db),
-        first_name: str = Form(...),
-        last_name: str = Form(...),
-        username: str = Form(...),
-        email: str = Form(...),
-        password: str = Form(...),
-        confirm_password: str = Form(...)
+async def register(db: AsyncSession = Depends(get_db),
+                   first_name: str = Form(...),
+                   last_name: str = Form(...),
+                   username: str = Form(...),
+                   email: str = Form(...),
+                   password: str = Form(...),
+                   confirm_password: str = Form(...)
 ):
-    if password != confirm_password:
-        return JSONResponse(
-            content={"detail": "Пароли не совпадают"},
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
-
     try:
+        if password != confirm_password:
+            return JSONResponse(
+                content={"detail": "Пароли не совпадают"},
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
         user = await create_user(first_name=first_name,
                                  last_name=last_name,
                                  username=username,
@@ -128,7 +126,7 @@ async def login(request: Request,
                 password: str = Form(...)
 ):
     try:
-        user = await authenticate_user(db, username, password)
+        user = await authenticate_user(db, username, password, roles=['support'])
         token = create_access_token(
             username=user.username,
             user_id=user.id,

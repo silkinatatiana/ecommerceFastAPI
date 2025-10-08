@@ -23,16 +23,18 @@ async def send_message(chat_id: int,
 ):
     try:
         employee_id = await checking_access_rights(token=token, roles=['support'])
-    except Exception:
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-    chat = await get_chat(chat_id=chat_id, db=db)
-    if not chat or not chat.active:
-        raise HTTPException(status_code=400, detail="Чат неактивен")
+        chat = await get_chat(chat_id=chat_id, db=db)
+        if not chat or not chat.active:
+            raise HTTPException(status_code=400, detail="Чат неактивен")
 
-    await create_message(chat_id=chat_id,
-                         sender_id=employee_id,
-                         message=message
-    )
+        await create_message(chat_id=chat_id,
+                             sender_id=employee_id,
+                             message=message
+        )
+        return RedirectResponse(url=f"/support/chats/{chat_id}/view", status_code=303)
 
-    return RedirectResponse(url=f"/support/chats/{chat_id}/view", status_code=303)
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
