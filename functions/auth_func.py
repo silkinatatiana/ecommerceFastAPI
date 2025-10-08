@@ -108,6 +108,11 @@ async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], userna
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if user.role not in ['seller', 'customer']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Личный кабинет доступен только покупателям и продавцам'
+        )
     return user
 
 

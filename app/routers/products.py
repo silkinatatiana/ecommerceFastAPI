@@ -49,16 +49,10 @@ async def create_product_form(request: Request,
                     "config": {"url": Config.url}
                 }
             )
-
-    except Exception:
-        return templates.TemplateResponse(
-            "products/create_product.html",
-            {
-                "request": request,
-                "categories": [],
-                "config": {"url": Config.url}
-            }
-        )
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
 
 @router.post('/create', response_model=ProductOut)
@@ -68,7 +62,6 @@ async def create_product(db: Annotated[AsyncSession, Depends(get_db)],
 ):
     try:
         supplier_id = await checking_access_rights(token=token, roles=['seller'])
-
         category = await get_category(db=db, category_id=product_data.category_id)
 
         if not category:
@@ -80,6 +73,11 @@ async def create_product(db: Annotated[AsyncSession, Depends(get_db)],
         product = await create_new_product(db=db, product_data=product_data, supplier_id=supplier_id)
 
         return product
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
     except Exception as e:
         await db.rollback()
@@ -122,15 +120,14 @@ async def all_products(db: AsyncSession = Depends(get_db),
 
 
 @router.get('/by_category/{category_id}')
-async def products_by_category(
-    category_id: int,
-    user_id: int,
-    request: Request,
-    per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
-    colors: str = Query(None),
-    built_in_memory: str = Query(None),
-    favorites: Optional[List[str]] = Query(None),
-    db: AsyncSession = Depends(get_db)
+async def products_by_category(category_id: int,
+                               user_id: int,
+                               request: Request,
+                               per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
+                               colors: str = Query(None),
+                               built_in_memory: str = Query(None),
+                               favorites: Optional[List[str]] = Query(None),
+                               db: AsyncSession = Depends(get_db)
 ):
     category = await get_category(db=db, category_id=category_id)
     if category is None:
@@ -174,11 +171,10 @@ async def products_by_category(
 
 
 @router.get('/{product_id}', response_class=HTMLResponse)
-async def product_detail_page(
-        request: Request,
-        product_id: int,
-        db: AsyncSession = Depends(get_db),
-        token: Optional[str] = Cookie(default=None, alias="token")
+async def product_detail_page(request: Request,
+                              product_id: int,
+                              db: AsyncSession = Depends(get_db),
+                              token: Optional[str] = Cookie(default=None, alias="token")
 ):
     is_authenticated = False
     is_favorite = False

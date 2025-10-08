@@ -51,7 +51,7 @@ async def personal_account(request: Request,
         response = await get_tab_by_section(section, templates, request, user, page, db, user_dict)
         return response
 
-    except HTTPException as e:
+    except HTTPException:
         response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
         return response
 
@@ -165,7 +165,7 @@ async def logout():
 async def update_profile(profile_update: ProfileUpdate,
                          token: Optional[str] = Cookie(None, alias='token'),
                          db: AsyncSession = Depends(get_db)
-                         ):
+):
     try:
         if not token:
             return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)

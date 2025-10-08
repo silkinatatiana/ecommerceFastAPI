@@ -23,19 +23,24 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get('/user/{user_id}')
-async def get_orders_by_user_id(
-        user_id: int,
-        page: int = Query(1, ge=1),
-        per_page: int = Query(5, ge=1, le=50),
-        db: AsyncSession = Depends(get_db),
-        token: Optional[str] = Cookie(None, alias='token')
+async def get_orders_by_user_id(user_id: int,
+                                page: int = Query(1, ge=1),
+                                per_page: int = Query(5, ge=1, le=50),
+                                db: AsyncSession = Depends(get_db),
+                                token: Optional[str] = Cookie(None, alias='token')
 ):
-    user_id_from_token = await checking_access_rights(token=token, roles=['customer'])
+    try:
+        user_id_from_token = await checking_access_rights(token=token, roles=['customer'])
 
-    if user_id != user_id_from_token:
-        raise HTTPException(status_code=403, detail='Недостаточно прав для просмотра заказов')
+        if user_id != user_id_from_token:
+            raise HTTPException(status_code=403, detail='Недостаточно прав для просмотра заказов')
 
-    return await fetch_orders_for_user(user_id, page, per_page, db)
+        return await fetch_orders_for_user(user_id, page, per_page, db)
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
 
 @router.get('/{order_id}', response_model=OrderResponse)
@@ -46,17 +51,20 @@ async def get_order_by_id(order_id: int,
 ):
     try:
         await checking_access_rights(token=token, roles=['customer'])
-    except Exception:
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-    order = await get_orders(order_id=order_id, db=db)
+        order = await get_orders(order_id=order_id, db=db)
 
-    if not order:
-        return templates.TemplateResponse(
-            "exceptions/not_found.html",
-            {"request": request}
-        )
-    return order
+        if not order:
+            return templates.TemplateResponse(
+                "exceptions/not_found.html",
+                {"request": request}
+            )
+        return order
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
 
 @router.post('/create', status_code=status.HTTP_201_CREATED)
@@ -107,6 +115,11 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
                 'order_id': order.id,
                 'redirect_url': f'/orders/{order.id}'}
 
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
+
     except Exception as e:
         await db.rollback()
 
@@ -121,14 +134,15 @@ async def cancel_order(order_id: int,
                        token: Optional[str] = Cookie(None, alias='token'),
                        db: AsyncSession = Depends(get_db)
 ):
-
     try:
         await checking_access_rights(token=token, roles=['customer'])
 
         await update_status(order_id=order_id, db=db, new_status='CANCELLED')
         return f'Заказ № {order_id} отменен'
 
-    except HTTPException:
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
         raise
 
     except SQLAlchemyError as e:
@@ -152,49 +166,53 @@ async def order_page(request: Request,
     is_authenticated = False
     try:
         user_id = await checking_access_rights(token=token, roles=['customer'])
-    except Exception:
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+        role = 'customer'
 
-    if user_id:
-        is_authenticated = True
+        if user_id:
+            is_authenticated = True
 
-    order = await get_orders(order_id=order_id, db=db)
-    if not order:
-        return templates.TemplateResponse(
-            "exceptions/not_found.html",
-            {"request": request}
-        )
+        order = await get_orders(order_id=order_id, db=db)
+        if not order:
+            return templates.TemplateResponse(
+                "exceptions/not_found.html",
+                {"request": request}
+            )
 
-    order_products = []
-    total_amount = 0
+        order_products = []
+        total_amount = 0
 
-    for product_id, product_data in order.products.items():
-        product = await get_product(db=db, product_id=int(product_id))
+        for product_id, product_data in order.products.items():
+            product = await get_product(db=db, product_id=int(product_id))
 
-        if product:
-            item_total = product_data['count'] * product_data['price']
-            order_products.append({
-                'id': product.id,
-                'name': product.name,
-                'price': product_data['price'],
-                'count': product_data['count'],
-                'image_url': product.image_urls[0],
-                'item_total': item_total
-            })
-            total_amount += item_total
+            if product:
+                item_total = product_data['count'] * product_data['price']
+                order_products.append({
+                    'id': product.id,
+                    'name': product.name,
+                    'price': product_data['price'],
+                    'count': product_data['count'],
+                    'image_url': product.image_urls[0],
+                    'item_total': item_total
+                })
+                total_amount += item_total
 
-    order.created_at = order.date.strftime("%Y-%m-%d %H:%M")
-    order.total_sum = order.summa
+        order.created_at = order.date.strftime("%Y-%m-%d %H:%M")
+        order.total_sum = order.summa
 
-    context = {
-        'request': request,
-        'order': order,
-        'products': order_products,
-        'total_amount': total_amount,
-        "is_authenticated": is_authenticated,
-        'user_id': user_id,
-        'shop_name': Config.shop_name,
-        'descr': Config.descr
-    }
-    return templates.TemplateResponse("orders/order_page.html", context)
+        context = {
+            'request': request,
+            'order': order,
+            'products': order_products,
+            'total_amount': total_amount,
+            "is_authenticated": is_authenticated,
+            'user_id': user_id,
+            'role': role,
+            'shop_name': Config.shop_name,
+            'descr': Config.descr
+        }
+        return templates.TemplateResponse("orders/order_page.html", context)
 
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise

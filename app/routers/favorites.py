@@ -20,18 +20,20 @@ async def get_favorites(token: Optional[str] = Cookie(None, alias='token'),
 ):
     try:
         user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
-    except Exception:
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-    favorites = await get_favorite(user_id=user_id, db=db)
-    return favorites
+        favorites = await get_favorite(user_id=user_id, db=db)
+        return favorites
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
 
 @router.post('/', status_code=status.HTTP_201_CREATED)
-async def create_favorites(
-        product_id: int,
-        token: Optional[str] = Cookie(None, alias='token'),
-        db: AsyncSession = Depends(get_db)
+async def create_favorites(product_id: int,
+                           token: Optional[str] = Cookie(None, alias='token'),
+                           db: AsyncSession = Depends(get_db)
 ):
     try:
         user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
@@ -52,6 +54,10 @@ async def create_favorites(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Ошибка при добавлении в избранное: {str(e)}"
         )
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
 
 @router.delete('/', status_code=status.HTTP_204_NO_CONTENT)
@@ -65,6 +71,11 @@ async def del_favorite_product(product_id: int,
                                        product_id=product_id,
                                        db=db)
         return result
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
     except Exception as e:
         await db.rollback()
@@ -87,6 +98,12 @@ async def toggle_favorite(product_id: int,
             await delete_favorite(product_id=product_id, user_id=user_id, db=db)
         else:
             await create_favorite(product_id=product_id, user_id=user_id, db=db)
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
+
     except Exception as e:
         await db.rollback()
         raise HTTPException(

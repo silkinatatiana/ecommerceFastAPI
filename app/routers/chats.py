@@ -26,30 +26,31 @@ async def get_all_chats(db: AsyncSession = Depends(get_db),
 ):
     try:
         user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
-    except:
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-    chats = await get_chat(user_id=user_id, sort_desc=True, db=db)
-    if not chats:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail='Чаты не найдены')
+        chats = await get_chat(user_id=user_id, sort_desc=True, db=db)
+        if not chats:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail='Чаты не найдены')
 
-    for chat in chats:
-        last_msg = await get_message(chat_id=chat.id,
-                                     sort_desc=True,
-                                     db=db)
+        for chat in chats:
+            last_msg = await get_message(chat_id=chat.id,
+                                         sort_desc=True,
+                                         db=db)
 
-        chat.last_message = last_msg
+            chat.last_message = last_msg
 
-    return chats
+        return chats
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
 
 @router.get('/load-more', response_class=HTMLResponse)
-async def get_chats_partial(
-        request: Request,
-        page: int = 1,
-        token: Optional[str] = Cookie(None, alias='token'),
-        db: AsyncSession = Depends(get_db)
+async def get_chats_partial(request: Request,
+                            page: int = 1,
+                            token: Optional[str] = Cookie(None, alias='token'),
+                            db: AsyncSession = Depends(get_db)
 ):
     try:
         user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
@@ -74,10 +75,13 @@ async def get_chats_partial(
             "has_more": has_more,
             "next_page": page + 1 if has_more else None
         })
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
     except Exception as e:
         print(f"Ошибка при подгрузке чатов: {e}")
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get('/{chat_id}')
@@ -88,15 +92,18 @@ async def chat_by_id(chat_id: int,
 ):
     try:
         await checking_access_rights(token=token, roles=['customer', 'seller'])
-    except:
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-    chat = await get_chat(chat_id=chat_id, db=db)
+        chat = await get_chat(chat_id=chat_id, db=db)
 
-    if not chat:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail='Чат не найден')
-    return chat
+        if not chat:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail='Чат не найден')
+        return chat
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
 
 @router.post('/create', status_code=status.HTTP_201_CREATED)
@@ -107,17 +114,20 @@ async def chat_create(chat_data: ChatCreate,
 ):
     try:
         user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
-    except:
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-    employee_ids = await get_user(db=db, role='seller')
+        employee_ids = await get_user(db=db, role='seller')
 
-    await create_chat(user_id=user_id,
-                      employee_id=choice(employee_ids).id,
-                      topic=chat_data.topic,
-                      db=db)
+        await create_chat(user_id=user_id,
+                          employee_id=choice(employee_ids).id,
+                          topic=chat_data.topic,
+                          db=db)
 
-    return {"message": f"Создан новый чат на тему: '{chat_data.topic}'"}
+        return {"message": f"Создан новый чат на тему: '{chat_data.topic}'"}
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
 
 @router.patch('/close', status_code=status.HTTP_204_NO_CONTENT)
@@ -128,10 +138,13 @@ async def chats_close(chat_id: int,
 ):
     try:
         await checking_access_rights(token=token, roles=['customer', 'seller'])
-    except Exception:
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-    await update_chat_status(chat_id=chat_id, db=db)
+        await update_chat_status(chat_id=chat_id, db=db)
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
 
 @router.get('/{chat_id}/view', response_class=HTMLResponse)
@@ -169,6 +182,11 @@ async def view_chat(request: Request,
             "shop_name": Config.shop_name,
             "descr": Config.descr,
         })
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
     except Exception as e:
         print(f"Ошибка при отображении чата: {e}")

@@ -27,30 +27,32 @@ async def get_cart_by_user(token: Optional[str] = Cookie(None, alias='token'),
 ):
     try:
         user_id = await checking_access_rights(token=token, roles=['customer'])
-    except:
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
 
-    query = await db.execute(
-        select(Cart, Product)
-        .join(Product, Cart.product_id == Product.id)
-        .where(Cart.user_id == user_id)
-    )
+        query = await db.execute(
+            select(Cart, Product)
+            .join(Product, Cart.product_id == Product.id)
+            .where(Cart.user_id == user_id)
+        )
 
-    cart_items = []
-    for cart, product in query.all():
-        cart_dict = {k: v for k, v in cart.__dict__.items() if not k.startswith('_')}
-        product_dict = {k: v for k, v in product.__dict__.items() if not k.startswith('_')}
-        cart_dict['product'] = product_dict
-        cart_items.append(cart_dict)
+        cart_items = []
+        for cart, product in query.all():
+            cart_dict = {k: v for k, v in cart.__dict__.items() if not k.startswith('_')}
+            product_dict = {k: v for k, v in product.__dict__.items() if not k.startswith('_')}
+            cart_dict['product'] = product_dict
+            cart_items.append(cart_dict)
 
-    return cart_items
+        return cart_items
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
 
 @router.post('/add', status_code=status.HTTP_201_CREATED)
-async def add_product_to_cart(
-        cart_data: CartItem,
-        db: AsyncSession = Depends(get_db),
-        token: Optional[str] = Cookie(None, alias='token')
+async def add_product_to_cart(cart_data: CartItem,
+                              db: AsyncSession = Depends(get_db),
+                              token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
         user_id = await checking_access_rights(token=token, roles=['customer'])
@@ -71,7 +73,9 @@ async def add_product_to_cart(
                                    db=db)
         return {"message": "Товар добавлен в корзину"}
 
-    except HTTPException:
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
         raise
     except Exception as e:
         await db.rollback()
@@ -79,10 +83,9 @@ async def add_product_to_cart(
 
 
 @router.patch('/update')
-async def update_count_cart(
-        cart_data: CartUpdate,
-        db: AsyncSession = Depends(get_db),
-        token: Optional[str] = Cookie(None, alias='token')
+async def update_count_cart(cart_data: CartUpdate,
+                            db: AsyncSession = Depends(get_db),
+                            token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
         user_id = await checking_access_rights(token=token, roles=['customer'])
@@ -93,6 +96,11 @@ async def update_count_cart(
                                             add=cart_data.add,
                                             db=db)
         return result
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
 
     except SQLAlchemyError as e:
         await db.rollback()
@@ -117,6 +125,11 @@ async def clear_cart(token: Optional[str] = Cookie(None, alias='token'),
 
         await delete_from_cart(user_id=user_id, db=db, clear_cart=True)
 
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
+
     except Exception as e:
         await db.rollback()
         raise HTTPException(
@@ -136,6 +149,12 @@ async def delete_product_from_cart(product_id: int,
         await delete_from_cart(user_id=user_id,
                                product_id=product_id,
                                db=db)
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -153,7 +172,7 @@ async def get_cart_html(request: Request,
         cart_products = []
 
         user_id = await checking_access_rights(token=token, roles=['customer'])
-
+        role = 'customer'
         if user_id:
             is_authenticated = True
         items = await get_cart_by_user(token=token, db=db)
@@ -168,18 +187,20 @@ async def get_cart_html(request: Request,
                 "count": product['count'],
                 "price_mult_count": product['product']['price'] * product['count']
             })
-
         return templates.TemplateResponse(
             "cart/cart.html",
             {
                 "request": request,
                 "is_authenticated": is_authenticated,
                 "user_id": user_id,
+                "role": role,
                 "products": cart_products,
                 "url": Config.url,
                 "shop_name": Config.shop_name,
                 "descr": Config.descr
             }
         )
-    except:
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise

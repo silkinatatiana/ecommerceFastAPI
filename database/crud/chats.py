@@ -1,6 +1,5 @@
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy import select, update
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.crud.decorators import handle_db_errors

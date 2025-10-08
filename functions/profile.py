@@ -1,7 +1,6 @@
 from app.config import Config
 from functions.orders_func import fetch_orders_for_user
 from models import Chats, Messages
-from app.routers.orders import get_orders_by_user_id
 from sqlalchemy import select
 
 
@@ -10,6 +9,7 @@ async def get_tab_by_section(section, templates, request, user, page, db, user_d
         "request": request,
         "user": user,
         "user_id": user.id,
+        "role": user.role,
         "config": Config.url,
         "is_authenticated": True,
         "shop_name": Config.shop_name,
