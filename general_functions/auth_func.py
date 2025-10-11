@@ -5,9 +5,8 @@ import jwt
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from starlette.responses import RedirectResponse
 import bcrypt
 
@@ -16,6 +15,7 @@ from database.db_depends import get_db
 from config import Config
 
 SECRET_KEY = Config.SECRET_KEY
+REFRESH_SECRET_KEY = Config.REFRESH_SECRET_KEY
 ALGORITHM = Config.ALGORITHM
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
@@ -23,21 +23,36 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
 
 def create_access_token(username: str,
                         user_id: int,
-                        expires_delta: timedelta,
-                        is_admin: bool = False,
-                        role: str = "customer"
-                        ):
+                        role: str,
+                        is_admin: bool = False
+):
     payload = {
         'sub': username,
         'id': user_id,
         'is_admin': is_admin,
         'role': role,
-        'exp': datetime.now(timezone.utc) + expires_delta,
+        'exp': datetime.now(timezone.utc) + Config.timedelta_token,
         'type': 'access'
     }
 
     payload['exp'] = int(payload['exp'].timestamp())
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_refresh_token(username: str,
+                         user_id: int,
+                         role: str,
+                         is_admin: bool = False,
+):
+    to_encode = {
+        "sub": username,
+        "user_id": user_id,
+        "role": role,
+        "is_admin": is_admin,
+        "exp": datetime.utcnow() + Config.timedelta_refresh_token,
+        "type": "refresh"
+    }
+    return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
 
 
 def verify_token(token: str,
@@ -50,6 +65,50 @@ def verify_token(token: str,
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail='Invalid or expired token')
+
+
+def create_tokens_and_set_cookies(username: str,
+                                  user_id: int,
+                                  role: str,
+                                  is_admin: bool = False
+) -> RedirectResponse:
+    access_token = create_access_token(
+        username=username,
+        user_id=user_id,
+        role=role,
+        is_admin=is_admin
+    )
+
+    refresh_token = create_refresh_token(
+        username=username,
+        user_id=user_id,
+        role=role,
+        is_admin=is_admin
+    )
+
+    response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+
+    response.set_cookie(
+        key="token",
+        value=access_token,
+        httponly=True,
+        max_age=int(Config.timedelta_token.total_seconds()),
+        secure=True,
+        samesite='lax',
+        path='/'
+    )
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        max_age=int(Config.timedelta_refresh_token.total_seconds()),
+        secure=True,
+        samesite='lax',
+        path='/'
+    )
+
+    return response
 
 
 async def get_current_user(token: str):
@@ -100,7 +159,10 @@ def get_user_id_by_token(token: str):
     return user_id
 
 
-async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], username: str, password: str, roles: list):
+async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)],
+                            username: str,
+                            password: str,
+                            roles: list):
     user = await get_user(db=db, username=username)
 
     if not user or not bcrypt_context.verify(password, user.hashed_password):

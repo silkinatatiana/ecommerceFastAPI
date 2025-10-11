@@ -17,9 +17,9 @@ from database.db_depends import get_db
 from schemas import CreateProduct, ProductOut
 from models import *
 from models import Review
-from functions.cart_func import get_in_cart_product_ids
-from functions.auth_func import get_current_user, get_user_id_by_token, checking_access_rights
-from functions.favorites_func import get_favorite_product_ids
+from general_functions.cart_func import get_in_cart_product_ids
+from general_functions.auth_func import get_current_user, get_user_id_by_token, checking_access_rights
+from general_functions.favorites_func import get_favorite_product_ids
 from config import Config
 
 router = APIRouter(prefix='/products', tags=['products'])

@@ -143,3 +143,8 @@ class RegisterData(BaseModel):
     password: str
     confirm_password: str
     role: str
+
+
+class LoginData(BaseModel):
+    username: str
+    password: str

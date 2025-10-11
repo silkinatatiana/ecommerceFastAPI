@@ -11,7 +11,7 @@ from database.crud.decorators import handler_base_errors
 from database.db_depends import get_db
 from database.crud.messages import create_message
 from models import *
-from functions.auth_func import checking_access_rights
+from general_functions.auth_func import checking_access_rights
 from schemas import MessageCreate
 
 router = APIRouter(prefix='/messages', tags=['messages'])

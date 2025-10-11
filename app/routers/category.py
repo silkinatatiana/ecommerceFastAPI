@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.crud.category import get_category, create_new_category, update_category_name, delete_category_by_id
-from functions.auth_func import get_current_user
+from general_functions.auth_func import get_current_user
 from database.db_depends import get_db
 from schemas import CreateCategory
 

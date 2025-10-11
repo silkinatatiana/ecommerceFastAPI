@@ -9,7 +9,7 @@ from starlette.responses import JSONResponse
 from database.crud.products import get_product
 from database.crud.review import get_reviews, create_new_review, delete_review
 from database.db_depends import get_db
-from functions.auth_func import checking_access_rights
+from general_functions.auth_func import checking_access_rights
 from schemas import CreateReviews
 
 router = APIRouter(prefix='/reviews', tags=['reviews'])

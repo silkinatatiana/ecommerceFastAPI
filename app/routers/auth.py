@@ -1,5 +1,5 @@
 from typing import Annotated, Optional
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Cookie, Query
 from fastapi.security import OAuth2PasswordRequestForm
@@ -7,14 +7,15 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
+from jose import jwt, JWTError
 
-from functions.auth_func import logout_func
+from general_functions.auth_func import logout_func, create_tokens_and_set_cookies
 from database.crud.users import create_user, get_user, update_user_info, delete_user_from_db
-from functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
-from functions.profile import get_tab_by_section
+from general_functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
+from general_functions.profile import get_tab_by_section
 from database.db_depends import get_db
 from config import Config
-from schemas import ProfileUpdate, PasswordUpdate, RegisterData
+from schemas import ProfileUpdate, PasswordUpdate, RegisterData, LoginData
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app/templates/')
@@ -31,7 +32,11 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
                 form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     user = await authenticate_user(db, form_data.username, form_data.password, roles=['customer', 'seller'])
 
-    token = create_access_token(user.username, user.id, timedelta(minutes=Config.minutes), user.is_admin, user.role)
+    token = create_access_token(username=user.username,
+                                user_id=user.id,
+                                role=user.role,
+                                is_admin=user.is_admin)
+
     return {
         'access_token': token,
         'token_type': 'bearer'
@@ -86,22 +91,11 @@ async def register(register_data: RegisterData,
                                  role=register_data.role,
                                  db=db)
 
-        token_expires = timedelta(minutes=60)
-        token = create_access_token(
+        response = create_tokens_and_set_cookies(
             username=user.username,
             user_id=user.id,
-            expires_delta=token_expires
-        )
-
-        response_data = {"redirect_url": "/auth/account"}
-        response = JSONResponse(content=response_data, status_code=200)
-        response.set_cookie(
-            key="token",
-            value=token,
-            httponly=False,
-            secure=False,
-            samesite="lax",
-            max_age=3600
+            role=user.role,
+            is_admin=user.is_admin
         )
         return response
 
@@ -116,30 +110,17 @@ async def register(register_data: RegisterData,
 
 @router.post('/login')
 async def login(request: Request,
-                db: AsyncSession = Depends(get_db),
-                username: str = Form(...),
-                password: str = Form(...)
-                ):
+                login_data: LoginData,
+                db: AsyncSession = Depends(get_db)
+):
     try:
-        user = await authenticate_user(db, username, password, roles=['customer', 'seller'])
-        token = create_access_token(
+        user = await authenticate_user(db, login_data.username, login_data.password, roles=['customer', 'seller'])
+
+        response = create_tokens_and_set_cookies(
             username=user.username,
             user_id=user.id,
-            is_admin=user.is_admin,
             role=user.role,
-            expires_delta=timedelta(minutes=20)
-        )
-
-        response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-
-        response.set_cookie(
-            key="token",
-            value=token,
-            httponly=True,
-            max_age=3600,
-            secure=True,
-            samesite='lax',
-            path='/'
+            is_admin=user.is_admin
         )
         return response
 
@@ -153,6 +134,91 @@ async def login(request: Request,
             },
             status_code=status.HTTP_401_UNAUTHORIZED
         )
+
+
+async def auto_refresh_token(request: Request, call_next):
+    access_token = request.cookies.get("token")
+    refresh_token = request.cookies.get("refresh_token")
+
+    if not access_token or not refresh_token:
+        return await call_next(request)
+
+    try:
+        payload = jwt.decode(access_token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
+        exp = payload.get("exp")
+        if exp is None:
+            raise JWTError("No exp in access token")
+
+        now = datetime.utcnow()
+        token_expire_time = datetime.utcfromtimestamp(exp)
+        time_until_expire = token_expire_time - now
+
+        if time_until_expire <= timedelta(minutes=Config.token_auto_refresh_threshold):
+            try:
+                refresh_payload = jwt.decode(
+                    refresh_token,
+                    Config.REFRESH_SECRET_KEY,
+                    algorithms=[Config.ALGORITHM]
+                )
+                if refresh_payload.get("type") != "refresh":
+                    raise JWTError("Invalid refresh token type")
+
+                new_access_token = create_access_token(
+                    username=refresh_payload["sub"],
+                    user_id=refresh_payload["user_id"],
+                    role=refresh_payload["role"],
+                    is_admin=refresh_payload.get("is_admin", False)
+                )
+
+                response = await call_next(request)
+
+                response.set_cookie(
+                    key="token",
+                    value=new_access_token,
+                    httponly=True,
+                    max_age=Config.timedelta_token * 60,
+                    secure=True,
+                    samesite='lax',
+                    path='/'
+                )
+                return response
+
+            except JWTError:
+                pass
+
+    except JWTError:
+        try:
+            refresh_payload = jwt.decode(
+                refresh_token,
+                Config.REFRESH_SECRET_KEY,
+                algorithms=[Config.ALGORITHM]
+            )
+            if refresh_payload.get("type") != "refresh":
+                raise JWTError("Invalid refresh token type")
+
+            new_access_token = create_access_token(
+                username=refresh_payload["sub"],
+                user_id=refresh_payload["user_id"],
+                role=refresh_payload["role"],
+                is_admin=refresh_payload.get("is_admin", False)
+            )
+
+            response = await call_next(request)
+            response.set_cookie(
+                key="token",
+                value=new_access_token,
+                httponly=True,
+                max_age=Config.timedelta_token * 60,
+                secure=True,
+                samesite='lax',
+                path='/'
+            )
+            return response
+
+        except JWTError:
+            pass
+
+    return await call_next(request)
 
 
 @router.get('/logout')

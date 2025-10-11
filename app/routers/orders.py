@@ -7,15 +7,15 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, RedirectResponse
 
-from functions.auth_func import checking_access_rights
+from general_functions.auth_func import checking_access_rights
 from app.routers.cart import get_cart_by_user
 from database.crud.decorators import handler_base_errors
 from database.crud.orders import create_new_order, get_orders, update_status
 from database.crud.products import get_product
 from database.db_depends import get_db
 from config import Config
-from functions.orders_func import fetch_orders_for_user
-from functions.product_func import update_stock
+from general_functions.orders_func import fetch_orders_for_user
+from general_functions.product_func import update_stock
 from schemas import OrderResponse
 
 router = APIRouter(prefix="/orders", tags=["orders"])

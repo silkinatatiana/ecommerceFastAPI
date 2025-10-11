@@ -1,24 +1,19 @@
-# IDE
 .idea/
 .idea/shelf/
 .idea/workspace.xml
 .vscode/
 
-# Python
 __pycache__/
 *.py[cod]
 *.pyc
 
-# Virtual environment
 .venv/
 venv/
 
 .env
 
-# Database
 *.sqlite
 
-# Alembic
 alembic.ini
 alembic/versions/*
 !alembic/versions/.keep

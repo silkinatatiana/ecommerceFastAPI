@@ -9,11 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
 from database.crud.users import create_user, get_user, update_user_info
-from functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
-from functions.profile import get_tab_by_section
+from general_functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password, \
+    create_tokens_and_set_cookies
+from general_functions.profile import get_tab_by_section
 from database.db_depends import get_db
 from config import Config
-from schemas import ProfileUpdate, PasswordUpdate
+from schemas import ProfileUpdate, PasswordUpdate, RegisterData, LoginData
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app_support/templates/')
@@ -69,44 +70,29 @@ def create_auth_form(request: Request):
 
 
 @router.post('/register')
-async def register(db: AsyncSession = Depends(get_db),
-                   first_name: str = Form(...),
-                   last_name: str = Form(...),
-                   username: str = Form(...),
-                   email: str = Form(...),
-                   password: str = Form(...),
-                   confirm_password: str = Form(...)
+async def register(register_data: RegisterData,
+                   db: AsyncSession = Depends(get_db)
 ):
     try:
-        if password != confirm_password:
+        if register_data.password != register_data.confirm_password:
             return JSONResponse(
                 content={"detail": "Пароли не совпадают"},
                 status_code=status.HTTP_400_BAD_REQUEST
             )
-        user = await create_user(first_name=first_name,
-                                 last_name=last_name,
-                                 username=username,
-                                 email=email,
-                                 hashed_password=bcrypt_context.hash(password),
-                                 db=db,
-                                 role='support')
 
-        token_expires = timedelta(minutes=60)
-        token = create_access_token(
+        user = await create_user(first_name=register_data.first_name,
+                                 last_name=register_data.last_name,
+                                 username=register_data.username,
+                                 email=register_data.email,
+                                 hashed_password=bcrypt_context.hash(register_data.password),
+                                 role=register_data.role,
+                                 db=db)
+
+        response = create_tokens_and_set_cookies(
             username=user.username,
             user_id=user.id,
-            expires_delta=token_expires
-        )
-
-        response_data = {"redirect_url": "/auth/account"}
-        response = JSONResponse(content=response_data, status_code=200)
-        response.set_cookie(
-            key="token",
-            value=token,
-            httponly=False,
-            secure=False,
-            samesite="lax",
-            max_age=3600
+            role=user.role,
+            is_admin=user.is_admin
         )
         return response
 
@@ -121,28 +107,17 @@ async def register(db: AsyncSession = Depends(get_db),
 
 @router.post('/login')
 async def login(request: Request,
-                db: AsyncSession = Depends(get_db),
-                username: str = Form(...),
-                password: str = Form(...)
+                login_data: LoginData,
+                db: AsyncSession = Depends(get_db)
 ):
     try:
-        user = await authenticate_user(db, username, password, roles=['support'])
-        token = create_access_token(
+        user = await authenticate_user(db, login_data.username, login_data.password, roles=['support'])
+
+        response = create_tokens_and_set_cookies(
             username=user.username,
             user_id=user.id,
-            is_admin=user.is_admin,
             role=user.role,
-            expires_delta=timedelta(minutes=20)
-        )
-        response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-        response.set_cookie(
-            key="token",
-            value=token,
-            httponly=False,
-            max_age=3600,
-            secure=False,
-            samesite='lax',
-            path='/'
+            is_admin=user.is_admin
         )
         return response
 

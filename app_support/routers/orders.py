@@ -9,7 +9,7 @@ from config import Config
 from database.crud.orders import get_orders, update_status
 from database.crud.users import get_user
 from database.db_depends import get_db
-from functions.auth_func import checking_access_rights
+from general_functions.auth_func import checking_access_rights
 from schemas import ChangeOrderStatus
 from models import *
 

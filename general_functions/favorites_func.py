@@ -5,7 +5,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import logger
 from models import Favorites
 from database.db_depends import get_db
 
@@ -19,7 +18,6 @@ async def get_favorite_product_ids(user_id: int,
         return favorite_product_ids
 
     except SQLAlchemyError as e:
-        logger.error(f"Database error getting favorites for user {user_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Не удалось получить список избранных товаров"

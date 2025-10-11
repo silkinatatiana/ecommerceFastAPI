@@ -16,12 +16,13 @@ import jwt
 from app.functions.main_func import fetch_categories, parse_int_list, fetch_products_for_category, format_product_name, \
     get_filters, get_filtered_values, sort_func
 from app.routers import category, products, auth, reviews, favorites, cart, orders, chats, messages
+from app.routers.auth import auto_refresh_token
 from database.db_depends import get_db
 from database.db import Base, engine
 from models import *
 from config import Config
-from functions.favorites_func import get_favorite_product_ids
-from functions.cart_func import get_in_cart_product_ids
+from general_functions.favorites_func import get_favorite_product_ids
+from general_functions.cart_func import get_in_cart_product_ids
 from app.log.log import LOGGER
 
 logger = LOGGER
@@ -67,6 +68,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.middleware("http")(auto_refresh_token)
+
 
 def custom_openapi():
     if app.openapi_schema:
@@ -89,6 +92,7 @@ def custom_openapi():
                 method["security"] = [{"CookieAuth": []}]
     app.openapi_schema = openapi_schema
     return app.openapi_schema
+
 
 app.openapi = custom_openapi
 

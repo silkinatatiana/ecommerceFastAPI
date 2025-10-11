@@ -7,14 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.responses import HTMLResponse, RedirectResponse
 
-from functions.auth_func import checking_access_rights
+from general_functions.auth_func import checking_access_rights
 from database.crud.cart import update_cart_quantity, delete_from_cart
 from database.db_depends import get_db
 from config import Config
 from models import Product
 from models import Cart
 from schemas import CartItem, CartUpdate
-from functions.product_func import check_stock
+from general_functions.product_func import check_stock
 from app.exception import NotMoreProductsException
 
 router = APIRouter(prefix="/cart", tags=["cart"])

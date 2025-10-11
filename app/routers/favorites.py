@@ -8,7 +8,7 @@ from starlette.responses import RedirectResponse
 
 from database.crud.favorites import get_favorite, create_favorite, delete_favorite
 from database.db_depends import get_db
-from functions.auth_func import checking_access_rights
+from general_functions.auth_func import checking_access_rights
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 templates = Jinja2Templates(directory="app/templates")

@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from functions.auth_func import checking_access_rights
+from general_functions.auth_func import checking_access_rights
 from database.crud.chats import update_chat_status, create_chat, get_chat
 from database.crud.decorators import handler_base_errors
 from database.crud.users import get_user

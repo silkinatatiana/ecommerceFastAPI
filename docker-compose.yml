@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: fastapi_ecommerce
+      POSTGRES_USER: ecommerce_user
+      POSTGRES_PASSWORD: ecommerce_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce_user -d fastapi_ecommerce"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://ecommerce_user:ecommerce_password@db:5432/fastapi_ecommerce
+      SECRET_KEY: a7c3da68e483259507f3857aa85a9379e0cde15a7e4aebd846f957651c748628
+      ALGORITHM: HS256
+      URL: http://host.docker.internal:8000
+      URL_SUPPORT: http://host.docker.internal:8001
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      API_PORT_SUPPORT: 8001
+      DESCR: 'Магазин техники и электроники'
+
+  app_support:
+    build:
+      context: .
+      dockerfile: Dockerfile.app_support
+    ports:
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://ecommerce_user:ecommerce_password@db:5432/fastapi_ecommerce
+      SECRET_KEY: a7c3da68e483259507f3857aa85a9379e0cde15a7e4aebd846f957651c748628
+      ALGORITHM: HS256
+      URL: http://host.docker.internal:8000
+      URL_SUPPORT: http://host.docker.internal:8001
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      API_PORT_SUPPORT: 8001
+      DESCR: 'Магазин техники и электроники'
+
+volumes:
+  postgres_data: {}

@@ -1,6 +1,5 @@
-from logging.handlers import RotatingFileHandler
 import logging
-
+import sys
 
 LOGGER = logging.getLogger(__name__)
 
@@ -19,21 +18,11 @@ class ColorFormatter(logging.Formatter):
         return f"{color}{message}{self.colors['RESET']}"
 
 
-file_handler = RotatingFileHandler(
-    'app/log/app.log',
-    maxBytes=5 * 1024 * 1024,
-    backupCount=3,
-    encoding='UTF-8'
-)
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s - %(levelname)s - %(message)s'
-))
-
-console_handler = logging.StreamHandler()
+console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(ColorFormatter(
     '%(asctime)s - %(levelname)s - %(message)s'
 ))
 
-LOGGER.addHandler(file_handler)
 LOGGER.addHandler(console_handler)
-
+LOGGER.setLevel(logging.INFO)
+LOGGER.propagate = False
