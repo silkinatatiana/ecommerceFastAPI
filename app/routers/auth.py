@@ -1,7 +1,7 @@
 from typing import Annotated, Optional
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Cookie, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Cookie, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -91,13 +91,12 @@ async def register(register_data: RegisterData,
                                  role=register_data.role,
                                  db=db)
 
-        response = create_tokens_and_set_cookies(
+        return create_tokens_and_set_cookies(
             username=user.username,
             user_id=user.id,
             role=user.role,
             is_admin=user.is_admin
         )
-        return response
 
     except Exception as e:
         await db.rollback()
@@ -116,13 +115,12 @@ async def login(request: Request,
     try:
         user = await authenticate_user(db, login_data.username, login_data.password, roles=['customer', 'seller'])
 
-        response = create_tokens_and_set_cookies(
+        return create_tokens_and_set_cookies(
             username=user.username,
             user_id=user.id,
             role=user.role,
             is_admin=user.is_admin
         )
-        return response
 
     except HTTPException:
         return templates.TemplateResponse(
@@ -134,6 +132,37 @@ async def login(request: Request,
             },
             status_code=status.HTTP_401_UNAUTHORIZED
         )
+
+
+async def set_token(request: Request,
+                    token: str,
+                    secret_key: str,
+                    call_next):
+    payload = jwt.decode(
+        token,
+        secret_key,
+        algorithms=[Config.ALGORITHM]
+    )
+
+    new_access_token = create_access_token(
+        username=payload["sub"],
+        user_id=payload["id"],
+        role=payload["role"],
+        is_admin=payload.get("is_admin", False)
+    )
+
+    response = await call_next(request)
+
+    response.set_cookie(
+        key="token",
+        value=new_access_token,
+        httponly=True,
+        max_age=Config.timedelta_token * 60,
+        secure=True,
+        samesite='lax',
+        path='/'
+    )
+    return response
 
 
 async def auto_refresh_token(request: Request, call_next):
@@ -149,74 +178,42 @@ async def auto_refresh_token(request: Request, call_next):
         if exp is None:
             raise JWTError("No exp in access token")
 
-        now = datetime.utcnow()
-        token_expire_time = datetime.utcfromtimestamp(exp)
+        now = datetime.now(timezone.utc)
+        token_expire_time = datetime.fromtimestamp(exp, tz=timezone.utc)
         time_until_expire = token_expire_time - now
 
-        if time_until_expire <= timedelta(minutes=Config.token_auto_refresh_threshold):
-            try:
-                refresh_payload = jwt.decode(
-                    refresh_token,
-                    Config.REFRESH_SECRET_KEY,
-                    algorithms=[Config.ALGORITHM]
-                )
-                if refresh_payload.get("type") != "refresh":
-                    raise JWTError("Invalid refresh token type")
+        if timedelta(seconds=20) < time_until_expire < timedelta(minutes=Config.token_auto_refresh_threshold):
+            return await set_token(
+                request=request,
+                token=access_token,
+                secret_key=Config.SECRET_KEY,
+                call_next=call_next
+            )
+        else:
+            return await call_next(request)
 
-                new_access_token = create_access_token(
-                    username=refresh_payload["sub"],
-                    user_id=refresh_payload["user_id"],
-                    role=refresh_payload["role"],
-                    is_admin=refresh_payload.get("is_admin", False)
-                )
-
-                response = await call_next(request)
-
-                response.set_cookie(
-                    key="token",
-                    value=new_access_token,
-                    httponly=True,
-                    max_age=Config.timedelta_token * 60,
-                    secure=True,
-                    samesite='lax',
-                    path='/'
-                )
-                return response
-
-            except JWTError:
-                pass
-
-    except JWTError:
+    except jwt.ExpiredSignatureError:
         try:
             refresh_payload = jwt.decode(
                 refresh_token,
-                Config.REFRESH_SECRET_KEY,
+                Config.SECRET_KEY,
                 algorithms=[Config.ALGORITHM]
             )
             if refresh_payload.get("type") != "refresh":
                 raise JWTError("Invalid refresh token type")
 
-            new_access_token = create_access_token(
-                username=refresh_payload["sub"],
-                user_id=refresh_payload["user_id"],
-                role=refresh_payload["role"],
-                is_admin=refresh_payload.get("is_admin", False)
+            return await set_token(
+                request=request,
+                token=refresh_token,
+                secret_key=Config.SECRET_KEY,
+                call_next=call_next
             )
-
-            response = await call_next(request)
-            response.set_cookie(
-                key="token",
-                value=new_access_token,
-                httponly=True,
-                max_age=Config.timedelta_token * 60,
-                secure=True,
-                samesite='lax',
-                path='/'
-            )
-            return response
 
         except JWTError:
             pass
+
+    except JWTError:
+        pass
 
     return await call_next(request)
 

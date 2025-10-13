@@ -88,13 +88,12 @@ async def register(register_data: RegisterData,
                                  role=register_data.role,
                                  db=db)
 
-        response = create_tokens_and_set_cookies(
+        return create_tokens_and_set_cookies(
             username=user.username,
             user_id=user.id,
             role=user.role,
             is_admin=user.is_admin
         )
-        return response
 
     except Exception as e:
         await db.rollback()
@@ -113,13 +112,12 @@ async def login(request: Request,
     try:
         user = await authenticate_user(db, login_data.username, login_data.password, roles=['support'])
 
-        response = create_tokens_and_set_cookies(
+        return create_tokens_and_set_cookies(
             username=user.username,
             user_id=user.id,
             role=user.role,
             is_admin=user.is_admin
         )
-        return response
 
     except HTTPException:
         return templates.TemplateResponse(

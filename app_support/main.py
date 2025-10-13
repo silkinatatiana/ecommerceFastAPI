@@ -10,7 +10,9 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.staticfiles import StaticFiles
+from starlette.middleware.cors import CORSMiddleware
 
+from app.routers.auth import auto_refresh_token
 from app_support.functions.main_func import get_sort_column, build_pagination_url, build_sort_url, to_date_str
 from models import Orders, User
 from general_functions.auth_func import checking_access_rights
@@ -64,6 +66,16 @@ app.include_router(orders.router)
 app.include_router(auth.router)
 app.include_router(chats.router)
 app.include_router(messages.router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[Config.url_support],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.middleware("http")(auto_refresh_token)
 
 
 @app.get('/', response_class=HTMLResponse)

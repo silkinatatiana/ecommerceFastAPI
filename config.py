@@ -11,7 +11,6 @@ class Config:
     url = os.getenv('URL')
     url_support = os.getenv('URL_SUPPORT')
     SECRET_KEY = os.getenv('SECRET_KEY')
-    REFRESH_SECRET_KEY = os.getenv('REFRESH_SECRET_KEY')
     ALGORITHM = os.getenv('ALGORITHM')
     minutes = 1
     API_HOST = os.getenv('API_HOST')
@@ -21,7 +20,7 @@ class Config:
     PAGE_SIZE = 10
     descr = os.getenv('DESCR')
     SQLALCHEMY_DATABASE_URL = os.getenv('SQLALCHEMY_DATABASE_URL')
-    timedelta_token = timedelta(minutes=20)
+    timedelta_token = timedelta(minutes=1)
     timedelta_refresh_token = timedelta(days=7)
     token_auto_refresh_threshold = 1
 

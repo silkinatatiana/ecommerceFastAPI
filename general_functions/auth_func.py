@@ -15,7 +15,6 @@ from database.db_depends import get_db
 from config import Config
 
 SECRET_KEY = Config.SECRET_KEY
-REFRESH_SECRET_KEY = Config.REFRESH_SECRET_KEY
 ALGORITHM = Config.ALGORITHM
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
@@ -35,7 +34,6 @@ def create_access_token(username: str,
         'type': 'access'
     }
 
-    payload['exp'] = int(payload['exp'].timestamp())
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -46,13 +44,13 @@ def create_refresh_token(username: str,
 ):
     to_encode = {
         "sub": username,
-        "user_id": user_id,
+        "id": user_id,
         "role": role,
         "is_admin": is_admin,
-        "exp": datetime.utcnow() + Config.timedelta_refresh_token,
+        "exp": datetime.now(timezone.utc) + Config.timedelta_refresh_token,
         "type": "refresh"
     }
-    return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def verify_token(token: str,
@@ -115,7 +113,7 @@ async def get_current_user(token: str):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
+        headers={"WWW-Authenticate": "Bearer"}
     )
 
     try:
@@ -127,7 +125,7 @@ async def get_current_user(token: str):
             raise credentials_exception
 
         expire = payload.get("exp")
-        if expire is None or datetime.utcnow() > datetime.utcfromtimestamp(expire):
+        if expire is None or datetime.now(timezone.utc) > datetime.fromtimestamp(expire, tz=timezone.utc):
             raise credentials_exception
 
         return {

@@ -29,21 +29,18 @@ function switchTab(tabName) {
     });
 }
 
-// Универсальная функция для отправки формы
 async function submitAuthForm(form, isRegistration = false) {
     const errorElement = isRegistration
         ? document.getElementById('register-error')
         : document.getElementById('login-error');
     const successElement = document.getElementById('success-message');
 
-    // Скрыть сообщения
     errorElement.style.display = 'none';
     successElement.style.display = 'none';
 
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
 
-    // Проверка паролей (только для регистрации)
     if (isRegistration && data.password !== data.confirm_password) {
         errorElement.textContent = 'Пароли не совпадают';
         errorElement.style.display = 'block';
@@ -61,19 +58,15 @@ async function submitAuthForm(form, isRegistration = false) {
             body: JSON.stringify(data)
         });
 
-        // Попытка прочитать JSON (может не получиться при редиректе или пустом теле)
         let result = {};
         try {
             result = await response.json();
         } catch (e) {
-            // Если не JSON — считаем, что успех, если статус 2xx
         }
 
         if (response.ok) {
-            // Успешно: редирект на главную
             window.location.href = '/';
         } else {
-            // Ошибка: ожидаем JSON с detail
             const errorMsg = result.detail || (isRegistration ? 'Ошибка регистрации' : 'Ошибка входа');
             errorElement.textContent = errorMsg;
             errorElement.style.display = 'block';
@@ -85,7 +78,6 @@ async function submitAuthForm(form, isRegistration = false) {
     }
 }
 
-// Обработчики форм
 document.getElementById('register-form')?.addEventListener('submit', async function(e) {
     e.preventDefault();
     await submitAuthForm(this, true);
