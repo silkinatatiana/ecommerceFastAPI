@@ -10,6 +10,7 @@ from database.crud.orders import get_orders, update_status
 from database.crud.users import get_user
 from database.db_depends import get_db
 from general_functions.auth_func import checking_access_rights
+from general_functions.product_func import update_stock
 from schemas import ChangeOrderStatus
 from models import *
 
@@ -71,7 +72,10 @@ async def change_status(order_id: int,
         await checking_access_rights(token=token, roles=['support'])
 
         await update_status(order_id=order_id, new_status=status_obj.new_status, db=db)
-
+        if status_obj.new_status == 'CANCELLED':
+            order = await get_orders(db=db, order_id=order_id)
+            for product_id, product_info in order.products.items():
+                await update_stock(product_id=int(product_id), count=product_info['count'], db=db, add=True)
         return {'message': f'Статус заказа изменен'}
 
     except SQLAlchemyError as e:
