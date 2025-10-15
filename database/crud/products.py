@@ -10,8 +10,8 @@ from schemas import CreateProduct
 
 @handle_db_errors
 async def create_new_product(db: AsyncSession,
-                         product_data: CreateProduct,
-                         supplier_id: int,
+                             product_data: CreateProduct,
+                             supplier_id: int,
 ):
     product = Product(
         **product_data.dict(exclude_unset=True),

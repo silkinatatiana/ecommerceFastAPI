@@ -138,6 +138,10 @@ async def cancel_order(order_id: int,
         await checking_access_rights(token=token, roles=['customer'])
 
         await update_status(order_id=order_id, db=db, new_status='CANCELLED')
+
+        order = await get_orders(db=db, order_id=order_id)
+        for product_id, product_info in order.products.items():
+            await update_stock(product_id=int(product_id), count=product_info['count'], db=db, add=True)
         return f'Заказ № {order_id} отменен'
 
     except HTTPException as e:
