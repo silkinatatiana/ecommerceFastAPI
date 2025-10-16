@@ -80,6 +80,7 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
             )
 
         order_products = await get_cart_by_user(token=token, db=db)
+
         if not order_products:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -96,6 +97,7 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
                 'price': product['product']['price'],
                 'count': product['count']
             }
+
             total_sum += product['product']['price'] * product['count']
 
         order = await create_new_order(user_id=user_id,
@@ -140,6 +142,7 @@ async def cancel_order(order_id: int,
         await update_status(order_id=order_id, db=db, new_status='CANCELLED')
 
         order = await get_orders(db=db, order_id=order_id)
+
         for product_id, product_info in order.products.items():
             await update_stock(product_id=int(product_id), count=product_info['count'], db=db, add=True)
         return f'Заказ № {order_id} отменен'
