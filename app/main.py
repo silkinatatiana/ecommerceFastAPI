@@ -42,6 +42,15 @@ class NoCacheStaticFiles(StaticFiles):
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[Config.url],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", NoCacheStaticFiles(directory="app/static"), name="static")
 
@@ -54,14 +63,6 @@ app.include_router(cart.router)
 app.include_router(orders.router)
 app.include_router(chats.router)
 app.include_router(messages.router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[Config.url],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 app.middleware("http")(auto_refresh_token)
 
