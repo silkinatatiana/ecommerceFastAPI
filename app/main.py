@@ -17,7 +17,6 @@ from app.routers import category, products, auth, reviews, favorites, cart, orde
 from app.routers.auth import auto_refresh_token
 from database.db_depends import get_db
 from database.db import Base, engine
-from config import Config
 from app.log.log import LOGGER
 
 logger = LOGGER
@@ -41,11 +40,11 @@ class NoCacheStaticFiles(StaticFiles):
         return response
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[Config.url],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

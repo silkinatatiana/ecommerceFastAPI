@@ -1,4 +1,4 @@
-from datetime import timedelta, datetime, timezone
+from datetime import datetime, timezone
 from typing import Annotated, Dict, Any, Optional
 
 import jwt
@@ -186,7 +186,20 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 async def logout_func():
     response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
-    response.delete_cookie("token")
+    response.delete_cookie(
+        key="token",
+        secure=True,
+        samesite='lax',
+        path='/'
+    )
+
+    response.delete_cookie(
+        key="refresh_token",
+        secure=True,
+        samesite='lax',
+        path='/'
+    )
+
     return response
 
 

@@ -6,14 +6,10 @@ services:
     container_name: app
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://ecommerce:postgres@host.docker.internal:5432/fastapi_ecommerce
-      SECRET_KEY: a7c3da68e483259507f3857aa85a9379e0cde15a7e4aebd846f957651c748628
-      ALGORITHM: HS256
-      API_HOST: 0.0.0.0
-      API_PORT: 8000
-      URL: http://app:8000
-      URL_SUPPORT: http://app_support:8001
+      - URL=http://app:8000
 
   app_support:
     build:
@@ -22,11 +18,7 @@ services:
     container_name: app_support
     ports:
       - "8001:8001"
+    env_file:
+      - .env
     environment:
-      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://ecommerce:postgres@host.docker.internal:5432/fastapi_ecommerce
-      SECRET_KEY: a7c3da68e483259507f3857aa85a9379e0cde15a7e4aebd846f957651c748628
-      ALGORITHM: HS256
-      API_HOST: 0.0.0.0
-      API_PORT: 8001
-      URL: http://app:8000
-      URL_SUPPORT: http://app_support:8001
+      - URL_SUPPORT=http://app_support:8001

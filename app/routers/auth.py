@@ -157,7 +157,7 @@ async def set_token(request: Request,
         key="token",
         value=new_access_token,
         httponly=True,
-        max_age=Config.timedelta_token * 60,
+        max_age=int(Config.timedelta_token.total_seconds()),
         secure=True,
         samesite='lax',
         path='/'
@@ -168,6 +168,9 @@ async def set_token(request: Request,
 async def auto_refresh_token(request: Request, call_next):
     access_token = request.cookies.get("token")
     refresh_token = request.cookies.get("refresh_token")
+
+    if request.url.path.startswith("/auth/"):
+        return await call_next(request)
 
     if not access_token or not refresh_token:
         return await call_next(request)

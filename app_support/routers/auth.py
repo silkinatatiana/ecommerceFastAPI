@@ -1,7 +1,7 @@
 from typing import Annotated, Optional
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Form, status, Cookie, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Cookie, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -10,7 +10,7 @@ from passlib.context import CryptContext
 
 from database.crud.users import create_user, get_user, update_user_info
 from general_functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password, \
-    create_tokens_and_set_cookies
+    create_tokens_and_set_cookies, logout_func
 from general_functions.profile import get_tab_by_section
 from database.db_depends import get_db
 from config import Config
@@ -133,8 +133,7 @@ async def login(request: Request,
 
 @router.get('/logout')
 async def logout():
-    response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
-    response.delete_cookie("token")
+    response = await logout_func()
     return response
 
 

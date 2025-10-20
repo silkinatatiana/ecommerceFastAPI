@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-WORKDIR /app
+WORKDIR /
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
@@ -11,10 +11,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p /app/app/static /app/app_support/static
+RUN mkdir -p /app/static
 
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/
 
-WORKDIR /app
+WORKDIR /
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

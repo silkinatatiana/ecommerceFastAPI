@@ -11,9 +11,3 @@ __pycache__/
 venv/
 
 .env
-
-*.sqlite
-
-alembic.ini
-alembic/versions/*
-!alembic/versions/.keep
