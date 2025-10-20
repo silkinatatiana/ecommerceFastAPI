@@ -29,26 +29,38 @@ function switchTab(tabName) {
     });
 }
 
-async function submitAuthForm(form, isRegistration = false) {
-    const errorElement = isRegistration
-        ? document.getElementById('register-error')
-        : document.getElementById('login-error');
+function redirectToHome() {
+    window.location.href = '/';
+}
+
+document.getElementById('register-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const errorElement = document.getElementById('register-error');
     const successElement = document.getElementById('success-message');
+
+    const data = {
+        first_name: document.getElementById('register-first_name').value,
+        last_name: document.getElementById('register-last_name').value,
+        username: document.getElementById('register-username').value,
+        email: document.getElementById('register-email').value,
+        password: document.getElementById('register-password').value,
+        confirm_password: document.getElementById('register-confirm-password').value,
+        role: 'customer'
+    };
+
+    if (data.password !== data.confirm_password) {
+        errorElement.textContent = 'Пароли не совпадают';
+        errorElement.style.display = 'block';
+        successElement.style.display = 'none';
+        return;
+    }
 
     errorElement.style.display = 'none';
     successElement.style.display = 'none';
 
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
-
-    if (isRegistration && data.password !== data.confirm_password) {
-        errorElement.textContent = 'Пароли не совпадают';
-        errorElement.style.display = 'block';
-        return;
-    }
-
     try {
-        const response = await fetch(form.action || (isRegistration ? '/auth/register' : '/auth/login'), {
+        const response = await fetch('/auth/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -58,32 +70,71 @@ async function submitAuthForm(form, isRegistration = false) {
             body: JSON.stringify(data)
         });
 
-        let result = {};
-        try {
-            result = await response.json();
-        } catch (e) {
+        if (response.status === 303 || response.redirected) {
+            const redirectUrl = response.headers.get('Location') || response.url;
+            window.location.href = redirectUrl;
+            return;
         }
 
-        if (response.ok) {
-            window.location.href = '/';
-        } else {
-            const errorMsg = result.detail || (isRegistration ? 'Ошибка регистрации' : 'Ошибка входа');
-            errorElement.textContent = errorMsg;
+        if (!response.ok) {
+            const result = await response.json().catch(() => ({}));
+            errorElement.textContent = result.detail || 'Ошибка регистрации';
             errorElement.style.display = 'block';
+            return;
         }
+
+        redirectToHome();
+
     } catch (error) {
-        console.error('Ошибка сети:', error);
-        errorElement.textContent = 'Не удалось подключиться к серверу. Проверьте соединение.';
+        console.error('Ошибка при регистрации:', error);
+        errorElement.textContent = 'Не удалось отправить запрос. Проверьте соединение.';
         errorElement.style.display = 'block';
     }
-}
-
-document.getElementById('register-form')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    await submitAuthForm(this, true);
 });
 
-document.getElementById('login-form')?.addEventListener('submit', async function(e) {
+document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    await submitAuthForm(this, false);
+
+    const errorElement = document.getElementById('login-error');
+    const successElement = document.getElementById('success-message');
+
+    const data = {
+        username: document.getElementById('login-username').value,
+        password: document.getElementById('login-password').value
+    };
+
+    errorElement.style.display = 'none';
+    successElement.style.display = 'none';
+
+    try {
+        const response = await fetch('/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.status === 303 || response.redirected) {
+            const redirectUrl = response.headers.get('Location') || response.url;
+            window.location.href = redirectUrl;
+            return;
+        }
+
+        if (!response.ok) {
+            const result = await response.json().catch(() => ({}));
+            errorElement.textContent = result.detail || 'Ошибка входа';
+            errorElement.style.display = 'block';
+            return;
+        }
+
+        redirectToHome();
+
+    } catch (error) {
+        console.error('Ошибка при входе:', error);
+        errorElement.textContent = 'Не удалось войти. Проверьте соединение.';
+        errorElement.style.display = 'block';
+    }
 });

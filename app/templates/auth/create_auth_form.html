@@ -33,9 +33,10 @@
                 </div>
 
                 <button type="submit" class="submit-btn">Войти</button>
+
             </form>
 
-            <form id="register-form" class="auth-form" action="{{ config.url }}/auth/register" method="post">
+            <form id="register-form" class="auth-form">
                 <div class="form-group">
                     <label for="register-first_name">Имя</label>
                     <input type="text" id="register-first_name" name="first_name" required autocomplete="given-name">
@@ -57,15 +58,6 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="register-role">Роль</label>
-                    <select id="register-role" name="role" required>
-                        <option value="">— Выберите роль —</option>
-                        <option value="customer">Покупатель</option>
-                        <option value="seller">Продавец</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
                     <label for="register-password">Пароль</label>
                     <input type="password" id="register-password" name="password" required autocomplete="new-password">
                 </div>
@@ -83,6 +75,6 @@
             </form>
         </div>
     </div>
-    <script src="/static/js/auth/create_auth_form.js"></script>
+<script src="/static/js/auth/create_auth_form.js"></script>
 </body>
 </html>
