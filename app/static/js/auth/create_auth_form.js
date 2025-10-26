@@ -46,7 +46,7 @@ document.getElementById('register-form').addEventListener('submit', async functi
         email: document.getElementById('register-email').value,
         password: document.getElementById('register-password').value,
         confirm_password: document.getElementById('register-confirm-password').value,
-        role: 'customer'
+        role: document.getElementById('register-role').value
     };
 
     if (data.password !== data.confirm_password) {

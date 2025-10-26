@@ -50,6 +50,9 @@ async def personal_account(request: Request,
                            token: Optional[str] = Cookie(None, alias='token'),
                            db: AsyncSession = Depends(get_db)
 ):
+    if not token:
+        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+
     try:
         user_dict = await get_current_user(token=token)
         user = await get_user(user_id=user_dict['id'], db=db)
