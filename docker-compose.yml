@@ -1,4 +1,23 @@
+version: '3.8'
+
 services:
+  postgres:
+    image: postgres:16
+    container_name: ecommerce-postgres
+    environment:
+      POSTGRES_USER: ecommerce
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fastapi_ecommerce
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce -d fastapi_ecommerce"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   app:
     build:
       context: .
@@ -10,6 +29,11 @@ services:
       - .env
     environment:
       - URL=http://app:8000
+      - SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://ecommerce:postgres@postgres:5432/fastapi_ecommerce
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
   app_support:
     build:
@@ -22,3 +46,11 @@ services:
       - .env
     environment:
       - URL_SUPPORT=http://app_support:8001
+      - SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://ecommerce:postgres@postgres:5432/fastapi_ecommerce
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
