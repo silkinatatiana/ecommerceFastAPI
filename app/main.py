@@ -18,6 +18,7 @@ from app.routers.auth import auto_refresh_token
 from database.db_depends import get_db
 from database.db import Base, engine
 from app.log.log import LOGGER
+from config import Config
 
 logger = LOGGER
 logger.setLevel(logging.INFO)
@@ -44,7 +45,7 @@ app = FastAPI(lifespan=lifespan, redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[Config.ALLOW_ORIGIN],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

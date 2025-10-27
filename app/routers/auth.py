@@ -161,7 +161,7 @@ async def set_token(request: Request,
         value=new_access_token,
         httponly=True,
         max_age=int(Config.timedelta_token.total_seconds()),
-        secure=True,
+        secure=False,
         samesite='lax',
         path='/'
     )

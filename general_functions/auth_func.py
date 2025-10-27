@@ -91,7 +91,7 @@ def create_tokens_and_set_cookies(username: str,
         value=access_token,
         httponly=True,
         max_age=int(Config.timedelta_token.total_seconds()),
-        secure=True,
+        secure=False,
         samesite='lax',
         path='/'
     )
@@ -101,7 +101,7 @@ def create_tokens_and_set_cookies(username: str,
         value=refresh_token,
         httponly=True,
         max_age=int(Config.timedelta_refresh_token.total_seconds()),
-        secure=True,
+        secure=False,
         samesite='lax',
         path='/'
     )

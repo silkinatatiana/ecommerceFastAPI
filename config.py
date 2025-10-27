@@ -16,6 +16,7 @@ class Config:
     API_HOST = os.getenv('API_HOST')
     API_PORT = os.getenv('API_PORT')
     API_PORT_SUPPORT = os.getenv('API_PORT_SUPPORT')
+    ALLOW_ORIGIN = os.getenv('ALLOW_ORIGIN')
     shop_name = 'PEAR'
     PAGE_SIZE = 10
     descr = os.getenv('DESCR')
