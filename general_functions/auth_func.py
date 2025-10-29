@@ -188,14 +188,14 @@ async def logout_func():
     response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
     response.delete_cookie(
         key="token",
-        secure=True,
+        secure=False,
         samesite='lax',
         path='/'
     )
 
     response.delete_cookie(
         key="refresh_token",
-        secure=True,
+        secure=False,
         samesite='lax',
         path='/'
     )
