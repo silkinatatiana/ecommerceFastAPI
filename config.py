@@ -21,7 +21,7 @@ class Config:
     PAGE_SIZE = 10
     descr = os.getenv('DESCR')
     SQLALCHEMY_DATABASE_URL = os.getenv('SQLALCHEMY_DATABASE_URL')
-    timedelta_token = timedelta(minutes=1)
+    timedelta_token = timedelta(minutes=5)
     timedelta_refresh_token = timedelta(days=7)
     token_auto_refresh_threshold = 1
 

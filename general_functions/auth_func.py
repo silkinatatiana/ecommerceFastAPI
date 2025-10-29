@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 from typing import Annotated, Dict, Any, Optional
 
-import jwt
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer

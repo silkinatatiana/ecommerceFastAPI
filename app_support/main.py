@@ -131,16 +131,6 @@ async def log_requests(request: Request, call_next):
         raise
 
 
-# class NoCacheStaticFiles(StaticFiles):
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#
-#     async def get_response(self, path, scope):
-#         response = await super().get_response(path, scope)
-#         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
-#         return response
-
-
 @app.get('/', response_class=HTMLResponse)
 async def get_main_page(request: Request,
                         db: AsyncSession = Depends(get_db),

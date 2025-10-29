@@ -169,36 +169,32 @@ async def set_token(request: Request,
 
 
 async def auto_refresh_token(request: Request, call_next):
-    access_token = request.cookies.get("token")
-    refresh_token = request.cookies.get("refresh_token")
-
     if request.url.path.startswith("/auth/"):
         return await call_next(request)
 
-    if not access_token or not refresh_token:
+    access_token = request.cookies.get("token")
+    refresh_token = request.cookies.get("refresh_token")
+
+    if not access_token and not refresh_token:
         return await call_next(request)
 
-    try:
-        payload = jwt.decode(access_token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
-        exp = payload.get("exp")
-        if exp is None:
-            raise JWTError("No exp in access token")
+    now = datetime.now(timezone.utc)
 
-        now = datetime.now(timezone.utc)
-        token_expire_time = datetime.fromtimestamp(exp, tz=timezone.utc)
-        time_until_expire = token_expire_time - now
+    if access_token:
+        try:
+            payload = jwt.decode(access_token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
+            exp = payload.get("exp")
+            if exp is not None:
+                token_expire_time = datetime.fromtimestamp(exp, tz=timezone.utc)
+                time_until_expire = token_expire_time - now
 
-        if timedelta(seconds=20) < time_until_expire < timedelta(minutes=Config.token_auto_refresh_threshold):
-            return await set_token(
-                request=request,
-                token=access_token,
-                secret_key=Config.SECRET_KEY,
-                call_next=call_next
-            )
-        else:
-            return await call_next(request)
+                if time_until_expire > timedelta(seconds=20):
+                    return await call_next(request)
 
-    except jwt.ExpiredSignatureError:
+        except (jwt.ExpiredSignatureError, JWTError):
+            pass
+
+    if refresh_token:
         try:
             refresh_payload = jwt.decode(
                 refresh_token,
@@ -208,21 +204,29 @@ async def auto_refresh_token(request: Request, call_next):
             if refresh_payload.get("type") != "refresh":
                 raise JWTError("Invalid refresh token type")
 
-            return await set_token(
-                request=request,
-                token=refresh_token,
-                secret_key=Config.SECRET_KEY,
-                call_next=call_next
+            new_access_token = create_access_token(
+                username=refresh_payload["sub"],
+                user_id=refresh_payload["id"],
+                role=refresh_payload["role"],
+                is_admin=refresh_payload.get("is_admin", False)
             )
+
+            response = await call_next(request)
+            response.set_cookie(
+                key="token",
+                value=new_access_token,
+                httponly=True,
+                max_age=int(Config.timedelta_token.total_seconds()),
+                secure=False,
+                samesite="lax",
+                path="/"
+            )
+            return response
 
         except JWTError:
             pass
 
-    except JWTError:
-        pass
-
     return await call_next(request)
-
 
 @router.get('/logout')
 async def logout():
