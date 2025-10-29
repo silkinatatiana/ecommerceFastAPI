@@ -35,5 +35,5 @@ alembic/versions/*.pyc
 ehthumbs.db
 Desktop.ini
 
-logs
+logsс
 *.logs
