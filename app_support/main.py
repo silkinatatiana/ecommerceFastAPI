@@ -96,13 +96,6 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 
-@app.on_event("startup")
-async def startup():
-    logger.info("Приложение запущено")
-    for route in app.routes:
-        print(f"{route.path} -> {route.name}")
-
-
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
