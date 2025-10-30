@@ -27,7 +27,8 @@ async def send_message(chat_id: int,
         if not chat or not chat.active:
             raise HTTPException(status_code=400, detail="Чат неактивен")
 
-        await create_message(chat_id=chat_id,
+        await create_message(db=db,
+                             chat_id=chat_id,
                              sender_id=employee_id,
                              message=message
         )

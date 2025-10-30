@@ -71,7 +71,7 @@ async def change_status(order_id: int,
     try:
         await checking_access_rights(token=token, roles=['support'])
 
-        await update_status(order_id=order_id, new_status=status_obj.new_status, db=db)
+        await update_status(db=db, order_id=order_id, new_status=status_obj.new_status)
         if status_obj.new_status == 'CANCELLED':
             order = await get_orders(db=db, order_id=order_id)
             for product_id, product_info in order.products.items():
