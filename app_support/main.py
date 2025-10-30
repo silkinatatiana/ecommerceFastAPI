@@ -152,12 +152,13 @@ async def get_main_page(request: Request,
     result = await db.execute(select(Orders.user_id).distinct())
     users_ids = result.scalars().all()
 
+    unique_users = []
+    user_dict = {}
+
     if users_ids:
         users_result = await db.execute(select(User).where(User.id.in_(users_ids)))
         unique_users = users_result.scalars().all()
         user_dict = {user.id: user for user in unique_users}
-    else:
-        user_dict = {}
 
     all_orders_ids_result = await db.execute(select(Orders.id))
     all_order_ids = [r[0] for r in all_orders_ids_result.fetchall()]
