@@ -16,12 +16,6 @@ router = APIRouter(prefix='/reviews', tags=['reviews'])
 templates = Jinja2Templates(directory='app/templates/')
 
 
-# @router.get('/', response_model=list[CreateReviews])
-# async def all_reviews(db: AsyncSession = Depends(get_db)):
-#     reviews = await get_reviews(db=db)
-#     return reviews or []
-
-
 @router.get('/{product_id}', response_model=list[CreateReviews])
 async def product_reviews(db: Annotated[AsyncSession, Depends(get_db)],
                           product_id: int

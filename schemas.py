@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import List, Optional
 
@@ -37,15 +37,13 @@ class ProductOut(BaseModel):
     number_of_graphics_cores: Optional[int] = None
     color: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CreateCategory(BaseModel):
     name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CreateUser(BaseModel):
@@ -67,8 +65,7 @@ class Favorites(BaseModel):
     user_id: int
     product_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Cart(BaseModel):
@@ -77,8 +74,7 @@ class Cart(BaseModel):
     product_id: int
     count: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CartItem(BaseModel):
@@ -100,8 +96,7 @@ class OrderResponse(BaseModel):
     date: datetime
     status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderItem(BaseModel):

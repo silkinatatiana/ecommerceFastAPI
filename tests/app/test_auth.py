@@ -1,22 +1,32 @@
 import pytest
+
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.crud.users import get_user
 
 
-@pytest.mark.asyncio
-async def test_register(client: AsyncClient, db: AsyncSession):
-    response = await client.post("/auth/register", json={
-        "first_name": "Test",
-        "last_name": "User",
-        "username": "testuser123",
-        "email": "test123@example.com",
-        "password": "pass123",
-        "confirm_password": "pass123",
-        "role": "customer"
-    })
-    assert response.status_code == 200
+class TestAuth:
+    @pytest.mark.positive
+    async def test_register(self, client: AsyncClient, db: AsyncSession, test_data_user):
+        response = await client.post("/auth/register", json=test_data_user)
+        assert response.status_code == 303
 
-    user = await get_user(username="testuser123")
-    assert user is not None
-    assert user.email == "test123@example.com"
+        user = await get_user(db=db, username=test_data_user["username"])
+        assert user is not None
+        assert user.email == test_data_user["email"]
+
+    @pytest.mark.negative
+    async def test_register2(self, client: AsyncClient, db: AsyncSession, test_data_user_negative):
+        response = await client.post("/auth/register", json=test_data_user_negative)
+        assert response.status_code == 400
+
+        user = await get_user(db=db, username=test_data_user_negative["username"])
+        assert user is None
+
+    @pytest.mark.negative
+    async def test_login(self,  client: AsyncClient, db: AsyncSession, login_data_negative):
+        response = await client.post("/auth/login", json=login_data_negative)
+        assert response.status_code == 401
+
+        user = await get_user(db=db, username=login_data_negative["username"])
+        assert user is None

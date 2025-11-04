@@ -52,7 +52,7 @@ app.add_middleware(
 )
 
 templates = Jinja2Templates(directory="app/templates")
-app.mount("/static", NoCacheStaticFiles(directory="app/static"), name="static")
+# app.mount("/static", NoCacheStaticFiles(directory="app/static"), name="static")
 
 app.include_router(products.router)
 app.include_router(auth.router)

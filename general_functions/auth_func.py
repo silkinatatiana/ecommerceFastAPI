@@ -210,16 +210,12 @@ async def checking_access_rights(token: Optional[str],
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Пользователь не авторизован"
         )
-
     user = await get_current_user(token)
-
     if user.get("is_admin"):
         return user["id"]
-
     if user.get("role") not in roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Нет прав доступа"
         )
-
     return user["id"]

@@ -228,6 +228,7 @@ async def auto_refresh_token(request: Request, call_next):
 
     return await call_next(request)
 
+
 @router.get('/logout')
 async def logout():
     response = await logout_func()

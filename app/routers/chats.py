@@ -138,9 +138,7 @@ async def chats_close(chat_id: int,
 ):
     try:
         await checking_access_rights(token=token, roles=['customer', 'seller'])
-
         await update_chat_status(chat_id=chat_id, db=db)
-
     except HTTPException as e:
         if e.status_code == 401:
             return RedirectResponse(url="/auth/create", status_code=303)

@@ -31,7 +31,7 @@
 
         <div class="expandable-section">
             {% for product in products %}
-            <a href="http://127.0.0.1:8000/products/{{ product.id }}" class="product-item" target="_blank">
+            <a href="/products/{{ product.id }}" class="product-item" target="_blank">
                 {% if product.image_url %}
                     <img src="{{ product.image_url }}" alt="{{ product.name }}" class="product-image"
                          onerror="this.src='/static/images/placeholder-product.jpg'">

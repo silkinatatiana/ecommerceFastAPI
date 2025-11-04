@@ -18,7 +18,7 @@ from schemas import CreateProduct, ProductOut
 from models import *
 from models import Review
 from general_functions.cart_func import get_in_cart_product_ids
-from general_functions.auth_func import get_current_user, get_user_id_by_token, checking_access_rights
+from general_functions.auth_func import get_current_user, checking_access_rights
 from general_functions.favorites_func import get_favorite_product_ids
 from config import Config
 
@@ -63,7 +63,6 @@ async def create_product(db: Annotated[AsyncSession, Depends(get_db)],
     try:
         supplier_id = await checking_access_rights(token=token, roles=['seller'])
         category = await get_category(db=db, category_id=product_data.category_id)
-
         if not category:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
