@@ -24,6 +24,7 @@ class Config:
     timedelta_token = timedelta(minutes=5)
     timedelta_refresh_token = timedelta(days=7)
     token_auto_refresh_threshold = 1
+    TESTING = os.getenv('TESTING', False)
 
 
 class Statuses:

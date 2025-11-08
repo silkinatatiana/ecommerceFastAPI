@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, status, HTTPException, Cookie
+from fastapi import APIRouter, Depends, status, HTTPException, Cookie, Body
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
@@ -31,7 +31,7 @@ async def get_favorites(token: Optional[str] = Cookie(None, alias='token'),
 
 
 @router.post('/', status_code=status.HTTP_201_CREATED)
-async def create_favorites(product_id: int,
+async def create_favorites(product_id: int = Body(..., embed=True),
                            token: Optional[str] = Cookie(None, alias='token'),
                            db: AsyncSession = Depends(get_db)
 ):
@@ -61,7 +61,7 @@ async def create_favorites(product_id: int,
 
 
 @router.delete('/', status_code=status.HTTP_204_NO_CONTENT)
-async def del_favorite_product(product_id: int,
+async def del_favorite_product(product_id: int = Body(..., embed=True),
                                token: Optional[str] = Cookie(None, alias='token'),
                                db: AsyncSession = Depends(get_db)):
     try:

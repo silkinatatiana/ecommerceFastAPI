@@ -68,9 +68,7 @@ async def create_product(db: Annotated[AsyncSession, Depends(get_db)],
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='NOT FOUND'
             )
-
         product = await create_new_product(db=db, product_data=product_data, supplier_id=supplier_id)
-
         return product
 
     except HTTPException as e:

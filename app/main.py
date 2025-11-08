@@ -8,20 +8,55 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.cors import CORSMiddleware
-from loguru import logger
 from contextlib import asynccontextmanager
 import logging
+import sys
+from pathlib import Path
 
+from config import Config
 from app.functions.main_func import parse_int_list, auth_user, handle_partial_request, build_full_page_context
 from app.routers import category, products, auth, reviews, favorites, cart, orders, chats, messages
 from app.routers.auth import auto_refresh_token
 from database.db_depends import get_db
 from database.db import Base, engine
-from app.log.log import LOGGER
-from config import Config
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
+LOGGER.propagate = False
+
+if LOGGER.handlers:
+    LOGGER.handlers.clear()
+
+
+class ColorFormatter(logging.Formatter):
+    colors = {
+        'INFO': '\033[92m',
+        'WARNING': '\033[93m',
+        'ERROR': '\033[91m',
+        'RESET': '\033[0m'
+    }
+
+    def format(self, record):
+        color = self.colors.get(record.levelname, self.colors['RESET'])
+        message = super().format(record)
+        return f"{color}{message}{self.colors['RESET']}"
+
+
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(ColorFormatter('%(asctime)s - %(levelname)s - %(message)s'))
+LOGGER.addHandler(console_handler)
+
+
+if not Config.TESTING:
+    LOG_DIR = Path("logs")
+    LOG_DIR.mkdir(exist_ok=True)
+    LOG_FILE = LOG_DIR / "all_logs.log"
+
+    file_handler = logging.FileHandler(LOG_FILE, encoding='utf-8')
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    LOGGER.addHandler(file_handler)
 
 logger = LOGGER
-logger.setLevel(logging.INFO)
 
 
 @asynccontextmanager
@@ -32,9 +67,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 class NoCacheStaticFiles(StaticFiles):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     async def get_response(self, path, scope):
         response = await super().get_response(path, scope)
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
@@ -52,7 +84,7 @@ app.add_middleware(
 )
 
 templates = Jinja2Templates(directory="app/templates")
-# app.mount("/static", NoCacheStaticFiles(directory="app/static"), name="static")
+app.mount("/static", NoCacheStaticFiles(directory="app/static"), name="static")
 
 app.include_router(products.router)
 app.include_router(auth.router)
@@ -87,7 +119,7 @@ def custom_openapi():
             if "security" not in method:
                 method["security"] = [{"CookieAuth": []}]
     app.openapi_schema = openapi_schema
-    return app.openapi_schema
+    return openapi_schema
 
 
 app.openapi = custom_openapi
@@ -122,14 +154,15 @@ async def log_requests(request: Request, call_next):
 
 
 @app.get('/', response_class=HTMLResponse)
-async def get_main_page(request: Request,
-                        db: Annotated[AsyncSession, Depends(get_db)],
-                        token: Optional[str] = Cookie(None, alias='token'),
-                        category_id: Optional[str] = Query(None),
-                        colors: Optional[str] = Query(None),
-                        built_in_memory: Optional[str] = Query(None),
-                        is_favorite: bool = Query(False),
-                        partial: bool = Query(False)
+async def get_main_page(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    token: Optional[str] = Cookie(None, alias='token'),
+    category_id: Optional[str] = Query(None),
+    colors: Optional[str] = Query(None),
+    built_in_memory: Optional[str] = Query(None),
+    is_favorite: bool = Query(False),
+    partial: bool = Query(False)
 ):
     user_data = await auth_user(token, db)
     selected_category_ids = parse_int_list(category_id)

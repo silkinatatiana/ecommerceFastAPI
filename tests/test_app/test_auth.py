@@ -7,13 +7,13 @@ from database.crud.users import get_user
 
 class TestAuth:
     @pytest.mark.positive
-    async def test_register(self, client: AsyncClient, db: AsyncSession, test_data_user):
-        response = await client.post("/auth/register", json=test_data_user)
+    async def test_register(self, client: AsyncClient, db: AsyncSession, get_user_data):
+        response = await client.post("/auth/register", json=get_user_data)
         assert response.status_code == 303
 
-        user = await get_user(db=db, username=test_data_user["username"])
+        user = await get_user(db=db, username=get_user_data["username"])
         assert user is not None
-        assert user.email == test_data_user["email"]
+        assert user.email == get_user_data["email"]
 
     @pytest.mark.negative
     async def test_register2(self, client: AsyncClient, db: AsyncSession, test_data_user_negative):

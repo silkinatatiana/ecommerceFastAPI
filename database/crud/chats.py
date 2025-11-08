@@ -59,7 +59,6 @@ async def update_chat_status(db: AsyncSession,
 ):
     query = update(Chats).where(Chats.id == chat_id).values(active=False)
     result = await db.execute(query)
-
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Chat not found")
     await db.commit()

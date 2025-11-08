@@ -22,7 +22,6 @@ async def send_message(chat_id: int,
 ):
     try:
         employee_id = await checking_access_rights(token=token, roles=['support'])
-
         chat = await get_chat(chat_id=chat_id, db=db)
         if not chat or not chat.active:
             raise HTTPException(status_code=400, detail="Чат неактивен")
