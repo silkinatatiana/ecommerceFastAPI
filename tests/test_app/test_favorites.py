@@ -1,5 +1,4 @@
 import pytest
-import json
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 

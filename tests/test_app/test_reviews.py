@@ -9,7 +9,11 @@ from database.crud.products import get_product
 
 class TestReviews:
     @pytest.mark.positive
-    async def test_get_reviews(self, client: AsyncClient, db: AsyncSession):
+    async def test_get_reviews(self, client: AsyncClient, db: AsyncSession, test_product_data, test_create_seller):
+        product = test_product_data
+        client.cookies.set("token", test_create_seller)
+        await client.post("/products/create", json=product)
+
         products = await get_product(db=db)
         assert products, "No products in DB for testing"
 
@@ -38,10 +42,15 @@ class TestReviews:
         assert data["product_id"] == product_id
 
     @pytest.mark.negative
-    async def test_create_review2(self, client: AsyncClient, db: AsyncSession, test_data_review):
+    async def test_create_review2(self, client: AsyncClient, db: AsyncSession, test_data_review, test_product_data, test_create_seller):
+        product = test_product_data
+        client.cookies.set("token", test_create_seller)
+        await client.post("/products/create", json=product)
         products = await get_product(db=db)
         assert products, "No products in DB for testing"
+
         product = choice(products)
+        client.cookies.clear()
         response = await client.post(f"/reviews/create_by/{product.id}", json=test_data_review)
         assert response.status_code == 401
 
