@@ -19,7 +19,8 @@ pytest_plugins = [
     "tests.fixtures.auth",
     "tests.fixtures.review",
     "tests.fixtures.user",
-    "tests.fixtures.products"
+    "tests.fixtures.products",
+    "tests.fixtures.message"
 ]
 
 engine = create_async_engine(
@@ -46,31 +47,252 @@ async def db() -> AsyncSession:
             yield session
 
 
-@pytest_asyncio.fixture(scope="function")
-async def client(db: AsyncSession) -> AsyncClient:
+async def register_and_login(ac: AsyncClient, role: str) -> str:
+    register_data = {
+        "first_name": fake.first_name(),
+        "last_name": fake.last_name(),
+        "username": fake.user_name(),
+        "email": fake.email(),
+        "password": "pass123123",
+        "confirm_password": "pass123123",
+        "role": role,
+    }
+    response = await ac.post("/auth/register", json=register_data)
+    assert response.status_code == 303, f"Registration failed: {response.status_code}, body: {response.text}"
+
+    token = ac.cookies.get("token")
+    assert token is not None, "Token cookie not set after registration"
+
+
+async def _create_client(app_instance, db: AsyncSession, role: str = None) -> AsyncClient:
     async def override_get_db():
         yield db
 
-    app.dependency_overrides[get_db] = override_get_db
+    app_instance.dependency_overrides[get_db] = override_get_db
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test"
-    ) as ac:
-        yield ac
-    app.dependency_overrides.clear()
+    ac = AsyncClient(transport=ASGITransport(app=app_instance), base_url="http://test")
+    await ac.__aenter__()
+
+    if role is not None:
+        await register_and_login(ac, role)
+
+    async def cleanup():
+        await ac.__aexit__(None, None, None)
+        app_instance.dependency_overrides.clear()
+
+    return ac, cleanup
+
+
+@pytest_asyncio.fixture(scope="function")
+async def unauthorized_client(db: AsyncSession) -> AsyncClient:
+    ac, cleanup = await _create_client(app, db, role=None)
+    yield ac
+    await cleanup()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def unauthorized_client_support(db: AsyncSession) -> AsyncClient:
+    ac, cleanup = await _create_client(app_support, db, role=None)
+    yield ac
+    await cleanup()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client_customer(db: AsyncSession) -> AsyncClient:
+    ac, cleanup = await _create_client(app, db, role="customer")
+    yield ac
+    await cleanup()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client_seller(db: AsyncSession) -> AsyncClient:
+    ac, cleanup = await _create_client(app, db, role="seller")
+    yield ac
+    await cleanup()
 
 
 @pytest_asyncio.fixture(scope="function")
 async def client_support(db: AsyncSession) -> AsyncClient:
-    async def override_get_db():
-        yield db
+    ac, cleanup = await _create_client(app_support, db, role="support")
+    yield ac
+    await cleanup()
 
-    app_support.dependency_overrides[get_db] = override_get_db
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app_support),
-        base_url="http://test"
-    ) as ac:
-        yield ac
-    app_support.dependency_overrides.clear()
+@pytest_asyncio.fixture(params=["customer", "seller"])
+async def client_any(db: AsyncSession, request) -> AsyncClient:
+    ac, cleanup = await _create_client(app, db, role=request.param)
+    yield ac
+    await cleanup()
+
+
+@pytest_asyncio.fixture(params=["customer", "seller"])
+async def client_any_support(db: AsyncSession, request) -> AsyncClient:
+    ac, cleanup = await _create_client(app_support, db, role=request.param)
+    yield ac
+    await cleanup()
+
+
+# @pytest_asyncio.fixture(scope="function")
+# async def unauthorized_client(db: AsyncSession) -> AsyncClient: # client
+#     async def override_get_db():
+#         yield db
+#
+#     app.dependency_overrides[get_db] = override_get_db
+#
+#     async with AsyncClient(
+#         transport=ASGITransport(app=app),
+#         base_url="http://test"
+#     ) as ac:
+#         yield ac
+#     app.dependency_overrides.clear()
+#
+#
+# @pytest_asyncio.fixture(scope="function")
+# async def unauthorized_client_support(db: AsyncSession) -> AsyncClient: # client_support
+#     async def override_get_db():
+#         yield db
+#
+#     app_support.dependency_overrides[get_db] = override_get_db
+#
+#     async with AsyncClient(
+#         transport=ASGITransport(app=app_support),
+#         base_url="http://test"
+#     ) as ac:
+#         yield ac
+#     app_support.dependency_overrides.clear()
+#
+#
+# @pytest_asyncio.fixture(scope="function")
+# async def client(db: AsyncSession) -> AsyncClient:
+#     async def override_get_db():
+#         yield db
+#
+#     app.dependency_overrides[get_db] = override_get_db
+#
+#     async with AsyncClient(
+#         transport=ASGITransport(app=app),
+#         base_url="http://test"
+#     ) as ac:
+#         register_data = {
+#             "first_name": fake.first_name(),
+#             "last_name": fake.last_name(),
+#             "username": fake.user_name(),
+#             "email": fake.email(),
+#             "password": "pass123123",
+#             "confirm_password": "pass123123",
+#             "role": choice(["customer", "seller"])
+#         }
+#
+#         response = await ac.post("/auth/register", json=register_data)
+#         assert response.status_code == 303, f"Registration failed: {response.status_code}, body: {response.text}"
+#
+#         token = response.cookies.get("token")
+#         assert token is not None, "Token cookie not set after registration"
+#
+#         ac.cookies.set("token", token)
+#
+#         yield ac
+#
+#     app.dependency_overrides.clear()
+#
+#
+# @pytest_asyncio.fixture(scope="function")
+# async def client_customer(db: AsyncSession) -> AsyncClient:
+#     async def override_get_db():
+#         yield db
+#
+#     app.dependency_overrides[get_db] = override_get_db
+#
+#     async with AsyncClient(
+#         transport=ASGITransport(app=app),
+#         base_url="http://test"
+#     ) as ac:
+#         register_data = {
+#             "first_name": fake.first_name(),
+#             "last_name": fake.last_name(),
+#             "username": fake.user_name(),
+#             "email": fake.email(),
+#             "password": "pass123123",
+#             "confirm_password": "pass123123",
+#             "role": "customer"
+#         }
+#
+#         response = await ac.post("/auth/register", json=register_data)
+#         assert response.status_code == 303, f"Registration failed: {response.status_code}, body: {response.text}"
+#
+#         token = response.cookies.get("token")
+#         assert token is not None, "Token cookie not set after registration"
+#
+#         ac.cookies.set("token", token)
+#
+#         yield ac
+#
+#     app.dependency_overrides.clear()
+#
+#
+# @pytest_asyncio.fixture(scope="function")
+# async def client_seller(db: AsyncSession) -> AsyncClient:
+#     async def override_get_db():
+#         yield db
+#
+#     app.dependency_overrides[get_db] = override_get_db
+#
+#     async with AsyncClient(
+#         transport=ASGITransport(app=app),
+#         base_url="http://test"
+#     ) as ac:
+#         register_data = {
+#             "first_name": fake.first_name(),
+#             "last_name": fake.last_name(),
+#             "username": fake.user_name(),
+#             "email": fake.email(),
+#             "password": "pass123123",
+#             "confirm_password": "pass123123",
+#             "role": "seller"
+#         }
+#
+#         response = await ac.post("/auth/register", json=register_data)
+#         assert response.status_code == 303, f"Registration failed: {response.status_code}, body: {response.text}"
+#
+#         token = response.cookies.get("token")
+#         assert token is not None, "Token cookie not set after registration"
+#
+#         ac.cookies.set("token", token)
+#
+#         yield ac
+#
+#     app.dependency_overrides.clear()
+#
+#
+# @pytest_asyncio.fixture(scope="function")
+# async def client_support(db: AsyncSession) -> AsyncClient:
+#     async def override_get_db():
+#         yield db
+#
+#     app.dependency_overrides[get_db] = override_get_db
+#
+#     async with AsyncClient(
+#         transport=ASGITransport(app=app),
+#         base_url="http://test"
+#     ) as ac:
+#         register_data = {
+#             "first_name": fake.first_name(),
+#             "last_name": fake.last_name(),
+#             "username": fake.user_name(),
+#             "email": fake.email(),
+#             "password": "pass123123",
+#             "confirm_password": "pass123123",
+#             "role": "support"
+#         }
+#
+#         response = await ac.post("/auth/register", json=register_data)
+#         assert response.status_code == 303, f"Registration failed: {response.status_code}, body: {response.text}"
+#
+#         token = response.cookies.get("token")
+#         assert token is not None, "Token cookie not set after registration"
+#
+#         ac.cookies.set("token", token)
+#
+#         yield ac
+#
+#     app.dependency_overrides.clear()

@@ -3,6 +3,7 @@ from random import randint
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from database.crud.category import get_category
 from tests.conftest import fake
 from models import Category
 
@@ -31,3 +32,13 @@ async def test_product_data(db: AsyncSession):
     }
 
     return product_data
+
+
+@pytest_asyncio.fixture(scope="function")
+async def create_category_id(db: AsyncSession):
+    fake_category = 1
+    all_categories = await get_category(db=db)
+    all_category_ids = [cat.id for cat in all_categories]
+    if all_category_ids:
+        fake_category = max(all_category_ids) + 1
+    return fake_category

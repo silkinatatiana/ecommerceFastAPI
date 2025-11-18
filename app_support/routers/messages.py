@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from general_functions.auth_func import checking_access_rights
 from database.crud.chats import get_chat
-from database.crud.messages import create_message
+from database.crud.messages import create_message, get_message
 from database.db_depends import get_db
 
 router = APIRouter(prefix='/support/messages', tags=['messages'])
@@ -37,3 +37,19 @@ async def send_message(chat_id: int,
         if e.status_code == 401:
             return RedirectResponse(url="/auth/create", status_code=303)
         raise
+
+
+@router.get('/{chat_id}/messages')
+async def get_chat_messages(chat_id: int,
+                            token: str = Cookie(...),
+                            db: AsyncSession = Depends(get_db)
+):
+    await checking_access_rights(token=token, roles=['support'])
+    chat = await get_chat(chat_id=chat_id, db=db)
+    if not chat:
+        raise HTTPException(404)
+    messages = await get_message(chat_id=chat_id, sort_asc=True, db=db)
+    return {
+        "chat_id": chat.id,
+        "messages": messages
+    }

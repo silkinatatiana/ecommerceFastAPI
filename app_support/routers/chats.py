@@ -21,12 +21,11 @@ router = APIRouter(prefix='/support/chats', tags=['chats'])
 templates = Jinja2Templates(directory='app_support/templates')
 
 
-@router.get('/', response_class=HTMLResponse)
-async def get_all_chats(request: Request,
-                        status_filter: str = Query("active"),
-                        sort: str = Query("desc"),
-                        token: Optional[str] = Cookie(None, alias='token'),
-                        db: AsyncSession = Depends(get_db)
+@router.get('/all')
+async def get_chats_json(status_filter: str = Query("active"),
+                         sort: str = Query("desc"),
+                         token: Optional[str] = Cookie(None, alias='token'),
+                         db: AsyncSession = Depends(get_db)
 ):
     try:
         is_authenticated = False
@@ -61,8 +60,7 @@ async def get_all_chats(request: Request,
             last_msg = await get_message(chat_id=chat.id, sort_desc=True, limit=1, db=db)
             chat.last_message = last_msg
 
-        return templates.TemplateResponse("chats/chat_list.html", {
-            "request": request,
+        return {
             "chats": chats,
             "has_more": has_more,
             "next_page": 2 if has_more else None,
@@ -71,12 +69,35 @@ async def get_all_chats(request: Request,
             "shop_name": Config.shop_name,
             "descr": Config.descr,
             "is_authenticated": is_authenticated
-        })
+        }
+
     except HTTPException as e:
         if e.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN):
             return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
         else:
             raise
+
+
+@router.get('/', response_class=HTMLResponse)
+async def get_all_chats(request: Request,
+                        status_filter: str = Query("active"),
+                        sort: str = Query("desc"),
+                        token: Optional[str] = Cookie(None, alias='token'),
+                        db: AsyncSession = Depends(get_db)
+):
+    chat_data = await get_chats_json(status_filter=status_filter, sort=sort, token=token, db=db)
+
+    return templates.TemplateResponse("chats/chat_list.html", {
+        "request": request,
+        "chats": chat_data['chats'],
+        "has_more": chat_data['has_more'],
+        "next_page": 2 if chat_data['has_more'] else None,
+        "status_filter": chat_data['status_filter'],
+        "sort": chat_data['sort'],
+        "shop_name": Config.shop_name,
+        "descr": Config.descr,
+        "is_authenticated": chat_data['is_authenticated']
+    })
 
 
 @router.get('/load-more', response_class=HTMLResponse)

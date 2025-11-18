@@ -77,4 +77,5 @@ async def create_chat(db: AsyncSession,
     )
     db.add(chat_item)
     await db.commit()
+    return chat_item
 

@@ -25,8 +25,6 @@ async def get_category(db: AsyncSession,
 
     if category_id:
         query = query.where(Category.id == category_id)
-
-    if category_id:
         result = await db.scalar(query)
 
     else:

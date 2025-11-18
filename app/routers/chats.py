@@ -117,12 +117,12 @@ async def chat_create(chat_data: ChatCreate,
 
         employee_ids = await get_user(db=db, role='seller')
 
-        await create_chat(user_id=user_id,
-                          employee_id=choice(employee_ids).id,
-                          topic=chat_data.topic,
-                          db=db)
+        new_chat = await create_chat(user_id=user_id,
+                                     employee_id=choice(employee_ids).id,
+                                     topic=chat_data.topic,
+                                     db=db)
 
-        return {"message": f"Создан новый чат на тему: '{chat_data.topic}'"}
+        return new_chat
 
     except HTTPException as e:
         if e.status_code == 401:

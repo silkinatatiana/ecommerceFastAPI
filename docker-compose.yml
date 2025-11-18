@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: fastapi_ecommerce
     ports:
-      - "5432:5432"
+      - "7432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -29,7 +29,7 @@ services:
       - .env
     environment:
       - URL=http://app:8000
-      - SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://ecommerce:postgres@postgres:5432/fastapi_ecommerce
+      - SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://ecommerce:postgres@postgres:7432/fastapi_ecommerce
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,7 +46,7 @@ services:
       - .env
     environment:
       - URL_SUPPORT=http://app_support:8001
-      - SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://ecommerce:postgres@postgres:5432/fastapi_ecommerce
+      - SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://ecommerce:postgres@postgres:7432/fastapi_ecommerce
     depends_on:
       postgres:
         condition: service_healthy
