@@ -1,3 +1,4 @@
+import os
 import time
 from typing import AsyncGenerator, Optional, Annotated
 
@@ -12,6 +13,7 @@ from contextlib import asynccontextmanager
 import logging
 import sys
 from pathlib import Path
+import redis.asyncio as redis
 
 from config import Config
 from app.functions.main_func import parse_int_list, auth_user, handle_partial_request, build_full_page_context
@@ -61,9 +63,41 @@ logger = LOGGER
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
+    redis_client = None
+
+    try:
+        redis_client = redis.Redis(
+            host=os.getenv("REDIS_HOST", "localhost"), # TODO REDIS_HOST REDIS_PORT вынести в конфиг и определить как 1270001...
+            port=int(os.getenv("REDIS_PORT", 6379)),
+            db=int(os.getenv("REDIS_DB", 0)),
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+            retry_on_timeout=True,
+        )
+        await redis_client.ping()
+        app.state.redis = redis_client
+
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        yield
+
+    except redis.ConnectionError as e:
+        raise SystemExit("Redis is required — exiting.")
+    except Exception as e:
+        raise
+
+    finally:
+        if redis_client:
+            try:
+                await redis_client.aclose()
+            except Exception as e:
+                print(f"⚠️ Redis shutdown error: {e}")
+
+            try:
+                await engine.dispose()
+            except Exception as e:
+                print(f"⚠️ DB shutdown error: {e}")
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -154,7 +188,7 @@ async def log_requests(request: Request, call_next):
 
 
 @app.get('/', response_class=HTMLResponse)
-async def get_main_page(
+async def get_main_page( # TODO получать id рекомендованных товаров и возвращать в шаблон сами товары (не айди)
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     token: Optional[str] = Cookie(None, alias='token'),

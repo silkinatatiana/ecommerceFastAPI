@@ -17,6 +17,32 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+#  redisinsight:
+#    image: redis/redisinsight:latest
+#    container_name: redisinsight
+#    ports:
+#      - "8001:8001"
+#    environment:
+#      - REDISINSIGHT_HOSTS=redis://ecommerce-redis:6379
+#      # Опционально: если включите пароль в Redis, добавьте:
+#      # - REDISINSIGHT_PASSWORD=your_password
+#    depends_on:
+#      redis:
+#        condition: service_healthy
+#    restart: unless-stopped
 
   app:
     build:
@@ -29,10 +55,12 @@ services:
       - .env
     environment:
       - URL=http://app:8000
-      - SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://ecommerce:postgres@postgres:7432/fastapi_ecommerce
+      - SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://ecommerce:postgres@postgres:5432/fastapi_ecommerce
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy  # ← теперь можно использовать healthcheck
     restart: unless-stopped
 
   app_support:
@@ -41,14 +69,18 @@ services:
       dockerfile: Dockerfile.app_support
     container_name: app_support
     ports:
-      - "8001:8001"
+      - "8003:8003"
     env_file:
       - .env
     environment:
-      - URL_SUPPORT=http://app_support:8001
-      - SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://ecommerce:postgres@postgres:7432/fastapi_ecommerce
+      - URL_SUPPORT=http://app_support:8003
+      - SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://ecommerce:postgres@postgres:5432/fastapi_ecommerce
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 

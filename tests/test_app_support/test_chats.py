@@ -15,7 +15,7 @@ class TestChat:
         user = create_test_user
         await test_chat(user_id=user.id, employee_id=employee_id)
         response = await client_support.get("/support/chats/all")
-        assert response.status_code == 200 # TODO нужны ли здесь проверки из БД?
+        assert response.status_code == 200
 
     @pytest.mark.negative
     async def test_get_all_chats_negative(self, client_any_support: AsyncClient, db: AsyncSession):

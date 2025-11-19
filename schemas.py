@@ -143,3 +143,7 @@ class RegisterData(BaseModel):
 class LoginData(BaseModel):
     username: str
     password: str
+
+
+class RecommendOut(BaseModel):
+    ids: List[int]
