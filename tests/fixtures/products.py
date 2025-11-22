@@ -1,9 +1,11 @@
 from random import randint
 
 import pytest_asyncio
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.crud.category import get_category
+from database.crud.products import get_product
 from tests.conftest import fake
 from models import Category
 
@@ -42,3 +44,13 @@ async def create_category_id(db: AsyncSession):
     if all_category_ids:
         fake_category = max(all_category_ids) + 1
     return fake_category
+
+
+@pytest_asyncio.fixture(scope="function")
+async def create_product(client_seller: AsyncClient, db: AsyncSession, test_product_data):
+    product_data = test_product_data
+    response = await client_seller.post("/products/create", json=product_data)
+    created_product = response.json()
+    product_in_db = await get_product(db=db, product_id=created_product["id"])
+    assert created_product["name"] == product_in_db.name, "Товар не создан"
+    return product_in_db

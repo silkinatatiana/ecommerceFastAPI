@@ -12,11 +12,11 @@ import jwt
 from loguru import logger
 from starlette.responses import RedirectResponse
 
-from app.main import app
+# from app.main import app
 from database.crud.category import get_category
 from database.crud.products import get_product, get_products_with_filters, create_new_product
 from database.db_depends import get_db
-from schemas import CreateProduct, ProductOut, FavoritesOut, RecommendOut
+from schemas import CreateProduct, ProductOut, RecommendOut
 from models import *
 from models import Review
 from general_functions.cart_func import get_in_cart_product_ids
@@ -120,8 +120,8 @@ async def all_products(db: AsyncSession = Depends(get_db),
 
 @router.get('/by_category/{category_id}')
 async def products_by_category(category_id: int,
-                               user_id: int,
                                request: Request,
+                               user_id: Optional[int] = Query(None),
                                per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
                                colors: str = Query(None),
                                built_in_memory: str = Query(None),
@@ -266,36 +266,36 @@ async def product_detail_page(request: Request,
     )
 
 
-@router.get('/recommend_ids', response_model=RecommendOut)
-async def get_recommend_products_id(db: Annotated[AsyncSession, Depends(get_db)],
-                                    token: Optional[str] = Cookie(None, alias='token')
-):
-    try:
-        cache_key = f"recommend/{user_id}"
-        redis_client = app.state.redis
-
-        # Проверяем кеш
-        cached = await redis_client.get(cache_key)
-        if cached:
-            return {"ids": json.loads(cached)}
-
-        # Имитация тяжелой логики или запроса к БД
-        product_ids = await fetch_popular_product_ids_from_db()  # <- ваша функция # TODO функцию вынести в general_functions
-        # TODO id товаров из избранных, id со всех заказов, создать новую таблицу с просмотрами и добавлять в нее product_id user_id count (сколько раз посмотрел)
-        #  Все товары пересекать множествами и брать то что совпало.
-        # Кешируем на 10 минут
-        await redis_client.set(cache_key, json.dumps(product_ids), ex=600)  # переменную ex вынести в config и для каждого кэширования определять разные параметры
-
-        return {"ids": product_ids}
-
-    except HTTPException as e:
-        if e.status_code == 401:
-            return RedirectResponse(url="/auth/create", status_code=303)
-        raise
-
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+# @router.get('/recommend_ids', response_model=RecommendOut)
+# async def get_recommend_products_id(db: Annotated[AsyncSession, Depends(get_db)],
+#                                     token: Optional[str] = Cookie(None, alias='token')
+# ):
+#     try:
+#         cache_key = f"recommend/{user_id}"
+#         redis_client = app.state.redis # app нельзя импортировать - получается циклический импорт
+#
+#         # Проверяем кеш
+#         cached = await redis_client.get(cache_key)
+#         if cached:
+#             return {"ids": json.loads(cached)}
+#
+#         # Имитация тяжелой логики или запроса к БД
+#         product_ids = await fetch_popular_product_ids_from_db()  # <- ваша функция # TODO функцию вынести в general_functions
+#         # TODO id товаров из избранных, id со всех заказов, создать новую таблицу с просмотрами и добавлять в нее product_id user_id count (сколько раз посмотрел)
+#         #  Все товары пересекать множествами и брать то что совпало.
+#         # Кешируем на 10 минут
+#         await redis_client.set(cache_key, json.dumps(product_ids), ex=600)  # переменную ex вынести в config и для каждого кэширования определять разные параметры
+#
+#         return {"ids": product_ids}
+#
+#     except HTTPException as e:
+#         if e.status_code == 401:
+#             return RedirectResponse(url="/auth/create", status_code=303)
+#         raise
+#
+#     except Exception as e:
+#         await db.rollback()
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail=str(e)
+#         )

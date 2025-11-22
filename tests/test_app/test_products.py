@@ -14,58 +14,39 @@ from tests.functions import validate_json_response
 
 class TestProduct:
     @pytest.mark.positive
-    async def test_create_product(self, client: AsyncClient, db: AsyncSession, test_product_data, test_seller_token):
-        product = test_product_data
-        client.cookies.set("token", test_seller_token)
-        response = await client.post("/products/create", json=product)
-        assert response.status_code == 200
-
-        created_product = response.json()
-        product_id = created_product["id"]
-
-        product = await get_product(db=db, product_id=product_id)
-        assert product is not None
-        validate_json_response(json_data=product, schema_class=CreateProduct)
-        assert product.name == test_product_data["name"] # TODO зайти в БД проверить
+    async def test_create_product(self, client_seller: AsyncClient, db: AsyncSession, create_product):
+        new_product = await get_product(db=db, product_id=create_product.id)
+        assert new_product.category_id == create_product.category_id, f"Не создан товар в категории: {create_product.category_id}"
+        assert new_product.price == create_product.price, f"Не создан товар по цене: {create_product.price}"
+        assert new_product.stock == create_product.stock, f"Не создан товар в количестве: {create_product.stock}"
 
     @pytest.mark.positive
-    async def test_products_by_category(self, client: AsyncClient, db: AsyncSession, test_product_data, test_seller_token):
-        product = test_product_data
-        client.cookies.set("token", test_seller_token) # TODO разделить на авторизованных и неавторизованных клиентов (4 клиента в конфтест)
-        response = await client.post("/products/create", json=product)
-        created_product = response.json()
-        category_id = created_product["category_id"]
-        payload = jwt.decode(test_seller_token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
-        user_id = payload["id"]
-
-        response = await client.get(f"/products/by_category/{category_id}", params={"user_id": user_id})
+    async def test_products_by_category(self, unauthorized_client: AsyncClient, db: AsyncSession, create_product):
+        response = await unauthorized_client.get(f"/products/by_category/{create_product.category_id}")
         products_by_category = response.json()
-
         assert response.status_code == 200
-        assert all(prod["category_id"] == category_id for prod in products_by_category["products"])
+        assert all(prod["category_id"] == create_product.category_id for prod in products_by_category["products"])
 
     @pytest.mark.positive
-    async def test_products_by_category2(self, client: AsyncClient, db: AsyncSession, test_product_data, test_seller_token):
-        product = test_product_data
-        client.cookies.set("token", test_seller_token)
-        response = await client.post("/products/create", json=product)
-        created_product = response.json()
-        category_id = created_product["category_id"]
-        payload = jwt.decode(test_seller_token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
+    async def test_products_by_category2(self, client_any: AsyncClient, db: AsyncSession, create_product):
+        token = client_any.cookies.get("token")
+        payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
         user_id = payload["id"]
         colors = fake.word()
         built_in_memory: fake.word()
 
-        response = await client.get(f"/products/by_category/{category_id}",
+        response = await client_any.get(f"/products/by_category/{create_product.category_id}",
                                     params={"user_id": user_id, "colors": colors, "built_in_memory": built_in_memory})
         products_by_category = response.json()
 
         assert response.status_code == 200
-        assert all(prod["category_id"] == category_id for prod in products_by_category["products"])
+        assert all(prod["category_id"] == create_product.category_id for prod in products_by_category["products"])
 
     @pytest.mark.negative
-    async def test_products_by_category2(self, client: AsyncClient, db: AsyncSession, create_test_user, create_category_id):
+    async def test_products_by_category2(self, client_any: AsyncClient, db: AsyncSession, create_test_user, create_category_id):
         category_id = create_category_id
-        user = create_test_user
-        response = await client.get(f"/products/by_category/{category_id}", params={"user_id": user.id})
+        token = client_any.cookies.get("token")
+        payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
+        user_id = payload["id"]
+        response = await client_any.get(f"/products/by_category/{category_id}", params={"user_id": user_id})
         assert response.status_code == 404

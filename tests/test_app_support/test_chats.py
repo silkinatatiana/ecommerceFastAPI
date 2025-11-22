@@ -25,12 +25,7 @@ class TestChat:
         assert response.headers.get("Location") == "/auth/create"
 
     @pytest.mark.negative
-    async def test_chat_by_id(self, client_support: AsyncClient, db: AsyncSession):
-        chats = await get_chat(db=db)
-        chat_id = 1
-        all_chat_ids = [chat.id for chat in chats]
-        if all_chat_ids:
-            chat_id = max(all_chat_ids) + 1
-        response = await client_support.get(f"/support/chats/{chat_id}")
+    async def test_chat_by_id(self, client_support: AsyncClient, db: AsyncSession, fake_chat_id):
+        response = await client_support.get(f"/support/chats/{fake_chat_id}")
 
         assert response.status_code == 404

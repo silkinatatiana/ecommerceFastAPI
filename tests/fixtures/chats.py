@@ -1,6 +1,7 @@
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from database.crud.chats import get_chat
 from tests.conftest import fake
 from models import Chats
 
@@ -46,3 +47,13 @@ async def test_chat_create():
     return {
         "topic": fake.sentence()
     }
+
+
+@pytest_asyncio.fixture
+async def fake_chat_id(db: AsyncSession):
+    chats = await get_chat(db=db)
+    chat_id = 1
+    all_chat_ids = [chat.id for chat in chats]
+    if all_chat_ids:
+        chat_id = max(all_chat_ids) + 1
+    return chat_id
