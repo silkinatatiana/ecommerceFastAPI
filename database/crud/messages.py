@@ -18,6 +18,7 @@ async def create_message(db: AsyncSession,
     )
     db.add(message_item)
     await db.commit()
+    return message_item
 
 
 @handle_db_errors

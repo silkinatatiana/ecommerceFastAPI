@@ -119,7 +119,7 @@ async def get_order_detail(request: Request,
                     'name': product.name,
                     'price': product_data['price'],
                     'count': product_data['count'],
-                    'image_url': product.image_urls[0],
+                    'image_url': product.image_urls[0] if product.image_urls else "/static/images/default_image.png",
                     'item_total': item_total
                 })
                 total_amount += item_total

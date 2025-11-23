@@ -2,7 +2,6 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.crud.chats import get_chat
 from general_functions.auth_func import get_user_id_by_token
 
 

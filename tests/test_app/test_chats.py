@@ -5,18 +5,14 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.crud.chats import get_chat
-from general_functions.auth_func import get_user_id_by_token
 
 
 class TestChat:
 
     @pytest.mark.positive
-    async def test_chats_close(self, client_any: AsyncClient, client_support: AsyncClient, db: AsyncSession, test_chat):
-        token_support = client_support.cookies.get("token")
-        employee_id = get_user_id_by_token(token=token_support)
-        token_user = client_any.cookies.get("token")
-        user_id = get_user_id_by_token(token=token_user)
-
+    async def test_chats_close(self, client_any: AsyncClient, client_support: AsyncClient, db: AsyncSession, test_chat,
+                               user_and_employee_ids):
+        user_id, employee_id = user_and_employee_ids
         chat = await test_chat(user_id=user_id, employee_id=employee_id)
 
         response = await client_any.patch("/chats/close", params={"chat_id": chat.id})

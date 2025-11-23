@@ -54,3 +54,18 @@ async def create_product(client_seller: AsyncClient, db: AsyncSession, test_prod
     product_in_db = await get_product(db=db, product_id=created_product["id"])
     assert created_product["name"] == product_in_db.name, "Товар не создан"
     return product_in_db
+
+
+@pytest_asyncio.fixture(scope="function")
+def product_factory(client_seller: AsyncClient, db: AsyncSession, test_product_data):
+    async def _create_product(override_data: dict = None):
+        data = test_product_data.copy()
+        if override_data:
+            data.update(override_data)
+        response = await client_seller.post("/products/create", json=data)
+        assert response.status_code == 200
+        created_product = response.json()
+        product_in_db = await get_product(db=db, product_id=created_product["id"])
+        assert created_product["name"] == product_in_db.name
+        return product_in_db
+    return _create_product

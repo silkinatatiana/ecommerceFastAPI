@@ -1,8 +1,8 @@
 from typing import Optional
 
-import httpx
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie, Query
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, RedirectResponse
@@ -16,6 +16,7 @@ from database.db_depends import get_db
 from config import Config
 from general_functions.orders_func import fetch_orders_for_user
 from general_functions.product_func import update_stock
+from models import Cart
 from schemas import OrderResponse
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -105,13 +106,10 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
                                        summa=total_sum,
                                        db=db)
 
-        async with httpx.AsyncClient() as client:
-            response = await client.delete(
-                f"{Config.url}/cart/clear",
-                cookies={'token': token}
-            )
-            response.raise_for_status()
-            await db.commit()
+        await db.execute(
+            delete(Cart).where(Cart.user_id == user_id)
+        )
+        await db.commit()
 
         return {'message': 'Заказ оформлен!',
                 'order_id': order.id,
@@ -124,10 +122,9 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
 
     except Exception as e:
         await db.rollback()
-
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Ошибка базы данных: {str(e)}"
+            detail=f"Ошибка базы данных: {str(e) or type(e).__name__}"
         )
 
 

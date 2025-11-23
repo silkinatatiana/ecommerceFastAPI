@@ -75,7 +75,7 @@ async def messages_create(message_data: MessageCreate,
                           token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
-        user_id = await checking_access_rights(token=token, roles=['customer'])
+        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
 
         chat = await get_chat(chat_id=message_data.chat_id,
                               user_id=user_id,
@@ -85,12 +85,13 @@ async def messages_create(message_data: MessageCreate,
         if not chat:
             raise HTTPException(status_code=404, detail="Активный чат не найден")
 
-        await create_message(
+        message = await create_message(
             chat_id=message_data.chat_id,
             message=message_data.message,
             sender_id=user_id,
             db=db
         )
+        return message
 
     except HTTPException as e:
         if e.status_code == 401:

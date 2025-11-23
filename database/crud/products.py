@@ -14,7 +14,7 @@ async def create_new_product(db: AsyncSession,
                              supplier_id: int,
 ):
     product = Product(
-        **product_data.dict(exclude_unset=True),
+        **product_data.model_dump(exclude_unset=True),
         supplier_id=supplier_id
     )
 

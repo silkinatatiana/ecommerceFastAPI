@@ -1,5 +1,3 @@
-from random import randint
-
 import pytest
 from jose import jwt
 from httpx import AsyncClient
@@ -7,9 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import Config
 from database.crud.products import get_product
-from schemas import CreateProduct
 from tests.conftest import fake
-from tests.functions import validate_json_response
 
 
 class TestProduct:
