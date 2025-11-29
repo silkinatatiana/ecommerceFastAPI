@@ -1,7 +1,13 @@
+from asyncio import sleep
+from typing import List
+
 from fastapi import Depends
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from database.crud.favorites import get_favorite
+from database.crud.orders import get_orders
+from database.crud.views import get_all_views_by_user
 from models import Product
 from database.db_depends import get_db
 
@@ -40,4 +46,35 @@ async def update_stock(product_id: int,
     await db.execute(update_query)
     await db.commit()
     return {'message': 'Количество товара на складе обновлено'}
+
+
+async def get_recommend_product_ids(db: AsyncSession, user_id: int) -> List[int]:
+    favorites = await get_user_favorite_ids(user_id=user_id, db=db)
+    orders = await get_user_order_product_ids(user_id=user_id, db=db)
+    views = await get_user_viewed_product_ids(user_id=user_id, db=db)
+
+    combined = set(favorites) & set(orders) & set(views)
+    return sorted(combined)[:20]
+
+
+async def get_user_favorite_ids(db: AsyncSession, user_id: int) -> List[int]:
+    favorites = await get_favorite(db=db, user_id=user_id)
+    favorite_ids = [int(fav.id) for fav in favorites]
+    return favorite_ids
+
+
+async def get_user_order_product_ids(db: AsyncSession, user_id: int) -> List[int]:
+    all_user_orders = await get_orders(db=db, user_id=user_id)
+
+    product_ids: List[int] = []
+    for order in all_user_orders:
+        if order.products and isinstance(order.products, dict):
+            product_ids.extend(int(key) for key in order.products.keys())
+
+    return list(set(product_ids))
+
+
+async def get_user_viewed_product_ids(db: AsyncSession, user_id: int) -> List[int]:
+    all_views_by_user = await get_all_views_by_user(db=db, user_id=user_id)
+    return [view.product_id for view in all_views_by_user]
 

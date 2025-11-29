@@ -25,6 +25,9 @@ class Config:
     timedelta_refresh_token = timedelta(days=7)
     token_auto_refresh_threshold = 1
     TESTING = os.getenv('TESTING', False)
+    REDIS_HOST = os.getenv('REDIS_HOST')
+    REDIS_PORT = os.getenv('REDIS_PORT')
+    REDIS_DB = os.getenv('REDIS_DB')
 
 
 class Statuses:

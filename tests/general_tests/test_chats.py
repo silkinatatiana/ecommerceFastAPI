@@ -7,7 +7,7 @@ from tests.conftest import fake
 
 class TestChat:
 
-    @pytest.mark.positive
+    @pytest.mark.positive1
     async def test_new_message(self, client_any: AsyncClient, client_support: AsyncClient, db: AsyncSession, test_chat,
                                user_and_employee_ids):
         user_id, employee_id = user_and_employee_ids
@@ -28,8 +28,10 @@ class TestChat:
         message_to_support = response_support.json()
         assert message_to_support["chat_id"] == chat.id
 
-        messages = message_to_support["messages"]
-        sent_message = next((m for m in messages if m["message"] == message_text), None)
-        assert sent_message is not None, "Отправленное сообщение не найдено в чате"
-        assert sent_message["sender_id"] == user_id
-        assert sent_message["chat_id"] == chat.id
+        message = message_to_support["messages"]
+        assert len(message) == 1, f"Ожидалось 1 сообщение, получено: {len(message)}"
+        msg = message[0]
+        assert msg["chat_id"] == chat.id
+        assert msg["sender_id"] == user_id
+        assert msg["message"] == message_text
+        assert msg["id"] == message_from_user["id"]

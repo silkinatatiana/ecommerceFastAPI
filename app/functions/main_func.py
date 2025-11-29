@@ -225,6 +225,7 @@ async def build_full_page_context(
     db: AsyncSession,
     user_data: Dict[str, Any],
     selected_category_ids: List[int],
+    recommend_product_ids: List[int],
     colors: Optional[str],
     built_in_memory: Optional[str],
     is_favorite: bool
@@ -273,6 +274,8 @@ async def build_full_page_context(
             "current_page": current_page,
             "per_page": 3,
         }
+
+
 
     filters = await get_filters(db)
 

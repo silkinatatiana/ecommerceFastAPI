@@ -4,6 +4,7 @@ from typing import Annotated, Optional, List
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Query, Cookie
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy import select
@@ -12,10 +13,11 @@ import jwt
 from loguru import logger
 from starlette.responses import RedirectResponse
 
-# from app.main import app
 from database.crud.category import get_category
 from database.crud.products import get_product, get_products_with_filters, create_new_product
-from database.db_depends import get_db
+from database.crud.views import get_views_by_product_user, update_views_by_product_user, create_views_product
+from database.db_depends import get_db, get_redis
+from general_functions.product_func import get_recommend_product_ids
 from schemas import CreateProduct, ProductOut, RecommendOut
 from models import *
 from models import Review
@@ -169,6 +171,40 @@ async def products_by_category(category_id: int,
     }
 
 
+@router.get('/recommendations', response_model=RecommendOut)
+async def get_recommend_products_id(db: AsyncSession = Depends(get_db),
+                                    redis_client: Redis = Depends(get_redis),
+                                    token: Optional[str] = Cookie(None, alias='token'),
+):
+    user_id = await checking_access_rights(token=token, roles=['customer'])
+
+    cache_key = f"recommend:user:{user_id}"
+
+    cached = await redis_client.get(cache_key)
+    if cached:
+        try:
+            ids = json.loads(cached)
+            if isinstance(ids, list) and all(isinstance(x, int) for x in ids):
+                return RecommendOut(ids=ids)
+        except (json.JSONDecodeError, TypeError, ValueError) as e:
+            print(f"⚠️ Invalid cache data for {cache_key}: {e}")
+
+    try:
+        product_ids: List[int] = await get_recommend_product_ids(db, user_id)
+    except Exception as e:
+        print(f"❌ Recommendation generation failed for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate recommendations"
+        )
+
+    try:
+        await redis_client.setex(cache_key, 600, json.dumps(product_ids))
+    except Exception as e:
+        print(f"⚠️ Failed to cache recommendations for {user_id}: {e}")
+    return RecommendOut(ids=product_ids)
+
+
 @router.get('/{product_id}', response_class=HTMLResponse)
 async def product_detail_page(request: Request,
                               product_id: int,
@@ -189,7 +225,13 @@ async def product_detail_page(request: Request,
             user_id = current_user['id']
             role = current_user['role']
             is_authenticated = True
+            find_views = await get_views_by_product_user(user_id=user_id, product_id=product_id, db=db)
 
+            if find_views:
+                await update_views_by_product_user(user_id=user_id, product_id=product_id, db=db)
+
+            else:
+                await create_views_product(user_id=user_id, product_id=product_id, db=db)
             favorite_product_ids = await get_favorite_product_ids(user_id=current_user['id'], db=db)
             is_favorite = product_id in favorite_product_ids
 
@@ -264,38 +306,3 @@ async def product_detail_page(request: Request,
             "descr": Config.descr,
         }
     )
-
-
-# @router.get('/recommend_ids', response_model=RecommendOut)
-# async def get_recommend_products_id(db: Annotated[AsyncSession, Depends(get_db)],
-#                                     token: Optional[str] = Cookie(None, alias='token')
-# ):
-#     try:
-#         cache_key = f"recommend/{user_id}"
-#         redis_client = app.state.redis # app нельзя импортировать - получается циклический импорт
-#
-#         # Проверяем кеш
-#         cached = await redis_client.get(cache_key)
-#         if cached:
-#             return {"ids": json.loads(cached)}
-#
-#         # Имитация тяжелой логики или запроса к БД
-#         product_ids = await fetch_popular_product_ids_from_db()  # <- ваша функция # TODO функцию вынести в general_functions
-#         # TODO id товаров из избранных, id со всех заказов, создать новую таблицу с просмотрами и добавлять в нее product_id user_id count (сколько раз посмотрел)
-#         #  Все товары пересекать множествами и брать то что совпало.
-#         # Кешируем на 10 минут
-#         await redis_client.set(cache_key, json.dumps(product_ids), ex=600)  # переменную ex вынести в config и для каждого кэширования определять разные параметры
-#
-#         return {"ids": product_ids}
-#
-#     except HTTPException as e:
-#         if e.status_code == 401:
-#             return RedirectResponse(url="/auth/create", status_code=303)
-#         raise
-#
-#     except Exception as e:
-#         await db.rollback()
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail=str(e)
-#         )

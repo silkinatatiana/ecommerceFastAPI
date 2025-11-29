@@ -1,6 +1,14 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional, List
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Request, HTTPException
+
+from config import Config
 from database.crud.orders import get_orders
+from database.crud.users import get_user
+from general_functions.auth_func import checking_access_rights
+from models import Product
 
 
 async def fetch_orders_for_user(

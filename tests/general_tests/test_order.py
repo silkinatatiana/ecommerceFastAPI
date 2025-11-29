@@ -16,7 +16,7 @@ class TestOrder:
         token = client_customer.cookies.get("token")
         user_id = get_user_id_by_token(token=token)
 
-        for _ in range(randint(1, 3)):
+        for _ in range(3):
             product = await product_factory()
             count = randint(1, 10)
             response = await client_customer.post("/cart/add", json={"product_id": product.id, "count": count})
@@ -33,9 +33,10 @@ class TestOrder:
         created_order = response.json()
         order_id = created_order["order_id"]
 
-        response_support = await client_support.get(f"/support/order/{order_id}")
+        response_support = await client_support.get(f"/support/{order_id}")
 
         assert response_support.status_code == 200
-        html = response_support.text
-        assert str(order_id) in html
-        assert "Оформлен" in html
+        order_data = response_support.json()
+        assert order_data["order"]["id"] == order_id, f"Заказ с номером {order_id} не создан"
+        assert order_data["user"]["id"] == user_id, f"Заказ для пользователя № {user_id} не создан"
+

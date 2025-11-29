@@ -1,3 +1,4 @@
+import os
 import time
 from contextlib import asynccontextmanager
 from math import ceil
@@ -18,13 +19,12 @@ import logging
 from app.log.log import LOGGER
 from app.routers.auth import auto_refresh_token
 from app_support.functions.main_func import get_sort_column, build_pagination_url, build_sort_url, to_date_str
-from database.db import engine, Base
 from models import Orders, User
 from general_functions.auth_func import checking_access_rights
 from app_support.routers import orders, auth, chats, messages
 from database.db_depends import get_db
 from config import Config, Statuses
-
+from redis_client import init_redis
 
 logger = LOGGER
 logger.setLevel(logging.INFO)
@@ -32,9 +32,13 @@ logger.setLevel(logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
+    redis_client = await init_redis()
+    app.state.redis = redis_client
+
+    try:
+        yield
+    finally:
+        await redis_client.aclose()
 
 
 class NoCacheStaticFiles(StaticFiles):

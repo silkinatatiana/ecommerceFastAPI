@@ -1,4 +1,3 @@
-import os
 import time
 from typing import AsyncGenerator, Optional, Annotated
 
@@ -13,14 +12,15 @@ from contextlib import asynccontextmanager
 import logging
 import sys
 from pathlib import Path
-import redis.asyncio as redis
 
 from config import Config
 from app.functions.main_func import parse_int_list, auth_user, handle_partial_request, build_full_page_context
 from app.routers import category, products, auth, reviews, favorites, cart, orders, chats, messages
 from app.routers.auth import auto_refresh_token
+from database.db import engine, Base
 from database.db_depends import get_db
-from database.db import Base, engine
+from general_functions.product_func import get_recommend_product_ids
+from redis_client import init_redis
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
@@ -63,41 +63,22 @@ logger = LOGGER
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    redis_client = None
-
     try:
-        redis_client = redis.Redis(
-            host=os.getenv("REDIS_HOST", "localhost"), # TODO REDIS_HOST REDIS_PORT вынести в конфиг и определить как 1270001...
-            port=int(os.getenv("REDIS_PORT", 6379)),
-            db=int(os.getenv("REDIS_DB", 0)),
-            decode_responses=True,
-            socket_connect_timeout=5,
-            socket_timeout=5,
-            retry_on_timeout=True,
-        )
-        await redis_client.ping()
-        app.state.redis = redis_client
-
         async with engine.begin() as conn:
+            #  TODO тогда сначала build. Добавить Celery  и Flowers в docker-compose (обновить requirements.txt)
+            #  TODO создать таску в селери, которая будет формировать json {user_id: recommend_ids}
             await conn.run_sync(Base.metadata.create_all)
+
+        redis_client = await init_redis()
+        app.state.redis = redis_client
         yield
 
-    except redis.ConnectionError as e:
-        raise SystemExit("Redis is required — exiting.")
-    except Exception as e:
-        raise
-
     finally:
-        if redis_client:
-            try:
-                await redis_client.aclose()
-            except Exception as e:
-                print(f"⚠️ Redis shutdown error: {e}")
-
-            try:
-                await engine.dispose()
-            except Exception as e:
-                print(f"⚠️ DB shutdown error: {e}")
+        await redis_client.aclose()
+        try:
+            await engine.dispose()
+        except Exception as e:
+            print(f"⚠️ DB shutdown error: {e}")
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -200,6 +181,8 @@ async def get_main_page( # TODO получать id рекомендованны
 ):
     user_data = await auth_user(token, db)
     selected_category_ids = parse_int_list(category_id)
+    recommend_product_ids = await get_recommend_product_ids(db=db, user_id=user_data["user_id"])
+
 
     if partial:
         response = await handle_partial_request(
@@ -208,7 +191,7 @@ async def get_main_page( # TODO получать id рекомендованны
         return templates.TemplateResponse(*response)
 
     context = await build_full_page_context(
-        request, db, user_data, selected_category_ids,
+        request, db, user_data, selected_category_ids, recommend_product_ids,
         colors, built_in_memory, is_favorite
     )
 

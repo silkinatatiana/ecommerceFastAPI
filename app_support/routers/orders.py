@@ -86,11 +86,10 @@ async def change_status(order_id: int,
         )
 
 
-@router.get('/order/{order_id}', response_class=HTMLResponse)
-async def get_order_detail(request: Request,
-                           order_id: int,
-                           token: str = Cookie(None, alias='token'),
-                           db: AsyncSession = Depends(get_db)
+@router.get('/{order_id}')
+async def get_order_detail_json(order_id: int,
+                                token: str = Cookie(None, alias='token'),
+                                db: AsyncSession = Depends(get_db)
 ):
     try:
         await checking_access_rights(token=token, roles=['support'])
@@ -98,8 +97,7 @@ async def get_order_detail(request: Request,
         order = await get_orders(order_id=order_id, db=db)
         if not order:
             return templates.TemplateResponse(
-                "exceptions/not_found.html",
-                {"request": request}
+                "exceptions/not_found.html"
             )
 
         order_products = []
@@ -125,17 +123,14 @@ async def get_order_detail(request: Request,
                 total_amount += item_total
         order.date = order.date.strftime("%Y-%m-%d %H:%M")
 
-        context = {
-            'request': request,
+        order_data = {
             'order': order,
             'products': order_products,
             'total_amount': total_amount,
             'user': user,
-            'is_authenticated': True,
-            'shop_name': Config.shop_name,
-            'descr': Config.descr
+            'is_authenticated': True
         }
-        return templates.TemplateResponse("orders/order_page.html", context)
+        return order_data
 
     except HTTPException as e:
         if e.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN):
@@ -147,3 +142,24 @@ async def get_order_detail(request: Request,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка при загрузке страницы заказа: {str(e)}"
         )
+
+
+@router.get('/order/{order_id}', response_class=HTMLResponse)
+async def get_order_detail(request: Request,
+                           order_id: int,
+                           token: str = Cookie(None, alias='token'),
+                           db: AsyncSession = Depends(get_db)
+):
+        order_data = await get_order_detail_json(order_id=order_id, token=token, db=db)
+        context = {
+            'request': request,
+            'order': order_data['order'],
+            'products': order_data['order_products'],
+            'total_amount': order_data['total_amount'],
+            'user': order_data['user'],
+            'is_authenticated': True,
+            'shop_name': Config.shop_name,
+            'descr': Config.descr
+        }
+        return templates.TemplateResponse("orders/order_page.html", context)
+
