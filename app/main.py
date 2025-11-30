@@ -169,7 +169,7 @@ async def log_requests(request: Request, call_next):
 
 
 @app.get('/', response_class=HTMLResponse)
-async def get_main_page( # TODO получать id рекомендованных товаров и возвращать в шаблон сами товары (не айди)
+async def get_main_page(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     token: Optional[str] = Cookie(None, alias='token'),
@@ -182,7 +182,6 @@ async def get_main_page( # TODO получать id рекомендованны
     user_data = await auth_user(token, db)
     selected_category_ids = parse_int_list(category_id)
     recommend_product_ids = await get_recommend_product_ids(db=db, user_id=user_data["user_id"])
-
 
     if partial:
         response = await handle_partial_request(

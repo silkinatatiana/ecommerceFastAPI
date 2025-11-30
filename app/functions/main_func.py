@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt
 
 from app.routers import products
+from database.crud.products import get_product
 from database.db_depends import get_db
 from config import Config
 from general_functions.cart_func import get_in_cart_product_ids
@@ -230,6 +231,8 @@ async def build_full_page_context(
     built_in_memory: Optional[str],
     is_favorite: bool
 ) -> Dict[str, Any]:
+    recommend_products = await get_product(db=db, product_ids=recommend_product_ids)
+
     categories_data = await fetch_categories()
     categories_products = {}
 
@@ -275,8 +278,6 @@ async def build_full_page_context(
             "per_page": 3,
         }
 
-
-
     filters = await get_filters(db)
 
     all_colors = await get_filtered_values(
@@ -294,6 +295,7 @@ async def build_full_page_context(
         "request": request,
         "shop_name": Config.shop_name,
         "descr": Config.descr,
+        "recommend_products": recommend_products,
         "categories": list(categories_products.keys()),
         "colors": all_colors,
         "selected_colors": selected_colors_list,
