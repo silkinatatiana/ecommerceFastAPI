@@ -9,7 +9,7 @@
 
 {% block content %}
 <div class="main-content-wrapper">
-    {% if recommend_products and recommend_products|length > 0 %}
+    {% if is_authenticated and role == 'customer' and recommend_products %}
     <div class="recommended-section">
         <h2 class="recommended-title">Рекомендуем для вас</h2>
         <div class="recommended-slider">

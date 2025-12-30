@@ -7,6 +7,8 @@ from .cart import Cart
 from .orders import Orders
 from .chats import Chats
 from .messages import Messages
+from .views import Views
 
-__all__ = ["Product", "Category", "Review", "User", "Favorites", "Cart", "Orders", "Chats", "Messages"]
+
+__all__ = ["Product", "Category", "Review", "User", "Favorites", "Cart", "Orders", "Chats", "Messages", "Views"]
 

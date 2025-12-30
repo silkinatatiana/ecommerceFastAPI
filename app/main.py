@@ -1,6 +1,8 @@
 import time
 from typing import AsyncGenerator, Optional, Annotated
 
+import httpx
+from aiokafka import AIOKafkaProducer
 from fastapi import FastAPI, Request, Query, Depends, Cookie
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
@@ -19,7 +21,6 @@ from app.routers import category, products, auth, reviews, favorites, cart, orde
 from app.routers.auth import auto_refresh_token
 from database.db import engine, Base
 from database.db_depends import get_db
-from general_functions.product_func import get_recommend_product_ids
 from redis_client import init_redis
 
 LOGGER = logging.getLogger(__name__)
@@ -65,16 +66,17 @@ logger = LOGGER
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         async with engine.begin() as conn:
-            #  TODO тогда сначала build. Добавить Celery  и Flowers в docker-compose (обновить requirements.txt)
-            #  TODO создать таску в селери, которая будет формировать json {user_id: recommend_ids}
             await conn.run_sync(Base.metadata.create_all)
 
         redis_client = await init_redis()
         app.state.redis = redis_client
+
+        await producer.start()
         yield
 
     finally:
         await redis_client.aclose()
+        await producer.stop()
         try:
             await engine.dispose()
         except Exception as e:
@@ -97,7 +99,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+producer = AIOKafkaProducer(bootstrap_servers=Config.KAFKA_HOST)
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", NoCacheStaticFiles(directory="app/static"), name="static")
 
@@ -167,7 +169,6 @@ async def log_requests(request: Request, call_next):
         )
         raise
 
-
 @app.get('/', response_class=HTMLResponse)
 async def get_main_page(
     request: Request,
@@ -181,7 +182,28 @@ async def get_main_page(
 ):
     user_data = await auth_user(token, db)
     selected_category_ids = parse_int_list(category_id)
-    recommend_product_ids = await get_recommend_product_ids(db=db, user_id=user_data["user_id"])
+    recommend_product_ids = []
+
+    if token:
+        try:
+            async with httpx.AsyncClient(base_url=Config.url, timeout=3.0) as client:
+                headers = {"Cookie": f"token={token}"}
+                resp = await client.get("/products/recommendations", headers=headers)
+
+                if resp.status_code == 200:
+                    try:
+                        data = resp.json()
+                        recommend_product_ids = data.get("ids", [])
+                        if not isinstance(recommend_product_ids, list):
+                            recommend_product_ids = []
+                        recommend_product_ids = [x for x in recommend_product_ids if isinstance(x, int)]
+                    except Exception as e:
+                        logger.warning(f"Failed to parse recommendations JSON: {e}")
+                else:
+                    logger.info(f"Recommendations endpoint returned {resp.status_code} for user")
+
+        except Exception as e:
+            logger.warning(f"Error fetching recommendations: {e}")
 
     if partial:
         response = await handle_partial_request(

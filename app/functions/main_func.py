@@ -231,7 +231,9 @@ async def build_full_page_context(
     built_in_memory: Optional[str],
     is_favorite: bool
 ) -> Dict[str, Any]:
-    recommend_products = await get_product(db=db, product_ids=recommend_product_ids)
+    recommend_products = []
+    if recommend_product_ids:
+        recommend_products = await get_product(db=db, product_ids=recommend_product_ids)
 
     categories_data = await fetch_categories()
     categories_products = {}

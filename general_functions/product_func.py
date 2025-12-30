@@ -58,7 +58,7 @@ async def get_recommend_product_ids(db: AsyncSession, user_id: int) -> List[int]
 
 async def get_user_favorite_ids(db: AsyncSession, user_id: int) -> List[int]:
     favorites = await get_favorite(db=db, user_id=user_id)
-    favorite_ids = [int(fav.id) for fav in favorites]
+    favorite_ids = [int(fav.product_id) for fav in favorites]
     return favorite_ids
 
 

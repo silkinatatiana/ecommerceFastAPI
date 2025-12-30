@@ -17,7 +17,6 @@ from database.crud.category import get_category
 from database.crud.products import get_product, get_products_with_filters, create_new_product
 from database.crud.views import get_views_by_product_user, update_views_by_product_user, create_views_product
 from database.db_depends import get_db, get_redis
-from general_functions.product_func import get_recommend_product_ids
 from schemas import CreateProduct, ProductOut, RecommendOut
 from models import *
 from models import Review
@@ -172,37 +171,26 @@ async def products_by_category(category_id: int,
 
 
 @router.get('/recommendations', response_model=RecommendOut)
-async def get_recommend_products_id(db: AsyncSession = Depends(get_db),
-                                    redis_client: Redis = Depends(get_redis),
-                                    token: Optional[str] = Cookie(None, alias='token'),
+async def get_recommend_products_id(
+    redis_client: Redis = Depends(get_redis),
+    token: Optional[str] = Cookie(None, alias='token'),
 ):
-    user_id = await checking_access_rights(token=token, roles=['customer'])
+    try:
+        user_id = await checking_access_rights(token=token, roles=['customer'])
+    except Exception:
+        return RecommendOut(ids=[])
 
-    cache_key = f"recommend:user:{user_id}"
-
-    cached = await redis_client.get(cache_key)
-    if cached:
-        try:
-            ids = json.loads(cached)
+    try:
+        cached = await redis_client.get(Config.REDIS_RECOMMENDATIONS_KEY)
+        if cached:
+            users_recs = json.loads(cached)
+            ids = users_recs.get(str(user_id), [])
             if isinstance(ids, list) and all(isinstance(x, int) for x in ids):
                 return RecommendOut(ids=ids)
-        except (json.JSONDecodeError, TypeError, ValueError) as e:
-            print(f"⚠️ Invalid cache data for {cache_key}: {e}")
-
-    try:
-        product_ids: List[int] = await get_recommend_product_ids(db, user_id)
     except Exception as e:
-        print(f"❌ Recommendation generation failed for user {user_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate recommendations"
-        )
+        logger.warning(f"⚠️ Failed to get recommendations for user {user_id}: {e}")
 
-    try:
-        await redis_client.setex(cache_key, 600, json.dumps(product_ids))
-    except Exception as e:
-        print(f"⚠️ Failed to cache recommendations for {user_id}: {e}")
-    return RecommendOut(ids=product_ids)
+    return RecommendOut(ids=[])
 
 
 @router.get('/{product_id}', response_class=HTMLResponse)

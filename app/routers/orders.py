@@ -1,8 +1,10 @@
+import json
+import uuid
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie, Query
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, RedirectResponse
@@ -10,13 +12,12 @@ from starlette.responses import HTMLResponse, RedirectResponse
 from general_functions.auth_func import checking_access_rights
 from app.routers.cart import get_cart_by_user
 from database.crud.decorators import handler_base_errors
-from database.crud.orders import create_new_order, get_orders, update_status
+from database.crud.orders import get_orders, update_status
 from database.crud.products import get_product
 from database.db_depends import get_db
 from config import Config
 from general_functions.orders_func import fetch_orders_for_user
 from general_functions.product_func import update_stock
-from models import Cart
 from schemas import OrderResponse
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -68,12 +69,78 @@ async def get_order_by_id(order_id: int,
         raise
 
 
+# @router.post('/create', status_code=status.HTTP_201_CREATED)
+# async def create_order(token: Optional[str] = Cookie(None, alias='token'),
+#                        db: AsyncSession = Depends(get_db)):
+#     from app.main import producer
+#     try:
+#         user_id = await checking_access_rights(token=token, roles=['customer'])
+#
+#         if not user_id:
+#             raise HTTPException(
+#                 status_code=status.HTTP_404_NOT_FOUND,
+#                 detail='Пользователь не найден'
+#             )
+#
+#         order_products = await get_cart_by_user(token=token, db=db)
+#
+#         if not order_products:
+#             raise HTTPException(
+#                 status_code=status.HTTP_400_BAD_REQUEST,
+#                 detail='Корзина пуста'
+#             )
+#
+#         products_data = {}
+#         total_sum = 0
+#
+#         for product in order_products:
+#             await update_stock(product_id=product['product_id'], count=product['count'], db=db)
+#
+#             products_data[product['product_id']] = {
+#                 'price': product['product']['price'],
+#                 'count': product['count']
+#             }
+#
+#             total_sum += product['product']['price'] * product['count']
+#
+#         order = await create_new_order(user_id=user_id,
+#                                        products=products_data,
+#                                        summa=total_sum,
+#                                        db=db)
+#
+#         await db.execute(
+#             delete(Cart).where(Cart.user_id == user_id)
+#         )
+#         await db.commit()
+#
+#         value = json.dumps(order).encode("utf-8")
+#         await producer.send_and_wait(Config.KAFKA_ORDERS_TOPIC, value)
+#
+#         return {'message': 'Заказ оформлен!',
+#                 'order_id': order.id,
+#                 'redirect_url': f'/orders/{order.id}'}
+#
+#     except HTTPException as e:
+#         if e.status_code == 401:
+#             return RedirectResponse(url="/auth/create", status_code=303)
+#         raise
+#
+#     except Exception as e:
+#         await db.rollback()
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail=f"Ошибка базы данных: {str(e) or type(e).__name__}"
+#         )
+
 @router.post('/create', status_code=status.HTTP_201_CREATED)
-async def create_order(token: Optional[str] = Cookie(None, alias='token'),
-                       db: AsyncSession = Depends(get_db)):
+async def create_order(
+    token: Optional[str] = Cookie(None, alias='token'),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.main import producer, logger
+
     try:
         user_id = await checking_access_rights(token=token, roles=['customer'])
-
         if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -81,7 +148,6 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
             )
 
         order_products = await get_cart_by_user(token=token, db=db)
-
         if not order_products:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -92,28 +158,26 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         total_sum = 0
 
         for product in order_products:
-            await update_stock(product_id=product['product_id'], count=product['count'], db=db)
-
-            products_data[product['product_id']] = {
+            products_data[str(product['product_id'])] = {
                 'price': product['product']['price'],
                 'count': product['count']
             }
-
             total_sum += product['product']['price'] * product['count']
 
-        order = await create_new_order(user_id=user_id,
-                                       products=products_data,
-                                       summa=total_sum,
-                                       db=db)
+        order_payload = {
+            'user_id': user_id,
+            'products': products_data,
+            'total_sum': total_sum,
+            'created_at': datetime.utcnow().isoformat()
+        }
 
-        await db.execute(
-            delete(Cart).where(Cart.user_id == user_id)
-        )
-        await db.commit()
+        value = json.dumps(order_payload, ensure_ascii=False).encode('utf-8')
 
-        return {'message': 'Заказ оформлен!',
-                'order_id': order.id,
-                'redirect_url': f'/orders/{order.id}'}
+        await producer.send_and_wait(Config.KAFKA_ORDERS_TOPIC, value)
+
+        return {
+            'message': 'Заказ принят в обработку!'
+        }
 
     except HTTPException as e:
         if e.status_code == 401:
@@ -121,10 +185,10 @@ async def create_order(token: Optional[str] = Cookie(None, alias='token'),
         raise
 
     except Exception as e:
-        await db.rollback()
+        logger.exception("Ошибка при подготовке заказа")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Ошибка базы данных: {str(e) or type(e).__name__}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка создания заказа: {str(e)}"
         )
 
 

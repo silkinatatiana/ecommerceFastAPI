@@ -1,11 +1,13 @@
-import os
+import json
 import time
 from contextlib import asynccontextmanager
 from math import ceil
 from typing import Optional, List, AsyncGenerator
 from datetime import datetime
 from functools import partial
+import asyncio
 
+from aiokafka import AIOKafkaConsumer
 from fastapi import FastAPI, Request, Query, Depends, Cookie
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -18,6 +20,7 @@ import logging
 
 from app.log.log import LOGGER
 from app.routers.auth import auto_refresh_token
+from app_support.consumer import consume_orders
 from app_support.functions.main_func import get_sort_column, build_pagination_url, build_sort_url, to_date_str
 from models import Orders, User
 from general_functions.auth_func import checking_access_rights
@@ -34,11 +37,38 @@ logger.setLevel(logging.INFO)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     redis_client = await init_redis()
     app.state.redis = redis_client
+    consumer = AIOKafkaConsumer(
+        Config.KAFKA_ORDERS_TOPIC,
+        bootstrap_servers=Config.KAFKA_HOST,
+        group_id="orders-group",
+        auto_offset_reset="earliest",
+        value_deserializer=lambda v: json.loads(v.decode('utf-8')),
+    )
+
+    app.state.kafka_consumer = consumer
+    consumer_task = None
 
     try:
+        await consumer.start()
+        consumer_task = asyncio.create_task(consume_orders(consumer))
+        app.state.kafka_consumer_task = consumer_task
         yield
+    except Exception as e:
+        logger.exception(f"❌ Failed to start Kafka consumer: {e}")
+        raise
     finally:
+        if consumer_task and not consumer_task.done():
+            logger.info("Cancelling consumer task...")
+            consumer_task.cancel()
+            try:
+                await consumer_task
+            except asyncio.CancelledError:
+                logger.info("Consumer task cancelled")
+            except Exception as e:
+                logger.exception(f"Error while cancelling task: {e}")
+
         await redis_client.aclose()
+        await consumer.stop()
 
 
 class NoCacheStaticFiles(StaticFiles):

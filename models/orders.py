@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+import uuid
+
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, UUID
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.sql import func
 
@@ -15,3 +17,4 @@ class Orders(Base):
     summa = Column(Integer, nullable=False)
     date = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(String, nullable=False, server_default=Statuses.DESIGNED)
+    slug = Column(UUID, nullable=False, default=uuid.uuid4)

@@ -44,7 +44,7 @@ async def get_product(db: AsyncSession,
         query = query.where(Product.id == product_id)
 
     if product_ids:
-        query = query.where(Product.id.in_product_ids)
+        query = query.where(Product.id.in_(product_ids))
 
     if category_ids:
         query = query.where(Product.category_id.in_(category_ids))

@@ -28,6 +28,12 @@ class Config:
     REDIS_HOST = os.getenv('REDIS_HOST')
     REDIS_PORT = os.getenv('REDIS_PORT')
     REDIS_DB = os.getenv('REDIS_DB')
+    BROKER_URL = os.getenv('BROKER_URL')
+    REDIS_RECOMMENDATIONS_KEY = "recommendations_all"
+    RECOMMENDATIONS_TIME = 120
+    SCHEDULE_REC_MIN = "*/1"
+    KAFKA_ORDERS_TOPIC = os.getenv('KAFKA_ORDERS_TOPIC')
+    KAFKA_HOST = os.getenv('KAFKA_HOST')
 
 
 class Statuses:

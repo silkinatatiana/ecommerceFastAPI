@@ -1,5 +1,4 @@
 from fastapi import HTTPException, status
-from httpx import delete
 from sqlalchemy import select, update, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,6 +48,14 @@ async def get_user(db: AsyncSession,
         result = await db.execute(query_employee_ids)
         employee_ids = result.scalars().all()
         return employee_ids
+
+
+@handle_db_errors
+async def get_all_users(db: AsyncSession):
+    query = select(User)
+    result = await db.execute(query)
+    users = result.scalars().all()
+    return users
 
 
 @handle_db_errors
