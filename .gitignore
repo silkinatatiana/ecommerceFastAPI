@@ -37,3 +37,6 @@ Desktop.ini
 
 logsс
 *.logs
+
+celerybeat-schedule
+alembic/
