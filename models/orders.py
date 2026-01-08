@@ -17,4 +17,4 @@ class Orders(Base):
     summa = Column(Integer, nullable=False)
     date = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(String, nullable=False, server_default=Statuses.DESIGNED)
-    slug = Column(UUID, nullable=False, default=uuid.uuid4)
+    slug = Column(String, nullable=False)

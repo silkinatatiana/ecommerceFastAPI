@@ -94,7 +94,7 @@ function createOrderCard(order) {
             <p>Сумма: ${order.summa} руб.</p>
             <p>Статус: ${order.status}</p>
         </div>
-        <a href="/orders/order/${order.id}" class="btn btn-primary">Подробнее о заказе</a>
+        <a href="/orders/order/${encodeURIComponent(order.slug)}" class="btn btn-primary">Подробнее о заказе</a>
     `;
 
     return card;

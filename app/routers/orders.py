@@ -1,5 +1,6 @@
 import json
 import uuid
+from slugify import slugify
 from datetime import datetime
 from typing import Optional
 
@@ -45,8 +46,8 @@ async def get_orders_by_user_id(user_id: int,
         raise
 
 
-@router.get('/{order_id}', response_model=OrderResponse)
-async def get_order_by_id(order_id: int,
+@router.get('/{slug}', response_model=OrderResponse)
+async def get_order_by_slug(slug: str,
                           request: Request,
                           db: AsyncSession = Depends(get_db),
                           token: Optional[str] = Cookie(None, alias='token')
@@ -54,7 +55,7 @@ async def get_order_by_id(order_id: int,
     try:
         await checking_access_rights(token=token, roles=['customer'])
 
-        order = await get_orders(order_id=order_id, db=db)
+        order = await get_orders(order_slug=slug, db=db)
 
         if not order:
             return templates.TemplateResponse(
@@ -68,69 +69,6 @@ async def get_order_by_id(order_id: int,
             return RedirectResponse(url="/auth/create", status_code=303)
         raise
 
-
-# @router.post('/create', status_code=status.HTTP_201_CREATED)
-# async def create_order(token: Optional[str] = Cookie(None, alias='token'),
-#                        db: AsyncSession = Depends(get_db)):
-#     from app.main import producer
-#     try:
-#         user_id = await checking_access_rights(token=token, roles=['customer'])
-#
-#         if not user_id:
-#             raise HTTPException(
-#                 status_code=status.HTTP_404_NOT_FOUND,
-#                 detail='Пользователь не найден'
-#             )
-#
-#         order_products = await get_cart_by_user(token=token, db=db)
-#
-#         if not order_products:
-#             raise HTTPException(
-#                 status_code=status.HTTP_400_BAD_REQUEST,
-#                 detail='Корзина пуста'
-#             )
-#
-#         products_data = {}
-#         total_sum = 0
-#
-#         for product in order_products:
-#             await update_stock(product_id=product['product_id'], count=product['count'], db=db)
-#
-#             products_data[product['product_id']] = {
-#                 'price': product['product']['price'],
-#                 'count': product['count']
-#             }
-#
-#             total_sum += product['product']['price'] * product['count']
-#
-#         order = await create_new_order(user_id=user_id,
-#                                        products=products_data,
-#                                        summa=total_sum,
-#                                        db=db)
-#
-#         await db.execute(
-#             delete(Cart).where(Cart.user_id == user_id)
-#         )
-#         await db.commit()
-#
-#         value = json.dumps(order).encode("utf-8")
-#         await producer.send_and_wait(Config.KAFKA_ORDERS_TOPIC, value)
-#
-#         return {'message': 'Заказ оформлен!',
-#                 'order_id': order.id,
-#                 'redirect_url': f'/orders/{order.id}'}
-#
-#     except HTTPException as e:
-#         if e.status_code == 401:
-#             return RedirectResponse(url="/auth/create", status_code=303)
-#         raise
-#
-#     except Exception as e:
-#         await db.rollback()
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail=f"Ошибка базы данных: {str(e) or type(e).__name__}"
-#         )
 
 @router.post('/create', status_code=status.HTTP_201_CREATED)
 async def create_order(
@@ -164,11 +102,15 @@ async def create_order(
             }
             total_sum += product['product']['price'] * product['count']
 
+        timestamp = datetime.utcnow().strftime("%Y%m%d")
+        suffix = str(uuid.uuid4())[:6]
+        slug = slugify(f"order-{timestamp}-{suffix}")
+
         order_payload = {
             'user_id': user_id,
             'products': products_data,
             'total_sum': total_sum,
-            'created_at': datetime.utcnow().isoformat()
+            'slug': slug
         }
 
         value = json.dumps(order_payload, ensure_ascii=False).encode('utf-8')
@@ -176,7 +118,7 @@ async def create_order(
         await producer.send_and_wait(Config.KAFKA_ORDERS_TOPIC, value)
 
         return {
-            'message': 'Заказ принят в обработку!'
+            'slug': slug
         }
 
     except HTTPException as e:
@@ -224,10 +166,10 @@ async def cancel_order(order_id: int,
         )
 
 
-@router.get('/order/{order_id}', response_class=HTMLResponse)
+@router.get('/order/{order_slug}', response_class=HTMLResponse)
 @handler_base_errors
 async def order_page(request: Request,
-                     order_id: int,
+                     order_slug: str,
                      token: Optional[str] = Cookie(default=None, alias='token'),
                      db: AsyncSession = Depends(get_db)
 ):
@@ -238,8 +180,8 @@ async def order_page(request: Request,
 
         if user_id:
             is_authenticated = True
+        order = await get_orders(order_slug=order_slug, db=db)
 
-        order = await get_orders(order_id=order_id, db=db)
         if not order:
             return templates.TemplateResponse(
                 "exceptions/not_found.html",
@@ -251,7 +193,6 @@ async def order_page(request: Request,
 
         for product_id, product_data in order.products.items():
             product = await get_product(db=db, product_id=int(product_id))
-
             if product:
                 item_total = product_data['count'] * product_data['price']
                 order_products.append({
@@ -272,7 +213,7 @@ async def order_page(request: Request,
             'order': order,
             'products': order_products,
             'total_amount': total_amount,
-            "is_authenticated": is_authenticated,
+            'is_authenticated': is_authenticated,
             'user_id': user_id,
             'role': role,
             'shop_name': Config.shop_name,

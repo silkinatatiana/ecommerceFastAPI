@@ -12,12 +12,14 @@ async def create_new_order(db: AsyncSession,
                            user_id: int,
                            products: dict,
                            summa: int,
+                           slug: str
 
 ):
     order = Orders(
         user_id=user_id,
         products=products,
-        summa=summa
+        summa=summa,
+        slug=slug
     )
     db.add(order)
     await db.flush()
@@ -73,6 +75,7 @@ async def get_orders(db: AsyncSession,
 async def get_orders(
     db: AsyncSession,
     order_id: int = None,
+    order_slug: str = None,
     user_id: int = None,
     limit: int = None,
     offset: int = None,
@@ -92,6 +95,9 @@ async def get_orders(
     if order_id:
         query = query.where(Orders.id == order_id)
 
+    if order_slug:
+        query = query.where(Orders.slug == order_slug)
+
     if user_id:
         query = query.where(Orders.user_id == user_id)
 
@@ -106,7 +112,7 @@ async def get_orders(
 
     result = await db.execute(query)
 
-    if order_id or limit == 1:
+    if order_id or order_slug or limit == 1:
         return result.scalar_one_or_none()
     else:
         return result.scalars().all()

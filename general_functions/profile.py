@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 
 async def get_tab_by_section(section, templates, request, user, page, db, user_dict):
+    from app.main import logger
     return_dict = {
         "request": request,
         "user": user,

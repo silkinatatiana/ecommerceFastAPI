@@ -1,11 +1,10 @@
-from aiokafka import AIOKafkaConsumer
 import json
 
 from sqlalchemy import delete
 
-from app_support.main import logger
 from config import Config
 from database.crud.orders import create_new_order
+from database.db import async_session_maker
 from database.db_depends import get_db
 from general_functions.product_func import update_stock
 from models import Cart
@@ -15,13 +14,17 @@ KAFKA_BOOTSTRAP_SERVERS = Config.KAFKA_HOST
 
 
 async def consume_orders(consumer):
+    from app_support.main import logger
+
     try:
         async for msg in consumer:
+            logger.info(f"Получено сообщение (raw): {msg.value}")
+            logger.info(msg.value, type(msg.value))
             payload = msg.value
             logger.info(f"Получен заказ: {payload.get('user_id')}, {len(payload.get('products', {}))} товаров")
 
             try:
-                async with get_db() as db:
+                async with async_session_maker() as db:
                     for product_id_str, item in payload['products'].items():
                         product_id = int(product_id_str)
                         await update_stock(product_id=product_id, count=item['count'], db=db)
@@ -30,9 +33,11 @@ async def consume_orders(consumer):
                         user_id=payload['user_id'],
                         products=payload['products'],
                         summa=payload['total_sum'],
+                        slug=payload['slug'],
                         db=db
-                    )
 
+                    )
+                    logger.info(1)
                     await db.execute(
                         delete(Cart).where(Cart.user_id == payload['user_id'])
                     )
