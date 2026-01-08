@@ -90,6 +90,7 @@ async def register(register_data: RegisterData,
                                  last_name=register_data.last_name,
                                  username=register_data.username,
                                  email=register_data.email,
+                                 telegram=register_data.telegram,
                                  hashed_password=bcrypt_context.hash(register_data.password),
                                  role=register_data.role,
                                  db=db)

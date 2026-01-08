@@ -135,6 +135,7 @@ class RegisterData(BaseModel):
     last_name: str
     username: str
     email: str
+    telegram: str
     password: str
     confirm_password: str
     role: str
