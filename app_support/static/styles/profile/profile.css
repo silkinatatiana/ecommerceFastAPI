@@ -83,6 +83,19 @@ body {
     color: white;
 }
 
+.btn-verify-small {
+    background-color: rgba(44, 95, 138, 0.4); /* var(--primary-color) с прозрачностью */
+    color: white;
+    padding: 6px 12px; /* меньше стандартного */
+    font-size: 0.875rem; /* чуть мельче */
+    opacity: 0.9; /* общая полупрозрачность */
+}
+
+.btn-verify-small:hover {
+    background-color: rgba(44, 95, 138, 0.6); /* при наведении — менее прозрачный */
+    opacity: 1;
+}
+
 .btn-delete {
     background-color: red;
     color: white;

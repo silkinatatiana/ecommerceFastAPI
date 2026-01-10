@@ -19,6 +19,7 @@ from config import Config
 from app.functions.main_func import parse_int_list, auth_user, handle_partial_request, build_full_page_context
 from app.routers import category, products, auth, reviews, favorites, cart, orders, chats, messages
 from app.routers.auth import auto_refresh_token
+from app_support.kafka_producer import KafkaEventPublisher
 from database.db import engine, Base
 from database.db_depends import get_db
 from redis_client import init_redis
@@ -64,6 +65,7 @@ logger = LOGGER
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    redis_client = None
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -71,11 +73,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         redis_client = await init_redis()
         app.state.redis = redis_client
 
+        await verification_publisher.start()
+        app.state.kafka_producer = verification_publisher
+
         await producer.start()
         yield
 
     finally:
-        await redis_client.aclose()
+        if redis_client:
+            await redis_client.aclose()
+        try:
+            await verification_publisher.stop()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to stop verification publisher: %s", exc)
         await producer.stop()
         try:
             await engine.dispose()
@@ -100,6 +110,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 producer = AIOKafkaProducer(bootstrap_servers=Config.KAFKA_HOST)
+verification_publisher = KafkaEventPublisher()
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", NoCacheStaticFiles(directory="app/static"), name="static")
 

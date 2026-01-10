@@ -26,6 +26,23 @@
         <div class="info-value">{{ user.email }}</div>
     </div>
 
+    {% if is_verified %}
+    <div class="info-grid">
+        <div class="info-label">Telegram:</div>
+        <div class="info-value">@{{ user.tg_username }}</div>
+    </div>
+    {% else %}
+    <div class="info-grid">
+        <div class="info-label">Telegram ID:</div>
+        <div class="info-value">{{ user.tg_id or "не указан" }}</div>
+    </div>
+    <div>
+        <button type="button" class="btn btn-primary btn-verify-small" onclick="requestTelegramVerification()">
+            Подтвердить Telegram-аккаунт
+        </button>
+    </div>
+    {% endif %}
+
     <button class="btn btn-primary" onclick="toggleEditForm('profile')">Редактировать профиль</button>
 
     <div id="profile-edit-form" class="edit-form" style="display: none;">

@@ -58,6 +58,52 @@ async def personal_account(
         return response
 
 
+@router.post("/telegram/verification")
+async def request_telegram_verification(
+    request: Request,
+    token: Optional[str] = Cookie(None, alias="token"),
+    db: AsyncSession = Depends(get_db),
+):
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Необходима авторизация")
+
+    try:
+        user_dict = await get_current_user(token=token)
+        user = await get_user(user_id=user_dict["id"], db=db)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка получения пользователя: {exc}"
+        ) from exc
+
+    if user.is_verified:
+        return {"detail": "Профиль уже подтвержден"}
+
+    if not user.tg_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="В профиле отсутствует Telegram ID"
+        )
+
+    producer = getattr(request.app.state, "kafka_producer", None)
+    if not producer:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Сервис подтверждения недоступен, попробуйте позже"
+        )
+
+    await producer.send_verification_prompt(
+        tg_id=user.tg_id,
+        chat_id=user.tg_id,
+        user_id=user.id,
+        message="Подтвердите аккаунт в PEAR."
+    )
+
+    return {"detail": "Запрос отправлен. Проверьте сообщения бота в Telegram."}
+
+
 @router.get("/create", response_class=HTMLResponse)
 def create_auth_form(request: Request):
     return templates.TemplateResponse(

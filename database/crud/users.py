@@ -50,7 +50,6 @@ async def get_user(
         user = await db.scalar(select(User).where(User.id == user_id))
         return user
 
-    # Backward compatibility: treat "telegram" as telegram username
     if tg_id:
         user = await db.scalar(select(User).where(User.tg_id == tg_id))
         return user
