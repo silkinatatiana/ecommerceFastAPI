@@ -108,6 +108,27 @@ services:
     volumes:
       - .:/app_support
 
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: bot
+    ports:
+      - "8002:8002"
+    env_file:
+      - bot/.env
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - KAFKA_HOST=kafka:9092
+      - SUPPORT_TOPIC=user_auth_events
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - .:/bot
+
   celery:
     build:
       context: .

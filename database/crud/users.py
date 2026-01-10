@@ -7,19 +7,26 @@ from models import User
 
 
 @handle_db_errors
-async def create_user(db: AsyncSession,
-                      first_name: str,
-                      last_name: str,
-                      username: str,
-                      email:str,
-                      hashed_password: str,
-                      role: str
+async def create_user(
+    db: AsyncSession,
+    first_name: str,
+    last_name: str,
+    username: str,
+    email: str,
+    hashed_password: str,
+    role: str,
+    tg_id: int | None = None,
+    tg_username: str | None = None,
+    is_verified: bool | None = None,
 ):
     result = await db.execute(insert(User).values(
         first_name=first_name,
         last_name=last_name,
         username=username,
         email=email,
+        tg_id=tg_id,
+        tg_username=tg_username,
+        is_verified=is_verified if is_verified is not None else False,
         hashed_password=hashed_password,
         role=role
     ).returning(User))
@@ -30,13 +37,30 @@ async def create_user(db: AsyncSession,
 
 
 @handle_db_errors
-async def get_user(db: AsyncSession,
-                   user_id: int = None,
-                   username: str = None,
-                   role: str = None
+async def get_user(
+    db: AsyncSession,
+    user_id: int | None = None,
+    username: str | None = None,
+    telegram: str | None = None,
+    tg_id: int | None = None,
+    tg_username: str | None = None,
+    role: str | None = None
 ):
     if user_id:
         user = await db.scalar(select(User).where(User.id == user_id))
+        return user
+
+    # Backward compatibility: treat "telegram" as telegram username
+    if tg_id:
+        user = await db.scalar(select(User).where(User.tg_id == tg_id))
+        return user
+
+    if tg_username:
+        user = await db.scalar(select(User).where(User.tg_username == tg_username))
+        return user
+
+    if telegram:
+        user = await db.scalar(select(User).where(User.tg_username == telegram))
         return user
 
     if username:
@@ -59,12 +83,17 @@ async def get_all_users(db: AsyncSession):
 
 
 @handle_db_errors
-async def update_user_info(db: AsyncSession,
-                           user_id: int,
-                           hashed_password: str = None,
-                           first_name: str = None,
-                           last_name: str = None,
-                           email: str = None
+async def update_user_info(
+    db: AsyncSession,
+    user_id: int,
+    hashed_password: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    email: str | None = None,
+    telegram: str | None = None,
+    tg_id: int | None = None,
+    tg_username: str | None = None,
+    is_verified: bool | None = None
 ):
     update_data = {}
 
@@ -76,6 +105,14 @@ async def update_user_info(db: AsyncSession,
         update_data['last_name'] = last_name
     if email is not None:
         update_data['email'] = email
+    if telegram is not None:
+        update_data['tg_username'] = telegram
+    if tg_id is not None:
+        update_data['tg_id'] = tg_id
+    if tg_username is not None:
+        update_data['tg_username'] = tg_username
+    if is_verified is not None:
+        update_data['is_verified'] = is_verified
 
     if not update_data:
         raise HTTPException(
@@ -94,6 +131,27 @@ async def delete_user_from_db(db: AsyncSession,
 ):
     user = await get_user(db=db, user_id=user_id)
     await db.delete(user)
+    await db.commit()
+
+
+@handle_db_errors
+async def set_telegram_data(
+    db: AsyncSession,
+    user_id: int,
+    tg_id: int,
+    tg_username: str,
+    is_verified: bool = True
+):
+    """Persist Telegram linkage for the given user."""
+    await db.execute(
+        update(User)
+        .where(User.id == user_id)
+        .values(
+            tg_id=tg_id,
+            tg_username=tg_username,
+            is_verified=is_verified
+        )
+    )
     await db.commit()
 
 

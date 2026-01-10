@@ -44,6 +44,7 @@ document.getElementById('register-form').addEventListener('submit', async functi
         last_name: document.getElementById('register-last_name').value,
         username: document.getElementById('register-username').value,
         email: document.getElementById('register-email').value,
+        telegram: document.getElementById('register-telegram').value,
         password: document.getElementById('register-password').value,
         confirm_password: document.getElementById('register-confirm-password').value,
         role: 'support'

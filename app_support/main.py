@@ -20,7 +20,8 @@ import logging
 
 from app.log.log import LOGGER
 from app.routers.auth import auto_refresh_token
-from app_support.consumer import consume_orders
+from app_support.consumer import consume_orders, consume_support_events
+from app_support.kafka_producer import KafkaEventPublisher
 from app_support.functions.main_func import get_sort_column, build_pagination_url, build_sort_url, to_date_str
 from models import Orders, User
 from general_functions.auth_func import checking_access_rights
@@ -45,13 +46,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         value_deserializer=lambda v: json.loads(v.decode('utf-8')),
     )
 
+    support_consumer = AIOKafkaConsumer(
+        Config.SUPPORT_TOPIC,
+        bootstrap_servers=Config.KAFKA_HOST,
+        group_id="support-bot",
+        auto_offset_reset="earliest",
+        value_deserializer=lambda v: json.loads(v.decode('utf-8')),
+    )
+
+    producer = KafkaEventPublisher()
+
     app.state.kafka_consumer = consumer
+    app.state.kafka_support_consumer = support_consumer
+    app.state.kafka_producer = producer
     consumer_task = None
+    support_task = None
 
     try:
+        await producer.start()
         await consumer.start()
         consumer_task = asyncio.create_task(consume_orders(consumer))
         app.state.kafka_consumer_task = consumer_task
+        await support_consumer.start()
+        support_task = asyncio.create_task(consume_support_events(support_consumer))
+        app.state.kafka_support_consumer_task = support_task
         yield
     except Exception as e:
         logger.exception(f"❌ Failed to start Kafka consumer: {e}")
@@ -67,8 +85,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             except Exception as e:
                 logger.exception(f"Error while cancelling task: {e}")
 
+        if support_task and not support_task.done():
+            logger.info("Cancelling support consumer task...")
+            support_task.cancel()
+            try:
+                await support_task
+            except asyncio.CancelledError:
+                logger.info("Support consumer task cancelled")
+            except Exception as e:
+                logger.exception(f"Error while cancelling support task: {e}")
+
+        await producer.stop()
         await redis_client.aclose()
         await consumer.stop()
+        await support_consumer.stop()
 
 
 class NoCacheStaticFiles(StaticFiles):

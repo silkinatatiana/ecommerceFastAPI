@@ -77,6 +77,7 @@ def create_auth_form(request: Request):
 
 @router.post('/register')
 async def register(register_data: RegisterData,
+                   request: Request,
                    db: AsyncSession = Depends(get_db),
 ):
     if register_data.password != register_data.confirm_password:
@@ -86,14 +87,29 @@ async def register(register_data: RegisterData,
         )
 
     try:
+        tg_id = None
+        try:
+            tg_id = int(register_data.telegram)
+        except Exception:
+            tg_id = None
+
         user = await create_user(first_name=register_data.first_name,
                                  last_name=register_data.last_name,
                                  username=register_data.username,
                                  email=register_data.email,
-                                 telegram=register_data.telegram,
+                                 tg_id=tg_id,
                                  hashed_password=bcrypt_context.hash(register_data.password),
                                  role=register_data.role,
                                  db=db)
+
+        producer = request.app.state.kafka_producer if hasattr(request.app.state, "kafka_producer") else None
+        if producer and tg_id:
+            await producer.send_verification_prompt(
+                tg_id=tg_id,
+                chat_id=tg_id,
+                user_id=user.id,
+                message="Подтвердите регистрацию в PEAR."
+            )
 
         return create_tokens_and_set_cookies(
             username=user.username,

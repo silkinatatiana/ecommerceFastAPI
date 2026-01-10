@@ -34,6 +34,9 @@ class Config:
     SCHEDULE_REC_MIN = "*/1"
     KAFKA_ORDERS_TOPIC = os.getenv('KAFKA_ORDERS_TOPIC')
     KAFKA_HOST = os.getenv('KAFKA_HOST')
+    TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    WEBHOOK_URL = os.getenv('WEBHOOK_URL')
+    SUPPORT_TOPIC = os.getenv('SUPPORT_TOPIC')
 
 
 class Statuses:
