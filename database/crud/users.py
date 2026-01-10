@@ -141,7 +141,6 @@ async def set_telegram_data(
     tg_username: str,
     is_verified: bool = True
 ):
-    """Persist Telegram linkage for the given user."""
     await db.execute(
         update(User)
         .where(User.id == user_id)

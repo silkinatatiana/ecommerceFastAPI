@@ -84,15 +84,15 @@ body {
 }
 
 .btn-verify-small {
-    background-color: rgba(44, 95, 138, 0.4); /* var(--primary-color) с прозрачностью */
+    background-color: rgba(44, 95, 138, 0.4);
     color: white;
-    padding: 6px 12px; /* меньше стандартного */
-    font-size: 0.875rem; /* чуть мельче */
-    opacity: 0.9; /* общая полупрозрачность */
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    opacity: 0.9;
 }
 
 .btn-verify-small:hover {
-    background-color: rgba(44, 95, 138, 0.6); /* при наведении — менее прозрачный */
+    background-color: rgba(44, 95, 138, 0.6);
     opacity: 1;
 }
 

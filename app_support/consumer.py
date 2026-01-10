@@ -84,6 +84,9 @@ async def handle_telegram_verification_response(event: dict, logger):
         return
 
     is_verified = decision == "approve"
+    if not is_verified:
+        logger.info("User %s rejected Telegram verification; skipping DB update", user_id)
+        return
 
     try:
         async with async_session_maker() as db:
