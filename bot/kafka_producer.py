@@ -6,8 +6,6 @@ from bot.bot_config import BotConfig
 
 
 class KafkaEventPublisher:
-    """Kafka producer used by the Telegram bot."""
-
     def __init__(self) -> None:
         self.producer = AIOKafkaProducer(
             bootstrap_servers=BotConfig.KAFKA_HOST
@@ -28,7 +26,6 @@ class KafkaEventPublisher:
         chat_id: int,
         decision: str
     ) -> None:
-        """Send user's decision back to app_support."""
         message = {
             "event_type": "telegram_verification_response",
             "user_id": user_id,
@@ -40,4 +37,26 @@ class KafkaEventPublisher:
         await self.producer.send_and_wait(
             BotConfig.SUPPORT_TOPIC,
             json.dumps(message).encode("utf-8")
+        )
+
+    async def send_order_status_change_request(
+        self,
+        *,
+        order_id: int,
+        target_status: str,
+        requested_by_chat_id: int,
+        requested_by_tg_id: int,
+        requested_by_username: str | None = None,
+    ) -> None:
+        payload = {
+            "event_type": "order_status_change_request",
+            "order_id": order_id,
+            "target_status": target_status,
+            "requested_by_chat_id": requested_by_chat_id,
+            "requested_by_tg_id": requested_by_tg_id,
+            "requested_by_username": requested_by_username,
+        }
+        await self.producer.send_and_wait(
+            BotConfig.SUPPORT_TOPIC,
+            json.dumps(payload).encode("utf-8")
         )

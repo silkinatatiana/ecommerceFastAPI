@@ -6,7 +6,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
+
+from sqlalchemy import select
 
 from database.crud.users import create_user, get_user, update_user_info
 from general_functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password, \
@@ -15,6 +18,7 @@ from general_functions.profile import get_tab_by_section
 from database.db_depends import get_db
 from config import Config
 from schemas import ProfileUpdate, PasswordUpdate, RegisterData, LoginData
+from models import User
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 templates = Jinja2Templates(directory='app_support/templates/')
@@ -121,9 +125,19 @@ async def register(register_data: RegisterData,
                    db: AsyncSession = Depends(get_db)
 ):
     try:
+        # Предварительные проверки, чтобы не ловить неочевидные ошибки уникальности
         if register_data.password != register_data.confirm_password:
             return JSONResponse(
                 content={"detail": "Пароли не совпадают"},
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        username = (register_data.username or "").strip()
+        email = (register_data.email or "").strip()
+        role = (register_data.role or "").strip()
+        if not username or not email or not role:
+            return JSONResponse(
+                content={"detail": "Заполните username, email и role"},
                 status_code=status.HTTP_400_BAD_REQUEST
             )
 
@@ -133,13 +147,31 @@ async def register(register_data: RegisterData,
         except Exception:
             tg_id = None
 
+        # Явные проверки уникальности, чтобы вернуть понятные сообщения
+        if await get_user(db=db, username=username):
+            return JSONResponse(
+                content={"detail": "Пользователь с таким именем уже существует"},
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        existing_email = await db.scalar(select(User).where(User.email == email))
+        if existing_email:
+            return JSONResponse(
+                content={"detail": "Email уже используется"},
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        if tg_id and await get_user(db=db, tg_id=tg_id):
+            return JSONResponse(
+                content={"detail": "Telegram ID уже используется"},
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
         user = await create_user(first_name=register_data.first_name,
                                  last_name=register_data.last_name,
-                                 username=register_data.username,
-                                 email=register_data.email,
+                                 username=username,
+                                 email=email,
                                  tg_id=tg_id,
                                  hashed_password=bcrypt_context.hash(register_data.password),
-                                 role=register_data.role,
+                                 role=role,
                                  db=db)
 
         producer = request.app.state.kafka_producer
@@ -160,9 +192,23 @@ async def register(register_data: RegisterData,
 
     except Exception as e:
         await db.rollback()
-        error_msg = "Пользователь с таким именем уже существует" if "username" in str(e) else "Ошибка регистрации"
+        # Более точная диагностика по ограничению уникальности
+        if isinstance(e, IntegrityError):
+            msg = str(e.orig).lower() if e.orig else str(e).lower()
+            if "username" in msg:
+                error_msg = "Пользователь с таким именем уже существует"
+            elif "email" in msg:
+                error_msg = "Email уже используется"
+            elif "tg_id" in msg:
+                error_msg = "Telegram ID уже используется"
+            else:
+                error_msg = "Нарушено ограничение уникальности"
+            return JSONResponse(
+                content={"detail": error_msg},
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
         return JSONResponse(
-            content={"detail": error_msg},
+            content={"detail": f"Ошибка регистрации: {e}"},
             status_code=status.HTTP_400_BAD_REQUEST
         )
 

@@ -1,5 +1,5 @@
 from database.db import Base
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, BigInteger
 from sqlalchemy.orm import relationship
 
 
@@ -11,7 +11,7 @@ class User(Base):
     last_name = Column(String)
     username = Column(String, unique=True)
     email = Column(String, unique=True)
-    tg_id = Column(Integer, unique=True)
+    tg_id = Column(BigInteger, unique=True)
     tg_username = Column(String, default=None)
     is_verified = Column(Boolean, default=False)
     hashed_password = Column(String)

@@ -93,30 +93,53 @@ async def create_order(
             )
 
         products_data = {}
+        positions = []
         total_sum = 0
+        total_count = 0
 
-        for product in order_products:
-            products_data[str(product['product_id'])] = {
-                'price': product['product']['price'],
-                'count': product['count']
-            }
-            total_sum += product['product']['price'] * product['count']
+        for item in order_products:
+            pid = str(item['product_id'])
+            price = item['product']['price']
+            count = item['count']
+            products_data[pid] = {'price': price, 'count': count}
 
-        timestamp = datetime.utcnow().strftime("%Y%m%d")
-        suffix = str(uuid.uuid4())[:6]
-        slug = slugify(f"order-{timestamp}-{suffix}")
+            total_sum += price * count
+            total_count += count
+            positions.append({
+                'product_id': item['product_id'],
+                'name': item['product'].get('name'),
+                'count': count,
+                'price': price,
+                'subtotal': price * count,
+            })
 
-        order_payload = {
+        slug = slugify(f"order-{datetime.utcnow():%Y%m%d}-{str(uuid.uuid4())[:6]}")
+
+        base_payload = {
             'user_id': user_id,
             'products': products_data,
             'total_sum': total_sum,
-            'slug': slug
+            'total_count': total_count,
+            'slug': slug,
+            'created_at': datetime.utcnow().isoformat(),
         }
 
-        value = json.dumps(order_payload, ensure_ascii=False).encode('utf-8')
+        order_payload = {**base_payload, 'event_type': 'order_created'}
 
-        await producer.send_and_wait(Config.KAFKA_ORDERS_TOPIC, value)
+        tg_order_payload = {
+            **base_payload,
+            'event_type': 'order_created_support',
+            'positions': positions,
+        }
 
+        await producer.send_and_wait(
+            Config.KAFKA_ORDERS_TOPIC,
+            json.dumps(order_payload, ensure_ascii=False).encode('utf-8')
+        )
+        await producer.send_and_wait(
+            Config.TELEGRAM_ORDERS_TOPIC,
+            json.dumps(tg_order_payload, ensure_ascii=False).encode('utf-8')
+        )
         return {
             'slug': slug
         }

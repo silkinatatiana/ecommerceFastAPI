@@ -37,6 +37,7 @@ class Config:
     TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
     WEBHOOK_URL = os.getenv('WEBHOOK_URL')
     SUPPORT_TOPIC = os.getenv('SUPPORT_TOPIC')
+    TELEGRAM_ORDERS_TOPIC = os.getenv('TELEGRAM_ORDERS_TOPIC')
 
 
 class Statuses:
@@ -53,5 +54,6 @@ class Statuses:
         'SENT': 'На сборке',
         'DELIVERED': 'Отправлен',
         'COMPLETED': 'Доставлен',
+        # Отмена должна быть доступна из состояния "Оформлен"
         'CANCELLED': 'Оформлен'
     }

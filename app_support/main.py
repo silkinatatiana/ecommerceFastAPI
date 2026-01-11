@@ -65,10 +65,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         await producer.start()
         await consumer.start()
-        consumer_task = asyncio.create_task(consume_orders(consumer))
+        consumer_task = asyncio.create_task(consume_orders(consumer, producer))
         app.state.kafka_consumer_task = consumer_task
         await support_consumer.start()
-        support_task = asyncio.create_task(consume_support_events(support_consumer))
+        support_task = asyncio.create_task(consume_support_events(support_consumer, producer))
         app.state.kafka_support_consumer_task = support_task
         yield
     except Exception as e:
