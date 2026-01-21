@@ -8,7 +8,6 @@ from database.db import async_session_maker
 from general_functions.product_func import update_stock
 from models import Cart, Product, Orders
 
-KAFKA_TOPIC = Config.KAFKA_ORDERS_TOPIC
 KAFKA_BOOTSTRAP_SERVERS = Config.KAFKA_HOST
 
 
@@ -103,8 +102,7 @@ async def consume_orders(consumer, producer):
         await consumer.stop()
 
 
-async def consume_support_events(consumer, producer):
-    """Handle events coming from the Telegram bot."""
+async def consume_support_verificated(consumer):
     from app_support.main import logger
 
     try:
@@ -116,10 +114,26 @@ async def consume_support_events(consumer, producer):
                 logger.warning("Ignore malformed event: %s", event)
                 continue
 
-            if event.get("event_type") == "telegram_verification_response":
-                await handle_telegram_verification_response(event, logger)
-            elif event.get("event_type") == "order_status_change_request":
-                await handle_order_status_change_request(event, logger, producer)
+            await handle_telegram_verification_response(event, logger)
+
+    finally:
+        await consumer.stop()
+
+
+async def consume_support_change_orders_status(consumer, producer):
+    from app_support.main import logger
+
+    try:
+        async for msg in consumer:
+            event = msg.value
+            logger.info("Support event received: %s", event)
+
+            if not isinstance(event, dict):
+                logger.warning("Ignore malformed event: %s", event)
+                continue
+
+            await handle_order_status_change_request(event, logger, producer)
+
     finally:
         await consumer.stop()
 

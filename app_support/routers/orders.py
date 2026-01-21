@@ -154,7 +154,7 @@ async def get_order_detail(request: Request,
         context = {
             'request': request,
             'order': order_data['order'],
-            'products': order_data['order_products'],
+            'products': order_data['products'],
             'total_amount': order_data['total_amount'],
             'user': order_data['user'],
             'is_authenticated': True,

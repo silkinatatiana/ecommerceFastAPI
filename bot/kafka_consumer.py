@@ -18,14 +18,15 @@ class KafkaEventConsumer:
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
         self.consumer = AIOKafkaConsumer(
-            BotConfig.SUPPORT_TOPIC,
+            BotConfig.VERIFICATED_TOPIC,
+            BotConfig.SUPPORT_CHANGE_STATUS_TOPIC,
             bootstrap_servers=BotConfig.KAFKA_HOST,
             group_id="bot-support-events",
             auto_offset_reset="earliest",
             value_deserializer=lambda v: v and v.decode("utf-8"),
         )
         self._task: asyncio.Task | None = None
-        self._order_messages: dict[int, list[dict[str, int]]] = defaultdict(list)
+        self._order_messages: dict[int, list[dict[str, Any]]] = defaultdict(list)
 
     async def start(self) -> None:
         await self.consumer.start()
@@ -96,11 +97,9 @@ class KafkaEventConsumer:
         )
 
     def _build_status_keyboard(self, order_id: int, current_status_text: str | None) -> InlineKeyboardMarkup | None:
-        """Build inline keyboard with 'Обновить статус' and optional 'Отменить'."""
         if not current_status_text:
             return None
 
-        # Найти следующий статус по карте переходов
         next_status_key = next(
             (status_key for status_key, prev_status in Statuses.changing_statuses.items()
              if prev_status == current_status_text),
@@ -113,12 +112,11 @@ class KafkaEventConsumer:
             next_label = getattr(Statuses, next_status_key, next_status_key)
             buttons_row.append(
                 InlineKeyboardButton(
-                    text=f"🔄 Обновить статус → {next_label}",
+                    text=f"🔄{next_label}",
                     callback_data=f"order_status:{order_id}:{next_status_key}"
                 )
             )
 
-        # Для статуса "Оформлен" показываем кнопку отмены
         if current_status_text == Statuses.DESIGNED:
             buttons_row.append(
                 InlineKeyboardButton(
@@ -131,6 +129,12 @@ class KafkaEventConsumer:
             return None
 
         return InlineKeyboardMarkup(inline_keyboard=[buttons_row])
+
+    @staticmethod
+    def _update_status_line(message_text: str | None, status_text: str | None) -> str:
+        lines = message_text.splitlines()
+        lines[1] = f"Статус: {status_text or '—'}"
+        return "\n".join(lines)
 
     async def _handle_order_created(self, event: dict[str, Any]) -> None:
         order_id = event.get("order_id")
@@ -174,7 +178,8 @@ class KafkaEventConsumer:
                 if order_id is not None:
                     self._order_messages.setdefault(order_id, []).append({
                         "chat_id": chat_id,
-                        "message_id": sent.message_id
+                        "message_id": sent.message_id,
+                        "text": message_text,
                     })
             except Exception:
                 logger.exception("Failed to send order notification to chat %s", chat_id)
@@ -182,30 +187,21 @@ class KafkaEventConsumer:
     async def _handle_status_change_result(self, event: dict[str, Any]) -> None:
         order_id = event.get("order_id")
         success = event.get("success")
-        message = event.get("message") or ""
         current_status_text = event.get("current_status_text")
-        requested_by_chat_id = event.get("requested_by_chat_id")
-
         keyboard = self._build_status_keyboard(order_id, current_status_text)
 
         for entry in self._order_messages.get(order_id, []):
+            updated_text = self._update_status_line(entry.get("text"), current_status_text)
             try:
-                await self.bot.edit_message_reply_markup(
+                await self.bot.edit_message_text(
                     chat_id=entry["chat_id"],
                     message_id=entry["message_id"],
+                    text=updated_text,
                     reply_markup=keyboard
                 )
+                entry["text"] = updated_text
             except Exception:  # noqa: BLE001
-                logger.debug("Cannot edit reply markup for chat %s", entry["chat_id"])
-
-        if requested_by_chat_id:
-            try:
-                await self.bot.send_message(
-                    chat_id=requested_by_chat_id,
-                    text=message or ("Статус: " + (current_status_text or "—"))
-                )
-            except Exception:  # noqa: BLE001
-                logger.debug("Cannot send result message to chat %s", requested_by_chat_id)
+                logger.debug("Cannot edit order message for chat %s", entry["chat_id"])
 
         if success and not keyboard:
             self._order_messages.pop(order_id, None)

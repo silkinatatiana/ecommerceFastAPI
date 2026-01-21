@@ -20,7 +20,11 @@ import logging
 
 from app.log.log import LOGGER
 from app.routers.auth import auto_refresh_token
-from app_support.consumer import consume_orders, consume_support_events
+from app_support.consumer import (
+    consume_orders,
+    consume_support_change_orders_status,
+    consume_support_verificated,
+)
 from app_support.kafka_producer import KafkaEventPublisher
 from app_support.functions.main_func import get_sort_column, build_pagination_url, build_sort_url, to_date_str
 from models import Orders, User
@@ -46,8 +50,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         value_deserializer=lambda v: json.loads(v.decode('utf-8')),
     )
 
-    support_consumer = AIOKafkaConsumer(
-        Config.SUPPORT_TOPIC,
+    support_consumer_verify = AIOKafkaConsumer(
+        Config.VERIFICATED_TOPIC,
+        bootstrap_servers=Config.KAFKA_HOST,
+        group_id="support-bot",
+        auto_offset_reset="earliest",
+        value_deserializer=lambda v: json.loads(v.decode('utf-8')),
+    )
+
+    support_consumer_change_status = AIOKafkaConsumer(
+        Config.SUPPORT_CHANGE_STATUS_TOPIC,
         bootstrap_servers=Config.KAFKA_HOST,
         group_id="support-bot",
         auto_offset_reset="earliest",
@@ -57,19 +69,31 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     producer = KafkaEventPublisher()
 
     app.state.kafka_consumer = consumer
-    app.state.kafka_support_consumer = support_consumer
+    app.state.kafka_support_consumer = support_consumer_verify
+    app.state.kafka_support_change_status_consumer = support_consumer_change_status
     app.state.kafka_producer = producer
     consumer_task = None
-    support_task = None
+    support_task_verify = None
+    support_task_change = None
 
     try:
         await producer.start()
         await consumer.start()
         consumer_task = asyncio.create_task(consume_orders(consumer, producer))
         app.state.kafka_consumer_task = consumer_task
-        await support_consumer.start()
-        support_task = asyncio.create_task(consume_support_events(support_consumer, producer))
-        app.state.kafka_support_consumer_task = support_task
+        await support_consumer_verify.start()
+        support_task_verify = asyncio.create_task(
+            consume_support_verificated(support_consumer_verify)
+        )
+        app.state.kafka_support_consumer_task = support_task_verify
+        await support_consumer_change_status.start()
+        support_task_change = asyncio.create_task(
+            consume_support_change_orders_status(
+                support_consumer_change_status,
+                producer,
+            )
+        )
+        app.state.kafka_support_change_status_task = support_task_change
         yield
     except Exception as e:
         logger.exception(f"❌ Failed to start Kafka consumer: {e}")
@@ -85,20 +109,31 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             except Exception as e:
                 logger.exception(f"Error while cancelling task: {e}")
 
-        if support_task and not support_task.done():
+        if support_task_verify and not support_task_verify.done():
             logger.info("Cancelling support consumer task...")
-            support_task.cancel()
+            support_task_verify.cancel()
             try:
-                await support_task
+                await support_task_verify
             except asyncio.CancelledError:
                 logger.info("Support consumer task cancelled")
             except Exception as e:
                 logger.exception(f"Error while cancelling support task: {e}")
 
+        if support_task_change and not support_task_change.done():
+            logger.info("Cancelling support change-status consumer task...")
+            support_task_change.cancel()
+            try:
+                await support_task_change
+            except asyncio.CancelledError:
+                logger.info("Support change-status consumer task cancelled")
+            except Exception as e:
+                logger.exception(f"Error while cancelling support change-status task: {e}")
+
         await producer.stop()
         await redis_client.aclose()
         await consumer.stop()
-        await support_consumer.stop()
+        await support_consumer_verify.stop()
+        await support_consumer_change_status.stop()
 
 
 class NoCacheStaticFiles(StaticFiles):

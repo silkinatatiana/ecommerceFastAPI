@@ -35,7 +35,7 @@ class KafkaEventPublisher:
             "decision": decision,
         }
         await self.producer.send_and_wait(
-            BotConfig.SUPPORT_TOPIC,
+            BotConfig.VERIFICATED_TOPIC,
             json.dumps(message).encode("utf-8")
         )
 
@@ -49,7 +49,6 @@ class KafkaEventPublisher:
         requested_by_username: str | None = None,
     ) -> None:
         payload = {
-            "event_type": "order_status_change_request",
             "order_id": order_id,
             "target_status": target_status,
             "requested_by_chat_id": requested_by_chat_id,
@@ -57,6 +56,6 @@ class KafkaEventPublisher:
             "requested_by_username": requested_by_username,
         }
         await self.producer.send_and_wait(
-            BotConfig.SUPPORT_TOPIC,
+            BotConfig.SUPPORT_CHANGE_STATUS_TOPIC,
             json.dumps(payload).encode("utf-8")
         )

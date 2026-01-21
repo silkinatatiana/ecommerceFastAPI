@@ -17,5 +17,6 @@ def _clean(value: str | None) -> str:
 class BotConfig:
     TELEGRAM_BOT_TOKEN: str = _clean(os.getenv("TELEGRAM_BOT_TOKEN"))
     KAFKA_HOST: str = _clean(os.getenv("KAFKA_HOST")) or "kafka:9092"
-    SUPPORT_TOPIC: str = _clean(os.getenv("SUPPORT_TOPIC")) or "user_auth_events"
+    VERIFICATED_TOPIC: str = _clean(os.getenv("VERIFICATED_TOPIC"))
+    SUPPORT_CHANGE_STATUS_TOPIC: str = _clean(os.getenv("SUPPORT_CHANGE_STATUS_TOPIC"))
 

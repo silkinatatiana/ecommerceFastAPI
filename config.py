@@ -36,8 +36,9 @@ class Config:
     KAFKA_HOST = os.getenv('KAFKA_HOST')
     TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
     WEBHOOK_URL = os.getenv('WEBHOOK_URL')
-    SUPPORT_TOPIC = os.getenv('SUPPORT_TOPIC')
+    VERIFICATED_TOPIC = os.getenv('VERIFICATED_TOPIC')
     TELEGRAM_ORDERS_TOPIC = os.getenv('TELEGRAM_ORDERS_TOPIC')
+    SUPPORT_CHANGE_STATUS_TOPIC = os.getenv('SUPPORT_CHANGE_STATUS_TOPIC')
 
 
 class Statuses:

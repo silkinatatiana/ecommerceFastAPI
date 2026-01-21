@@ -125,7 +125,6 @@ async def register(register_data: RegisterData,
                    db: AsyncSession = Depends(get_db)
 ):
     try:
-        # Предварительные проверки, чтобы не ловить неочевидные ошибки уникальности
         if register_data.password != register_data.confirm_password:
             return JSONResponse(
                 content={"detail": "Пароли не совпадают"},
@@ -147,7 +146,6 @@ async def register(register_data: RegisterData,
         except Exception:
             tg_id = None
 
-        # Явные проверки уникальности, чтобы вернуть понятные сообщения
         if await get_user(db=db, username=username):
             return JSONResponse(
                 content={"detail": "Пользователь с таким именем уже существует"},
@@ -192,7 +190,6 @@ async def register(register_data: RegisterData,
 
     except Exception as e:
         await db.rollback()
-        # Более точная диагностика по ограничению уникальности
         if isinstance(e, IntegrityError):
             msg = str(e.orig).lower() if e.orig else str(e).lower()
             if "username" in msg:
