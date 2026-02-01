@@ -116,11 +116,7 @@ services:
     ports:
       - "8002:8002"
     env_file:
-      - bot/.env
-    environment:
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - WEBHOOK_URL=${WEBHOOK_URL}
-      - KAFKA_HOST=kafka:9092
+      - .env
     depends_on:
       kafka:
         condition: service_healthy

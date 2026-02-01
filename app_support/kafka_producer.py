@@ -33,13 +33,13 @@ class KafkaEventPublisher:
             "message": message,
         }
         await self.producer.send_and_wait(
-            Config.VERIFICATED_TOPIC,
+            Config.VERIFIED_TOPIC,
             json.dumps(payload).encode("utf-8")
         )
 
     async def send_order_status_change_result(self, payload: dict) -> None:
         await self.producer.send_and_wait(
-            Config.SUPPORT_CHANGE_STATUS_TOPIC,
+            Config.CHANGE_STATUS_TOPIC,
             json.dumps(payload, ensure_ascii=False).encode("utf-8")
         )
 

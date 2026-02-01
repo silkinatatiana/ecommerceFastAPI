@@ -8,8 +8,7 @@ from aiokafka import AIOKafkaConsumer
 from aiogram import Bot
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from bot.bot_config import BotConfig
-from config import Statuses
+from config import Statuses, Config
 
 logger = logging.getLogger(__name__)
 
@@ -18,34 +17,34 @@ class KafkaEventConsumer:
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
 
-        logger.info(f"ORDERS_TOPIC: '{BotConfig.ORDERS_TOPIC}'")
-        logger.info(f"VERIFICATED_TOPIC: '{BotConfig.VERIFICATED_TOPIC}'")
-        logger.info(f"SUPPORT_CHANGE_STATUS_TOPIC: '{BotConfig.SUPPORT_CHANGE_STATUS_TOPIC}'")
+        logger.info(f"ORDERS_TOPIC: '{Config.ORDERS_TOPIC}'")
+        logger.info(f"VERIFIED_TOPIC: '{Config.VERIFIED_TOPIC}'")
+        logger.info(f"CHANGE_STATUS_TOPIC: '{Config.CHANGE_STATUS_TOPIC}'")
 
         self.consumer_order_created = AIOKafkaConsumer(
-            BotConfig.ORDERS_TOPIC,
-            bootstrap_servers=BotConfig.KAFKA_HOST,
+            Config.ORDERS_TOPIC,
+            bootstrap_servers=Config.KAFKA_HOST,
             group_id="bot-order-created",
             auto_offset_reset="earliest",
             value_deserializer=lambda v: v and v.decode("utf-8"),
         )
-        self.consumer_verificated = AIOKafkaConsumer(
-            BotConfig.VERIFICATED_TOPIC,
-            bootstrap_servers=BotConfig.KAFKA_HOST,
-            group_id="bot-verificated",
+        self.consumer_verified = AIOKafkaConsumer(
+            Config.VERIFIED_TOPIC,
+            bootstrap_servers=Config.KAFKA_HOST,
+            group_id="bot-verified",
             auto_offset_reset="earliest",
             value_deserializer=lambda v: v and v.decode("utf-8"),
         )
         self.consumer_change_status = AIOKafkaConsumer(
-            BotConfig.SUPPORT_CHANGE_STATUS_TOPIC,
-            bootstrap_servers=BotConfig.KAFKA_HOST,
+            Config.CHANGE_STATUS_TOPIC,
+            bootstrap_servers=Config.KAFKA_HOST,
             group_id="bot-change-status",
             auto_offset_reset="earliest",
             value_deserializer=lambda v: v and v.decode("utf-8"),
         )
 
         self._task_order_created: asyncio.Task | None = None
-        self._task_order_verificated: asyncio.Task | None = None
+        self._task_order_verified: asyncio.Task | None = None
         self._task_order_change_status: asyncio.Task | None = None
         self._order_messages: dict[int, list[dict[str, Any]]] = defaultdict(list)
 
@@ -53,11 +52,11 @@ class KafkaEventConsumer:
 
     async def start(self) -> None:
         await self.consumer_order_created.start()
-        await self.consumer_verificated.start()
+        await self.consumer_verified.start()
         await self.consumer_change_status.start()
 
         self._task_order_created = asyncio.create_task(self._consume_loop_order_created())
-        self._task_order_verificated = asyncio.create_task(self._consume_loop_verificated())
+        self._task_order_verified = asyncio.create_task(self._consume_loop_verified())
         self._task_order_change_status = asyncio.create_task(self._consume_loop_change_status())
 
         logger.info('start1')
@@ -65,7 +64,7 @@ class KafkaEventConsumer:
     async def stop(self) -> None:
         for task, consumer in [
                 (self._task_order_created, self.consumer_order_created),
-                (self._task_order_verificated, self.consumer_verificated),
+                (self._task_order_verified, self.consumer_verified),
                 (self._task_order_change_status, self.consumer_change_status)
         ]:
             if task:
@@ -88,8 +87,8 @@ class KafkaEventConsumer:
             except Exception:  # noqa: BLE001
                 logger.exception("Failed to process kafka message: %s", msg.value)
 
-    async def _consume_loop_verificated(self) -> None:
-        async for msg in self.consumer_verificated:
+    async def _consume_loop_verified(self) -> None:
+        async for msg in self.consumer_verified:
             logger.info(1)
             try:
                 if not msg.value:
@@ -232,6 +231,9 @@ class KafkaEventConsumer:
                 logger.exception("Failed to send order notification to chat %s", chat_id)
 
     async def _handle_status_change_result(self, event: dict[str, Any]) -> None:
+        # Игнорируем запросы (бот сам их отправляет)
+        if "success" not in event:
+            return
         order_id = event.get("order_id")
         success = event.get("success")
         current_status_text = event.get("current_status_text")

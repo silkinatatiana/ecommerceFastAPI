@@ -2,13 +2,13 @@ import json
 
 from aiokafka import AIOKafkaProducer
 
-from bot.bot_config import BotConfig
+from config import Config
 
 
 class KafkaEventPublisher:
     def __init__(self) -> None:
         self.producer = AIOKafkaProducer(
-            bootstrap_servers=BotConfig.KAFKA_HOST
+            bootstrap_servers=Config.KAFKA_HOST
         )
 
     async def start(self) -> None:
@@ -34,7 +34,7 @@ class KafkaEventPublisher:
             "decision": decision,
         }
         await self.producer.send_and_wait(
-            BotConfig.TG_VERIFICATED_TOPIC,
+            Config.TG_VERIFIED_TOPIC,
             json.dumps(message).encode("utf-8")
         )
 
@@ -55,6 +55,6 @@ class KafkaEventPublisher:
             "requested_by_username": requested_by_username,
         }
         await self.producer.send_and_wait(
-            BotConfig.TG_CHANGE_STATUS_TOPIC,
+            Config.CHANGE_STATUS_TOPIC,
             json.dumps(payload).encode("utf-8")
         )

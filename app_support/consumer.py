@@ -94,7 +94,7 @@ async def consume_orders(consumer, producer):
         await consumer.stop()
 
 
-async def consume_support_verificated(consumer):
+async def consume_support_verified(consumer):
     from app_support.main import logger
 
     try:
@@ -167,6 +167,9 @@ async def handle_telegram_verification_response(event: dict, logger):
 
 
 async def handle_order_status_change_request(event: dict, logger, producer):
+    # Игнорируем ответы (app_support отправляет только результаты, не запросы)
+    if "success" in event:
+        return
     order_id = event.get("order_id")
     target_status = event.get("target_status")
     requested_by_chat_id = event.get("requested_by_chat_id")

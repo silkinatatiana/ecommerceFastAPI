@@ -23,7 +23,7 @@ from app.routers.auth import auto_refresh_token
 from app_support.consumer import (
     consume_orders,
     consume_support_change_orders_status,
-    consume_support_verificated,
+    consume_support_verified,
 )
 from app_support.kafka_producer import KafkaEventPublisher
 from app_support.functions.main_func import get_sort_column, build_pagination_url, build_sort_url, to_date_str
@@ -51,15 +51,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
 
     support_consumer_verify = AIOKafkaConsumer(
-        Config.TG_VERIFICATED_TOPIC,
+        Config.TG_VERIFIED_TOPIC,
         bootstrap_servers=Config.KAFKA_HOST,
-        group_id="support-bot-verificate",
+        group_id="support-bot-verified",
         auto_offset_reset="earliest",
         value_deserializer=lambda v: json.loads(v.decode('utf-8')),
     )
 
     support_consumer_change_status = AIOKafkaConsumer(
-        Config.SUPPORT_CHANGE_STATUS_TOPIC,
+        Config.CHANGE_STATUS_TOPIC,
         bootstrap_servers=Config.KAFKA_HOST,
         group_id="support-bot_change_status",
         auto_offset_reset="earliest",
@@ -83,7 +83,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         app.state.kafka_consumer_task = consumer_task
         await support_consumer_verify.start()
         support_task_verify = asyncio.create_task(
-            consume_support_verificated(support_consumer_verify)
+            consume_support_verified(support_consumer_verify)
         )
         app.state.kafka_support_consumer_task = support_task_verify
         await support_consumer_change_status.start()

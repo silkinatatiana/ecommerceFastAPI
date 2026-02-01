@@ -7,7 +7,7 @@ from aiogram.client.bot import DefaultBotProperties
 from bot.bot_logic import router, set_publisher
 from bot.kafka_consumer import KafkaEventConsumer
 from bot.kafka_producer import KafkaEventPublisher
-from bot.bot_config import BotConfig
+from config import Config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def _validate_token(token: str | None) -> str:
     return cleaned
 
 
-validated_token = _validate_token(BotConfig.TELEGRAM_BOT_TOKEN)
+validated_token = _validate_token(Config.TELEGRAM_BOT_TOKEN)
 logger.info("Using TELEGRAM_BOT_TOKEN: %s", _mask_token(validated_token))
 
 bot = Bot(
@@ -58,5 +58,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    logger.info(BotConfig.TELEGRAM_BOT_TOKEN)
+    logger.info(Config.TELEGRAM_BOT_TOKEN)
     asyncio.run(main())
