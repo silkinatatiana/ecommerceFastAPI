@@ -68,10 +68,13 @@ async def handle_order_status_callback(callback: types.CallbackQuery) -> None:
         return
 
     try:
-        _, order_id_str, target_status = callback.data.split(":")
+        parts = callback.data.split(":")
+        logger.info(f"Callback data parts: {parts}, count: {len(parts)}")
+        _, order_id_str, target_status = parts
         order_id = int(order_id_str)
+
     except Exception:  # noqa: BLE001
-        await callback.answer("Некорректные данные кнопки.", show_alert=True)
+        await callback.answer("Некорректные данные кнопки", show_alert=True)
         return
 
     chat_id = callback.message.chat.id if callback.message else None
@@ -79,7 +82,7 @@ async def handle_order_status_callback(callback: types.CallbackQuery) -> None:
     username = callback.from_user.username
 
     if not chat_id:
-        await callback.answer("Не удалось определить чат.", show_alert=True)
+        await callback.answer("Не удалось определить чат", show_alert=True)
         return
 
     await publisher.send_order_status_change_request(
@@ -90,4 +93,4 @@ async def handle_order_status_callback(callback: types.CallbackQuery) -> None:
         requested_by_username=username,
     )
 
-    await callback.answer("Запрос на смену статуса отправлен.")
+    await callback.answer("Запрос на смену статуса отправлен")

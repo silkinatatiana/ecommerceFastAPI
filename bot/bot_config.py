@@ -19,4 +19,6 @@ class BotConfig:
     KAFKA_HOST: str = _clean(os.getenv("KAFKA_HOST")) or "kafka:9092"
     VERIFICATED_TOPIC: str = _clean(os.getenv("VERIFICATED_TOPIC"))
     SUPPORT_CHANGE_STATUS_TOPIC: str = _clean(os.getenv("SUPPORT_CHANGE_STATUS_TOPIC"))
-
+    ORDERS_TOPIC: str = _clean(os.getenv("ORDERS_TOPIC"))
+    TG_CHANGE_STATUS_TOPIC: str = _clean(os.getenv("TG_CHANGE_STATUS_TOPIC"))
+    TG_VERIFICATED_TOPIC: str = _clean(os.getenv("TG_VERIFICATED_TOPIC"))

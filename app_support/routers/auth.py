@@ -140,7 +140,6 @@ async def register(register_data: RegisterData,
                 status_code=status.HTTP_400_BAD_REQUEST
             )
 
-        tg_id = None
         try:
             tg_id = int(register_data.telegram)
         except Exception:
@@ -175,8 +174,8 @@ async def register(register_data: RegisterData,
         producer = request.app.state.kafka_producer
         if tg_id:
             await producer.send_verification_prompt(
-                tg_id=tg_id,
-                chat_id=tg_id,
+                tg_id=user.tg_id,
+                chat_id=user.tg_id,
                 user_id=user.id,
                 message="Подтвердите регистрацию в PEAR."
             )

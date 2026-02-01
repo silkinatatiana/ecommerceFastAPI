@@ -7,7 +7,6 @@ load_dotenv()
 
 
 class Config:
-    Statuses = None
     url = os.getenv('URL')
     url_support = os.getenv('URL_SUPPORT')
     SECRET_KEY = os.getenv('SECRET_KEY')
@@ -32,13 +31,16 @@ class Config:
     REDIS_RECOMMENDATIONS_KEY = "recommendations_all"
     RECOMMENDATIONS_TIME = 120
     SCHEDULE_REC_MIN = "*/1"
-    KAFKA_ORDERS_TOPIC = os.getenv('KAFKA_ORDERS_TOPIC')
+
     KAFKA_HOST = os.getenv('KAFKA_HOST')
     TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
     WEBHOOK_URL = os.getenv('WEBHOOK_URL')
+
+    ORDERS_TOPIC = os.getenv('ORDERS_TOPIC')
     VERIFICATED_TOPIC = os.getenv('VERIFICATED_TOPIC')
     TELEGRAM_ORDERS_TOPIC = os.getenv('TELEGRAM_ORDERS_TOPIC')
     SUPPORT_CHANGE_STATUS_TOPIC = os.getenv('SUPPORT_CHANGE_STATUS_TOPIC')
+    TG_VERIFICATED_TOPIC = os.getenv('TG_VERIFICATED_TOPIC')
 
 
 class Statuses:
@@ -55,6 +57,6 @@ class Statuses:
         'SENT': 'На сборке',
         'DELIVERED': 'Отправлен',
         'COMPLETED': 'Доставлен',
-        # Отмена должна быть доступна из состояния "Оформлен"
+        # Отмена должна быть доступна только из состояния "Оформлен"
         'CANCELLED': 'Оформлен'
     }

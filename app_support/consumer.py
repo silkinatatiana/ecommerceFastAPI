@@ -72,28 +72,20 @@ async def consume_orders(consumer, producer):
                             }
                         )
 
-                    support_users = await get_user(db=db, role="support")
-                    chat_ids = [
-                        user.tg_id
-                        for user in support_users
-                        if getattr(user, "tg_id", None)
-                        and getattr(user, "is_verified", False)
-                    ]
-
-                    await producer.send_order_created_notification(
-                        {
-                            "order_id": order.id,
-                            "slug": order.slug,
-                            "user_id": order.user_id,
-                            "status_text": order.status,
-                            "status_key": _status_key_from_text(order.status),
-                            "total_sum": payload.get("total_sum"),
-                            "total_count": payload.get("total_count"),
-                            "positions": positions,
-                            "created_at": order.date.isoformat() if order.date else None,
-                            "chat_ids": chat_ids,
-                        }
-                    )
+                    # await producer.send_order_created_notification(
+                    #     {
+                    #         "order_id": order.id,
+                    #         "slug": order.slug,
+                    #         "user_id": order.user_id,
+                    #         "status_text": order.status,
+                    #         "status_key": _status_key_from_text(order.status),
+                    #         "total_sum": payload.get("total_sum"),
+                    #         "total_count": payload.get("total_count"),
+                    #         "positions": positions,
+                    #         "chat_ids": await get_chat_ids(db=db),
+                    #         "created_at": order.date.isoformat() if order.date else None
+                    #     }
+                    # )
 
             except Exception as e:
                 logger.exception(f"Ошибка обработки заказа {payload.get('user_id')}: {e}")

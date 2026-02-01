@@ -10,13 +10,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, RedirectResponse
 
+from config import Statuses, Config
 from general_functions.auth_func import checking_access_rights
 from app.routers.cart import get_cart_by_user
 from database.crud.decorators import handler_base_errors
 from database.crud.orders import get_orders, update_status
 from database.crud.products import get_product
 from database.db_depends import get_db
-from config import Config
+from general_functions.kafka_func import get_chat_ids
 from general_functions.orders_func import fetch_orders_for_user
 from general_functions.product_func import update_stock
 from schemas import OrderResponse
@@ -48,9 +49,9 @@ async def get_orders_by_user_id(user_id: int,
 
 @router.get('/{slug}', response_model=OrderResponse)
 async def get_order_by_slug(slug: str,
-                          request: Request,
-                          db: AsyncSession = Depends(get_db),
-                          token: Optional[str] = Cookie(None, alias='token')
+                            request: Request,
+                            db: AsyncSession = Depends(get_db),
+                            token: Optional[str] = Cookie(None, alias='token')
 ):
     try:
         await checking_access_rights(token=token, roles=['customer'])
@@ -115,34 +116,24 @@ async def create_order(
 
         slug = slugify(f"order-{datetime.utcnow():%Y%m%d}-{str(uuid.uuid4())[:6]}")
 
-        base_payload = {
+        chat_ids = await get_chat_ids(db=db)
+
+        payload = {
             'user_id': user_id,
             'products': products_data,
             'total_sum': total_sum,
             'total_count': total_count,
             'slug': slug,
             'created_at': datetime.utcnow().isoformat(),
-        }
-
-        order_payload = {**base_payload, 'event_type': 'order_created'}
-
-        tg_order_payload = {
-            **base_payload,
-            'event_type': 'order_created_support',
             'positions': positions,
+            'chat_ids': chat_ids,
+            'status_text': Statuses.DESIGNED
         }
 
         await producer.send_and_wait(
-            Config.KAFKA_ORDERS_TOPIC,
-            json.dumps(order_payload, ensure_ascii=False).encode('utf-8')
+            Config.ORDERS_TOPIC,
+            json.dumps(payload, ensure_ascii=False).encode('utf-8')
         )
-        await producer.send_and_wait(
-            Config.TELEGRAM_ORDERS_TOPIC,
-            json.dumps(tg_order_payload, ensure_ascii=False).encode('utf-8')
-        )
-        return {
-            'slug': slug
-        }
 
     except HTTPException as e:
         if e.status_code == 401:

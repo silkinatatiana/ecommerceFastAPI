@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     redis_client = await init_redis()
     app.state.redis = redis_client
     consumer = AIOKafkaConsumer(
-        Config.KAFKA_ORDERS_TOPIC,
+        Config.ORDERS_TOPIC,
         bootstrap_servers=Config.KAFKA_HOST,
         group_id="orders-group",
         auto_offset_reset="earliest",
@@ -51,9 +51,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
 
     support_consumer_verify = AIOKafkaConsumer(
-        Config.VERIFICATED_TOPIC,
+        Config.TG_VERIFICATED_TOPIC,
         bootstrap_servers=Config.KAFKA_HOST,
-        group_id="support-bot",
+        group_id="support-bot-verificate",
         auto_offset_reset="earliest",
         value_deserializer=lambda v: json.loads(v.decode('utf-8')),
     )
@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     support_consumer_change_status = AIOKafkaConsumer(
         Config.SUPPORT_CHANGE_STATUS_TOPIC,
         bootstrap_servers=Config.KAFKA_HOST,
-        group_id="support-bot",
+        group_id="support-bot_change_status",
         auto_offset_reset="earliest",
         value_deserializer=lambda v: json.loads(v.decode('utf-8')),
     )

@@ -37,17 +37,9 @@ class KafkaEventPublisher:
             json.dumps(payload).encode("utf-8")
         )
 
-    async def send_order_created_notification(self, payload: dict) -> None:
-        event = {"event_type": "order_created_support_enriched", **payload}
-        await self.producer.send_and_wait(
-            Config.SUPPORT_CHANGE_STATUS_TOPIC,
-            json.dumps(event, ensure_ascii=False).encode("utf-8")
-        )
-
     async def send_order_status_change_result(self, payload: dict) -> None:
-        event = {"event_type": "order_status_change_result", **payload}
         await self.producer.send_and_wait(
             Config.SUPPORT_CHANGE_STATUS_TOPIC,
-            json.dumps(event, ensure_ascii=False).encode("utf-8")
+            json.dumps(payload, ensure_ascii=False).encode("utf-8")
         )
 

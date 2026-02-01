@@ -17,54 +17,101 @@ logger = logging.getLogger(__name__)
 class KafkaEventConsumer:
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
-        self.consumer = AIOKafkaConsumer(
-            BotConfig.VERIFICATED_TOPIC,
-            BotConfig.SUPPORT_CHANGE_STATUS_TOPIC,
+
+        logger.info(f"ORDERS_TOPIC: '{BotConfig.ORDERS_TOPIC}'")
+        logger.info(f"VERIFICATED_TOPIC: '{BotConfig.VERIFICATED_TOPIC}'")
+        logger.info(f"SUPPORT_CHANGE_STATUS_TOPIC: '{BotConfig.SUPPORT_CHANGE_STATUS_TOPIC}'")
+
+        self.consumer_order_created = AIOKafkaConsumer(
+            BotConfig.ORDERS_TOPIC,
             bootstrap_servers=BotConfig.KAFKA_HOST,
-            group_id="bot-support-events",
+            group_id="bot-order-created",
             auto_offset_reset="earliest",
             value_deserializer=lambda v: v and v.decode("utf-8"),
         )
-        self._task: asyncio.Task | None = None
+        self.consumer_verificated = AIOKafkaConsumer(
+            BotConfig.VERIFICATED_TOPIC,
+            bootstrap_servers=BotConfig.KAFKA_HOST,
+            group_id="bot-verificated",
+            auto_offset_reset="earliest",
+            value_deserializer=lambda v: v and v.decode("utf-8"),
+        )
+        self.consumer_change_status = AIOKafkaConsumer(
+            BotConfig.SUPPORT_CHANGE_STATUS_TOPIC,
+            bootstrap_servers=BotConfig.KAFKA_HOST,
+            group_id="bot-change-status",
+            auto_offset_reset="earliest",
+            value_deserializer=lambda v: v and v.decode("utf-8"),
+        )
+
+        self._task_order_created: asyncio.Task | None = None
+        self._task_order_verificated: asyncio.Task | None = None
+        self._task_order_change_status: asyncio.Task | None = None
         self._order_messages: dict[int, list[dict[str, Any]]] = defaultdict(list)
 
+        logger.info('init1')
+
     async def start(self) -> None:
-        await self.consumer.start()
-        self._task = asyncio.create_task(self._consume_loop())
+        await self.consumer_order_created.start()
+        await self.consumer_verificated.start()
+        await self.consumer_change_status.start()
+
+        self._task_order_created = asyncio.create_task(self._consume_loop_order_created())
+        self._task_order_verificated = asyncio.create_task(self._consume_loop_verificated())
+        self._task_order_change_status = asyncio.create_task(self._consume_loop_change_status())
+
+        logger.info('start1')
 
     async def stop(self) -> None:
-        if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
-        await self.consumer.stop()
+        for task, consumer in [
+                (self._task_order_created, self.consumer_order_created),
+                (self._task_order_verificated, self.consumer_verificated),
+                (self._task_order_change_status, self.consumer_change_status)
+        ]:
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+            await consumer.stop()
 
-    async def _consume_loop(self) -> None:
-        async for msg in self.consumer:
+    async def _consume_loop_order_created(self) -> None:
+        async for msg in self.consumer_order_created:
             try:
-                await self._handle_message(msg.value)
+                if not msg.value:
+                    continue
+
+                event = json.loads(msg.value)
+                await self._handle_order_created(event)
+
             except Exception:  # noqa: BLE001
                 logger.exception("Failed to process kafka message: %s", msg.value)
 
-    async def _handle_message(self, raw_value: str | None) -> None:
-        if not raw_value:
-            return
+    async def _consume_loop_verificated(self) -> None:
+        async for msg in self.consumer_verificated:
+            logger.info(1)
+            try:
+                if not msg.value:
+                    continue
 
-        try:
-            event = json.loads(raw_value)
-        except Exception:
-            logger.warning("Skip malformed kafka payload: %s", raw_value)
-            return
+                event = json.loads(msg.value)
+                await self._handle_verification_prompt(event)
 
-        event_type = event.get("event_type")
-        if event_type == "telegram_verification_prompt":
-            await self._handle_verification_prompt(event)
-        elif event_type == "order_created_support_enriched":
-            await self._handle_order_created(event)
-        elif event_type == "order_status_change_result":
-            await self._handle_status_change_result(event)
+            except Exception:  # noqa: BLE001
+                logger.exception("Failed to process kafka message: %s", msg.value)
+
+    async def _consume_loop_change_status(self) -> None:
+        async for msg in self.consumer_change_status:
+            try:
+                if not msg.value:
+                    continue
+
+                event = json.loads(msg.value)
+                await self._handle_status_change_result(event)
+
+            except Exception:  # noqa: BLE001
+                logger.exception("Failed to process kafka message: %s", msg.value)
 
     async def _handle_verification_prompt(self, event: dict[str, Any]) -> None:
         chat_id = event.get("chat_id")
@@ -149,7 +196,7 @@ class KafkaEventConsumer:
             logger.warning("No support chat_ids in order_created event: %s", event)
             return
 
-        title = f"Новый заказ #{order_id}" if order_id else f"Новый заказ {slug}"
+        title = f"Новый заказ {slug}\n"
         lines = [
             title,
             f"Статус: {status_text or '—'}",
@@ -205,4 +252,3 @@ class KafkaEventConsumer:
 
         if success and not keyboard:
             self._order_messages.pop(order_id, None)
-

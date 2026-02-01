@@ -27,7 +27,6 @@ class KafkaEventPublisher:
         decision: str
     ) -> None:
         message = {
-            "event_type": "telegram_verification_response",
             "user_id": user_id,
             "tg_id": tg_id,
             "tg_username": tg_username,
@@ -35,7 +34,7 @@ class KafkaEventPublisher:
             "decision": decision,
         }
         await self.producer.send_and_wait(
-            BotConfig.VERIFICATED_TOPIC,
+            BotConfig.TG_VERIFICATED_TOPIC,
             json.dumps(message).encode("utf-8")
         )
 
@@ -56,6 +55,6 @@ class KafkaEventPublisher:
             "requested_by_username": requested_by_username,
         }
         await self.producer.send_and_wait(
-            BotConfig.SUPPORT_CHANGE_STATUS_TOPIC,
+            BotConfig.TG_CHANGE_STATUS_TOPIC,
             json.dumps(payload).encode("utf-8")
         )
