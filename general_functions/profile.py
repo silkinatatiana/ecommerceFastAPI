@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy import select
 
 from config import Config
@@ -5,8 +7,10 @@ from general_functions.orders_func import fetch_orders_for_user
 from models import Chats, Messages
 
 
+logger = logging.getLogger(__name__)
+
+
 async def get_tab_by_section(section, templates, request, user, page, db, user_dict):
-    from app.main import logger
     return_dict = {
         "request": request,
         "user": user,

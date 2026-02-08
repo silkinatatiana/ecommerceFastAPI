@@ -1,3 +1,4 @@
+import logging
 from random import choice
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, status
@@ -17,6 +18,7 @@ from schemas import ChatCreate
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 templates = Jinja2Templates(directory="app/templates/")
+logger = logging.getLogger(__name__)
 
 
 @router.get("/my")
@@ -55,7 +57,6 @@ async def get_chats_partial(
     token: str | None = Cookie(None, alias="token"),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.main import logger
     try:
         user_id = await checking_access_rights(
             token=token, roles=["customer", "seller"]
@@ -170,7 +171,6 @@ async def view_chat(
     token: str | None = Cookie(None, alias="token"),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.main import logger
     try:
         user_id = await checking_access_rights(
             token=token, roles=["customer", "seller"]

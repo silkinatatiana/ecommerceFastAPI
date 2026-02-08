@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import Depends
@@ -7,6 +8,7 @@ from config import Config
 
 
 redis_instance: Redis | None = None
+logger = logging.getLogger(__name__)
 
 
 async def init_redis(
@@ -17,7 +19,6 @@ async def init_redis(
     socket_connect_timeout: int = 5,
     socket_timeout: int = 5,
 ) -> Redis:
-    from app.main import logger
     global redis_instance
     if redis_instance is None:
         redis_instance = Redis(

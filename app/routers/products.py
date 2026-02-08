@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Annotated
 
 import httpx
@@ -6,7 +7,6 @@ import jwt
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,6 +35,7 @@ from schemas import CreateProduct, ProductOut, RecommendOut
 
 router = APIRouter(prefix="/products", tags=["products"])
 templates = Jinja2Templates(directory="app/templates/")
+logger = logging.getLogger(__name__)
 
 
 @router.get("/create", response_class=HTMLResponse)
@@ -207,7 +208,6 @@ async def product_detail_page(
     db: AsyncSession = Depends(get_db),
     token: str | None = Cookie(default=None, alias="token"),
 ):
-    from app.main import logger
     is_authenticated = False
     is_favorite = False
     in_cart = False

@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated, Any
 
 import httpx
@@ -14,6 +15,9 @@ from database.db_depends import get_db
 from general_functions.cart_func import get_in_cart_product_ids
 from general_functions.favorites_func import get_favorite_product_ids
 from models import Product
+
+
+logger = logging.getLogger(__name__)
 
 
 async def get_filters(db: Annotated[AsyncSession, Depends(get_db)]) -> dict:
@@ -67,7 +71,6 @@ async def fetch_products_for_category(
     is_favorite: bool = False,
     current_page: int = 1,
 ) -> dict[str, Any]:
-    from app.main import logger
     params = {
         "page": current_page,
         "user_id": user_id or 0,
@@ -129,7 +132,6 @@ def parse_int_list(param: str | None) -> list[int]:
 
 
 async def auth_user(token: str | None, db: AsyncSession):
-    from app.main import logger
     if not token:
         return {
             "is_authenticated": False,

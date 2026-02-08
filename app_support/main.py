@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
-from app.log.log import LOGGER
+import app.log.log  # noqa: F401
 from app.routers.auth import auto_refresh_token
 from app_support.consumer import (
     consume_orders,
@@ -40,8 +40,7 @@ from models import Orders, User
 from redis_client import init_redis
 
 
-logger = LOGGER
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager

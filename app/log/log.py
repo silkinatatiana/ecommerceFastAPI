@@ -19,18 +19,17 @@ class ColorFormatter(logging.Formatter):
         return f"{color}{message}{self.colors['RESET']}"
 
 
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.INFO)
-LOGGER.propagate = False
+root = logging.getLogger()
+root.setLevel(logging.INFO)
 
-if LOGGER.handlers:
-    LOGGER.handlers.clear()
+if root.handlers:
+    root.handlers.clear()
 
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(
     ColorFormatter("%(asctime)s - %(levelname)s - %(message)s")
 )
-LOGGER.addHandler(console_handler)
+root.addHandler(console_handler)
 
 if not Config.TESTING:
     LOG_DIR = Path("logs")
@@ -41,4 +40,4 @@ if not Config.TESTING:
     file_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     )
-    LOGGER.addHandler(file_handler)
+    root.addHandler(file_handler)

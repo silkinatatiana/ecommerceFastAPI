@@ -1,14 +1,17 @@
-from sqlalchemy import delete, select, update
+import logging
+
+from sqlalchemy import delete, select
 
 from config import Config, Statuses
 from database.crud.orders import create_new_order, get_orders, update_status
 from database.crud.users import get_user, set_telegram_data
 from database.db import async_session_maker
 from general_functions.product_func import update_stock
-from models import Cart, Orders, Product
+from models import Cart, Product
 
 
 KAFKA_BOOTSTRAP_SERVERS = Config.KAFKA_HOST
+logger = logging.getLogger(__name__)
 
 
 def _status_key_from_text(status_text: str | None) -> str | None:
@@ -21,8 +24,6 @@ def _status_key_from_text(status_text: str | None) -> str | None:
 
 
 async def consume_orders(consumer):
-    from app_support.main import logger
-
     try:
         async for msg in consumer:
             logger.info(f"Получено сообщение (raw): {msg.value}")
@@ -103,8 +104,6 @@ async def consume_orders(consumer):
 
 
 async def consume_support_verified(consumer):
-    from app_support.main import logger
-
     try:
         async for msg in consumer:
             event = msg.value
@@ -121,8 +120,6 @@ async def consume_support_verified(consumer):
 
 
 async def consume_support_change_orders_status(consumer):
-    from app_support.main import logger
-
     try:
         async for msg in consumer:
             event = msg.value

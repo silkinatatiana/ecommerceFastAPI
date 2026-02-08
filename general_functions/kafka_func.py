@@ -1,9 +1,12 @@
+import logging
+
 from database.crud.users import get_user
 
 
-async def get_chat_ids(db) -> list:
-    from app.main import logger
+logger = logging.getLogger(__name__)
 
+
+async def get_chat_ids(db) -> list:
     support_users = await get_user(db=db, role="support")
     chat_ids = [
         user.tg_id

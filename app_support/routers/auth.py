@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from typing import Annotated
 
@@ -10,7 +11,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import logger
 from config import Config
 from database.crud.users import create_user, get_user, update_user_info
 from database.db_depends import get_db
@@ -30,6 +30,7 @@ from schemas import LoginData, PasswordUpdate, ProfileUpdate, RegisterData
 router = APIRouter(prefix="/auth", tags=["auth"])
 templates = Jinja2Templates(directory="app_support/templates/")
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+logger = logging.getLogger(__name__)
 
 
 @router.get("/read_current_user")

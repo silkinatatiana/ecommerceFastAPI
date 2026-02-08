@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from datetime import datetime
 
@@ -24,6 +25,7 @@ from schemas import OrderResponse
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 templates = Jinja2Templates(directory="app/templates")
+logger = logging.getLogger(__name__)
 
 
 @router.get("/user/{user_id}")
@@ -81,7 +83,7 @@ async def create_order(
     token: str | None = Cookie(None, alias="token"),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.main import logger, producer
+    from app.main import producer
 
     try:
         user_id = await checking_access_rights(token=token, roles=["customer"])
@@ -158,7 +160,6 @@ async def cancel_order(
     token: str | None = Cookie(None, alias="token"),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.main import logger
     try:
         await checking_access_rights(token=token, roles=["customer"])
 
