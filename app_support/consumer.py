@@ -20,7 +20,7 @@ def _status_key_from_text(status_text: str | None) -> str | None:
     return None
 
 
-async def consume_orders(consumer, producer):
+async def consume_orders(consumer):
     from app_support.main import logger
 
     try:
@@ -72,7 +72,7 @@ async def consume_orders(consumer, producer):
                             }
                         )
 
-                    # await producer.send_order_created_notification(
+                    # await producer.send_(
                     #     {
                     #         "order_id": order.id,
                     #         "slug": order.slug,
@@ -112,7 +112,7 @@ async def consume_support_verified(consumer):
         await consumer.stop()
 
 
-async def consume_support_change_orders_status(consumer, producer):
+async def consume_support_change_orders_status(consumer):
     from app_support.main import logger
 
     try:
@@ -124,7 +124,7 @@ async def consume_support_change_orders_status(consumer, producer):
                 logger.warning("Ignore malformed event: %s", event)
                 continue
 
-            await handle_order_status_change_request(event, logger, producer)
+            await handle_order_status_change_request(event, logger)
 
     finally:
         await consumer.stop()
@@ -166,133 +166,32 @@ async def handle_telegram_verification_response(event: dict, logger):
         logger.exception("Failed to handle telegram verification response: %s", exc)
 
 
-async def handle_order_status_change_request(event: dict, logger, producer):
-    # Игнорируем ответы (app_support отправляет только результаты, не запросы)
-    if "success" in event:
-        return
-    order_id = event.get("order_id")
+async def handle_order_status_change_request(event: dict, logger):
+    slug = event.get("slug")
     target_status = event.get("target_status")
-    requested_by_chat_id = event.get("requested_by_chat_id")
-    requested_by_tg_id = event.get("requested_by_tg_id")
-    requested_by_username = event.get("requested_by_username")
-
-    if not order_id or not target_status:
-        logger.warning("Incomplete order_status_change_request: %s", event)
-        return
 
     async with async_session_maker() as db:
         try:
-            requester = None
-            if requested_by_tg_id:
-                requester = await get_user(db=db, tg_id=requested_by_tg_id)
-
-            if not requester or requester.role != "support" or not getattr(requester, "is_verified", False):
-                await producer.send_order_status_change_result(
-                    {
-                        "order_id": order_id,
-                        "success": False,
-                        "message": "Нет прав на изменение статуса",
-                        "requested_by_chat_id": requested_by_chat_id,
-                        "target_status": target_status,
-                        "current_status_text": None,
-                    }
-                )
-                return
-
-            order = await get_orders(db=db, order_id=order_id)
+            order = await get_orders(db=db, slug=slug)
             if not order:
-                await producer.send_order_status_change_result(
-                    {
-                        "order_id": order_id,
-                        "success": False,
-                        "message": "Заказ не найден",
-                        "requested_by_chat_id": requested_by_chat_id,
-                        "target_status": target_status,
-                        "current_status_text": None,
-                    }
+                logger.info("Заказ не найден")
+            else:
+                new_status_text = getattr(Statuses, target_status, None)
+                allowed_previous_status = Statuses.changing_statuses.get(target_status)
+
+                update_stmt = (
+                    update(Orders)
+                    .where(Orders.id == order.id, Orders.status == allowed_previous_status)
+                    .values(status=new_status_text)
+                    .returning(Orders.status)
                 )
-                return
+                (await db.execute(update_stmt)).scalar_one_or_none() # TODO переиспользовать метод crud
+                await db.commit()
 
-            current_status_text = order.status
-            new_status_text = getattr(Statuses, target_status, None)
-            allowed_previous_status = Statuses.changing_statuses.get(target_status)
+                if target_status == "CANCELLED":
+                    for product_id, product_info in order.products.items():
+                        await update_stock(product_id=int(product_id), count=product_info["count"], db=db, add=True)
 
-            if not new_status_text or allowed_previous_status is None:
-                await producer.send_order_status_change_result(
-                    {
-                        "order_id": order_id,
-                        "success": False,
-                        "message": "Недопустимый статус",
-                        "requested_by_chat_id": requested_by_chat_id,
-                        "target_status": target_status,
-                        "current_status_text": current_status_text,
-                    }
-                )
-                return
-
-            if current_status_text == new_status_text:
-                await producer.send_order_status_change_result(
-                    {
-                        "order_id": order_id,
-                        "success": False,
-                        "message": f"Статус уже {new_status_text}",
-                        "requested_by_chat_id": requested_by_chat_id,
-                        "target_status": target_status,
-                        "current_status_text": current_status_text,
-                    }
-                )
-                return
-
-            update_stmt = (
-                update(Orders)
-                .where(Orders.id == order_id, Orders.status == allowed_previous_status)
-                .values(status=new_status_text)
-                .returning(Orders.status)
-            )
-            updated_status = (await db.execute(update_stmt)).scalar_one_or_none()
-
-            if not updated_status:
-                await db.rollback()
-                fresh_order = await get_orders(db=db, order_id=order_id)
-                await producer.send_order_status_change_result(
-                    {
-                        "order_id": order_id,
-                        "success": False,
-                        "message": f"Статус уже изменён: {fresh_order.status if fresh_order else '?'}",
-                        "requested_by_chat_id": requested_by_chat_id,
-                        "target_status": target_status,
-                        "current_status_text": fresh_order.status if fresh_order else current_status_text,
-                    }
-                )
-                return
-
-            if target_status == "CANCELLED":
-                for product_id, product_info in order.products.items():
-                    await update_stock(product_id=int(product_id), count=product_info["count"], db=db, add=True)
-
-            await db.commit()
-
-            await producer.send_order_status_change_result(
-                {
-                    "order_id": order_id,
-                    "success": True,
-                    "message": f"Статус изменён на {new_status_text}",
-                    "requested_by_chat_id": requested_by_chat_id,
-                    "target_status": target_status,
-                    "current_status_text": new_status_text,
-                }
-            )
-
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             await db.rollback()
             logger.exception("Failed to change order status: %s", exc)
-            await producer.send_order_status_change_result(
-                {
-                    "order_id": order_id,
-                    "success": False,
-                    "message": "Ошибка при изменении статуса",
-                    "requested_by_chat_id": requested_by_chat_id,
-                    "target_status": target_status,
-                    "current_status_text": None,
-                }
-            )

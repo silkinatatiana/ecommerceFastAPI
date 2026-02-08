@@ -22,13 +22,11 @@ class KafkaEventPublisher:
         self,
         *,
         tg_id: int,
-        chat_id: int,
         user_id: int,
         message: str,
     ) -> None:
         payload = {
             "tg_id": tg_id,
-            "chat_id": chat_id,
             "user_id": user_id,
             "message": message,
         }
@@ -39,7 +37,7 @@ class KafkaEventPublisher:
 
     async def send_order_status_change_result(self, payload: dict) -> None:
         await self.producer.send_and_wait(
-            Config.CHANGE_STATUS_TOPIC,
+            Config.CHANGE_STATUS_TOPIC_TO_BOT,
             json.dumps(payload, ensure_ascii=False).encode("utf-8")
         )
 

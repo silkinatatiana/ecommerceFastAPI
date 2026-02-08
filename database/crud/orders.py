@@ -31,6 +31,7 @@ async def create_new_order(db: AsyncSession,
 @handle_db_errors
 async def get_orders(db: AsyncSession,
                      order_id: int = None,
+                     slug: str = None,
                      user_id: int = None,
                      limit: int = None,
                      offset: int = None,
@@ -45,6 +46,9 @@ async def get_orders(db: AsyncSession,
 
     if order_id:
         query = query.where(Orders.id == order_id)
+
+    if slug:
+        query = query.where(Orders.slug == slug)
 
     if user_id:
         query = query.where(Orders.user_id == user_id)
@@ -61,7 +65,7 @@ async def get_orders(db: AsyncSession,
     if offset:
         query = query.offset(offset)
 
-    if func_count or limit == 1 or order_id:
+    if func_count or limit == 1 or order_id or slug:
         result = await db.scalar(query)
 
     else:
@@ -75,7 +79,7 @@ async def get_orders(db: AsyncSession,
 async def get_orders(
     db: AsyncSession,
     order_id: int = None,
-    order_slug: str = None,
+    slug: str = None,
     user_id: int = None,
     limit: int = None,
     offset: int = None,
@@ -95,8 +99,8 @@ async def get_orders(
     if order_id:
         query = query.where(Orders.id == order_id)
 
-    if order_slug:
-        query = query.where(Orders.slug == order_slug)
+    if slug:
+        query = query.where(Orders.slug == slug)
 
     if user_id:
         query = query.where(Orders.user_id == user_id)
@@ -112,7 +116,7 @@ async def get_orders(
 
     result = await db.execute(query)
 
-    if order_id or order_slug or limit == 1:
+    if order_id or slug or limit == 1:
         return result.scalar_one_or_none()
     else:
         return result.scalars().all()
@@ -120,15 +124,24 @@ async def get_orders(
 
 @handle_db_errors
 async def update_status(db: AsyncSession,
-                        order_id: int,
-                        new_status: str
+                        new_status: str,
+                        order_id: int = None,
+                        slug: str = None,
 ):
-    order = await get_orders(order_id=order_id, db=db)
+    order = None
+    query = None
+    if order_id:
+        order = await get_orders(order_id=order_id, db=db)
+        query = update(Orders).where(Orders.id == order_id)
+
+    elif slug:
+        order = await get_orders(slug=slug, db=db)
+        query = update(Orders).where(Orders.slug == slug)
 
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Заказ с ID {order_id} не найден'
+            detail=f'Заказ с ID {order_id} и slug {slug} не найден'
         )
 
     allowed_previous_status = Statuses.changing_statuses.get(new_status)
@@ -151,7 +164,7 @@ async def update_status(db: AsyncSession,
             detail='Недопустимый новый статус'
         )
 
-    query = update(Orders).where(Orders.id == order_id).values(status=new_status_text)
+    query = query.values(status=new_status_text)
     await db.execute(query)
     await db.commit()
 

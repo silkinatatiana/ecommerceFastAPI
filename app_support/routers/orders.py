@@ -66,16 +66,23 @@ async def get_orders_by_user_id(user_id: int,
 @router.patch('/change_status/{order_id}')
 async def change_status(order_id: int,
                         status_obj: ChangeOrderStatus,
+                        request: Request,
                         token: str = Cookie(None, alias='token'),
                         db: AsyncSession = Depends(get_db)) -> dict:
     try:
         await checking_access_rights(token=token, roles=['support'])
 
         await update_status(db=db, order_id=order_id, new_status=status_obj.new_status)
+        order = await get_orders(db=db, order_id=order_id)
         if status_obj.new_status == 'CANCELLED':
-            order = await get_orders(db=db, order_id=order_id)
             for product_id, product_info in order.products.items():
                 await update_stock(product_id=int(product_id), count=product_info['count'], db=db, add=True)
+
+        producer = request.app.state.kafka_producer
+        await producer.send_order_status_change_result({
+            "slug": order.slug,
+            "current_status_text": order.status,
+        })
         return {'message': f'Статус заказа изменен'}
 
     except SQLAlchemyError as e:

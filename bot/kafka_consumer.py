@@ -17,10 +17,6 @@ class KafkaEventConsumer:
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
 
-        logger.info(f"ORDERS_TOPIC: '{Config.ORDERS_TOPIC}'")
-        logger.info(f"VERIFIED_TOPIC: '{Config.VERIFIED_TOPIC}'")
-        logger.info(f"CHANGE_STATUS_TOPIC: '{Config.CHANGE_STATUS_TOPIC}'")
-
         self.consumer_order_created = AIOKafkaConsumer(
             Config.ORDERS_TOPIC,
             bootstrap_servers=Config.KAFKA_HOST,
@@ -36,7 +32,7 @@ class KafkaEventConsumer:
             value_deserializer=lambda v: v and v.decode("utf-8"),
         )
         self.consumer_change_status = AIOKafkaConsumer(
-            Config.CHANGE_STATUS_TOPIC,
+            Config.CHANGE_STATUS_TOPIC_TO_BOT,
             bootstrap_servers=Config.KAFKA_HOST,
             group_id="bot-change-status",
             auto_offset_reset="earliest",
@@ -113,77 +109,35 @@ class KafkaEventConsumer:
                 logger.exception("Failed to process kafka message: %s", msg.value)
 
     async def _handle_verification_prompt(self, event: dict[str, Any]) -> None:
-        chat_id = event.get("chat_id")
-        user_id = event.get("user_id")
-        message = event.get("message") or "Подтвердите верификацию аккаунта."
+        try:
+            tg_id = event.get("tg_id")
+            user_id = event.get("user_id")
+            message = event.get("message") or "Подтвердите верификацию аккаунта."
 
-        if not chat_id or not user_id:
-            logger.warning("Prompt without chat_id or user_id: %s", event)
-            return
-
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="✅ Подтвердить",
-                        callback_data=f"verify:{user_id}:approve"
-                    ),
-                    InlineKeyboardButton(
-                        text="❌ Отклонить",
-                        callback_data=f"verify:{user_id}:reject"
-                    ),
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="✅ Подтвердить",
+                            callback_data=f"verify:{user_id}:approve"
+                        ),
+                        InlineKeyboardButton(
+                            text="❌ Отклонить",
+                            callback_data=f"verify:{user_id}:reject"
+                        ),
+                    ]
                 ]
-            ]
-        )
-
-        await self.bot.send_message(
-            chat_id=chat_id,
-            text=message,
-            reply_markup=keyboard
-        )
-
-    def _build_status_keyboard(self, order_id: int, current_status_text: str | None) -> InlineKeyboardMarkup | None:
-        if not current_status_text:
-            return None
-
-        next_status_key = next(
-            (status_key for status_key, prev_status in Statuses.changing_statuses.items()
-             if prev_status == current_status_text),
-            None
-        )
-
-        buttons_row = []
-
-        if next_status_key:
-            next_label = getattr(Statuses, next_status_key, next_status_key)
-            buttons_row.append(
-                InlineKeyboardButton(
-                    text=f"🔄{next_label}",
-                    callback_data=f"order_status:{order_id}:{next_status_key}"
-                )
             )
 
-        if current_status_text == Statuses.DESIGNED:
-            buttons_row.append(
-                InlineKeyboardButton(
-                    text="❌ Отменить",
-                    callback_data=f"order_status:{order_id}:CANCELLED"
-                )
+            await self.bot.send_message(
+                chat_id=tg_id,
+                text=message,
+                reply_markup=keyboard
             )
-
-        if not buttons_row:
-            return None
-
-        return InlineKeyboardMarkup(inline_keyboard=[buttons_row])
-
-    @staticmethod
-    def _update_status_line(message_text: str | None, status_text: str | None) -> str:
-        lines = message_text.splitlines()
-        lines[1] = f"Статус: {status_text or '—'}"
-        return "\n".join(lines)
+        except Exception as e:
+            logger.error(f"Ошибка при попытке подтвердить аккаунт телеграм: {e}")
 
     async def _handle_order_created(self, event: dict[str, Any]) -> None:
-        order_id = event.get("order_id")
         slug = event.get("slug")
         positions = event.get("positions") or []
         total_sum = event.get("total_sum", 0)
@@ -212,7 +166,7 @@ class KafkaEventConsumer:
 
         message_text = "\n".join(lines)
 
-        keyboard_status = self._build_status_keyboard(order_id, status_text)
+        keyboard_status = build_status_keyboard(slug, status_text)
 
         for chat_id in chat_ids:
             try:
@@ -221,8 +175,8 @@ class KafkaEventConsumer:
                     text=message_text,
                     reply_markup=keyboard_status
                 )
-                if order_id is not None:
-                    self._order_messages.setdefault(order_id, []).append({
+                if slug:
+                    self._order_messages.setdefault(slug, []).append({
                         "chat_id": chat_id,
                         "message_id": sent.message_id,
                         "text": message_text,
@@ -231,16 +185,15 @@ class KafkaEventConsumer:
                 logger.exception("Failed to send order notification to chat %s", chat_id)
 
     async def _handle_status_change_result(self, event: dict[str, Any]) -> None:
-        # Игнорируем запросы (бот сам их отправляет)
-        if "success" not in event:
-            return
-        order_id = event.get("order_id")
-        success = event.get("success")
+        slug = event.get("slug")
         current_status_text = event.get("current_status_text")
-        keyboard = self._build_status_keyboard(order_id, current_status_text)
+        keyboard = build_status_keyboard(slug, current_status_text)
 
-        for entry in self._order_messages.get(order_id, []):
-            updated_text = self._update_status_line(entry.get("text"), current_status_text)
+        entries = self._order_messages.get(slug, [])
+        if not entries:
+            logger.warning("No stored messages for slug %s (bot may have restarted after order created)", slug)
+        for entry in entries:
+            updated_text = update_status_line(entry.get("text"), current_status_text)
             try:
                 await self.bot.edit_message_text(
                     chat_id=entry["chat_id"],
@@ -249,8 +202,61 @@ class KafkaEventConsumer:
                     reply_markup=keyboard
                 )
                 entry["text"] = updated_text
-            except Exception:  # noqa: BLE001
-                logger.debug("Cannot edit order message for chat %s", entry["chat_id"])
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Cannot edit order message for chat %s: %s", entry["chat_id"], e)
 
-        if success and not keyboard:
-            self._order_messages.pop(order_id, None)
+        if not keyboard:
+            self._order_messages.pop(slug, None)
+
+
+def build_status_keyboard(slug: str, current_status_text: str | None) -> InlineKeyboardMarkup | None:
+    """Собирает клавиатуру доступных переходов по статусу заказа. Используется в consumer и в колбеке смены статуса."""
+    if not current_status_text:
+        return None
+
+    next_status_key = next(
+        (status_key for status_key, prev_status in Statuses.changing_statuses.items()
+         if prev_status == current_status_text),
+        None
+    )
+
+    buttons_row = []
+
+    if next_status_key:
+        next_label = getattr(Statuses, next_status_key, next_status_key)
+        buttons_row.append(
+            InlineKeyboardButton(
+                text=f"🔄{next_label}",
+                callback_data=f"order_status:{slug}:{next_status_key}"
+            )
+        )
+
+    if current_status_text == Statuses.DESIGNED:
+        buttons_row.append(
+            InlineKeyboardButton(
+                text="❌ Отменить",
+                callback_data=f"order_status:{slug}:CANCELLED"
+            )
+        )
+
+    if not buttons_row:
+        return None
+
+    return InlineKeyboardMarkup(inline_keyboard=[buttons_row])
+
+
+def update_status_line(message_text: str | None, status_text: str | None) -> str:
+    """Подставляет новую строку «Статус: …» в текст сообщения."""
+    if not message_text:
+        return f"Статус: {status_text or '—'}"
+    lines = message_text.splitlines()
+    new_line = f"Статус: {status_text or '—'}"
+    replaced = False
+    for i, line in enumerate(lines):
+        if line.strip().lower().startswith("статус:"):
+            lines[i] = new_line
+            replaced = True
+            break
+    if not replaced and len(lines) > 2:
+        lines[2] = new_line
+    return "\n".join(lines)

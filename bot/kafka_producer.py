@@ -41,20 +41,14 @@ class KafkaEventPublisher:
     async def send_order_status_change_request(
         self,
         *,
-        order_id: int,
-        target_status: str,
-        requested_by_chat_id: int,
-        requested_by_tg_id: int,
-        requested_by_username: str | None = None,
+        slug: str,
+        target_status: str
     ) -> None:
         payload = {
-            "order_id": order_id,
-            "target_status": target_status,
-            "requested_by_chat_id": requested_by_chat_id,
-            "requested_by_tg_id": requested_by_tg_id,
-            "requested_by_username": requested_by_username,
+            "slug": slug,
+            "target_status": target_status
         }
         await self.producer.send_and_wait(
-            Config.CHANGE_STATUS_TOPIC,
+            Config.CHANGE_STATUS_TOPIC_TO_SUPPORT,
             json.dumps(payload).encode("utf-8")
         )

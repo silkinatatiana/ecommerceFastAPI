@@ -3,7 +3,9 @@ import logging
 from aiogram import Router, types
 from aiogram.filters import CommandStart
 
+from bot.kafka_consumer import build_status_keyboard, update_status_line
 from bot.kafka_producer import KafkaEventPublisher
+from config import Statuses
 
 router = Router()
 publisher: KafkaEventPublisher | None = None
@@ -68,29 +70,35 @@ async def handle_order_status_callback(callback: types.CallbackQuery) -> None:
         return
 
     try:
+        logger.info(f"Callback data: {callback.data}")
         parts = callback.data.split(":")
         logger.info(f"Callback data parts: {parts}, count: {len(parts)}")
-        _, order_id_str, target_status = parts
-        order_id = int(order_id_str)
+        _, slug, target_status = parts
 
     except Exception:  # noqa: BLE001
         await callback.answer("Некорректные данные кнопки", show_alert=True)
         return
 
     chat_id = callback.message.chat.id if callback.message else None
-    tg_id = callback.from_user.id
-    username = callback.from_user.username
 
     if not chat_id:
         await callback.answer("Не удалось определить чат", show_alert=True)
         return
 
-    await publisher.send_order_status_change_request(
-        order_id=order_id,
-        target_status=target_status,
-        requested_by_chat_id=chat_id,
-        requested_by_tg_id=tg_id,
-        requested_by_username=username,
-    )
+    status_label = getattr(Statuses, target_status, target_status)
+    if callback.message and callback.message.text:
+        new_text = update_status_line(callback.message.text, status_label)
+        new_keyboard = build_status_keyboard(slug, status_label)
+        try:
+            await callback.message.edit_text(
+                new_text,
+                reply_markup=new_keyboard,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Не удалось обновить сообщение заказа: %s", e)
 
+    await publisher.send_order_status_change_request(
+        slug=slug,
+        target_status=target_status
+    )
     await callback.answer("Запрос на смену статуса отправлен")

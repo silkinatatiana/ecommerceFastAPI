@@ -11,6 +11,7 @@ from passlib.context import CryptContext
 
 from sqlalchemy import select
 
+from app.main import logger
 from database.crud.users import create_user, get_user, update_user_info
 from general_functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password, \
     create_tokens_and_set_cookies, logout_func
@@ -100,7 +101,6 @@ async def request_telegram_verification(
 
     await producer.send_verification_prompt(
         tg_id=user.tg_id,
-        chat_id=user.tg_id,
         user_id=user.id,
         message="Подтвердите аккаунт в PEAR."
     )
@@ -171,21 +171,23 @@ async def register(register_data: RegisterData,
                                  role=role,
                                  db=db)
 
-        producer = request.app.state.kafka_producer
-        if tg_id:
-            await producer.send_verification_prompt(
-                tg_id=user.tg_id,
-                chat_id=user.tg_id,
+        try:
+            producer = request.app.state.kafka_producer
+            if tg_id:
+                await producer.send_verification_prompt(
+                    tg_id=user.tg_id,
+                    user_id=user.id,
+                    message="Подтвердите регистрацию в PEAR."
+                )
+        except Exception as e:
+            logger.error(f"Error: {e}")
+        finally:
+            return create_tokens_and_set_cookies(
+                username=user.username,
                 user_id=user.id,
-                message="Подтвердите регистрацию в PEAR."
+                role=user.role,
+                is_admin=user.is_admin
             )
-
-        return create_tokens_and_set_cookies(
-            username=user.username,
-            user_id=user.id,
-            role=user.role,
-            is_admin=user.is_admin
-        )
 
     except Exception as e:
         await db.rollback()

@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
 
     support_consumer_change_status = AIOKafkaConsumer(
-        Config.CHANGE_STATUS_TOPIC,
+        Config.CHANGE_STATUS_TOPIC_TO_SUPPORT,
         bootstrap_servers=Config.KAFKA_HOST,
         group_id="support-bot_change_status",
         auto_offset_reset="earliest",
@@ -79,7 +79,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         await producer.start()
         await consumer.start()
-        consumer_task = asyncio.create_task(consume_orders(consumer, producer))
+        consumer_task = asyncio.create_task(consume_orders(consumer))
         app.state.kafka_consumer_task = consumer_task
         await support_consumer_verify.start()
         support_task_verify = asyncio.create_task(
@@ -90,7 +90,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         support_task_change = asyncio.create_task(
             consume_support_change_orders_status(
                 support_consumer_change_status,
-                producer,
             )
         )
         app.state.kafka_support_change_status_task = support_task_change
