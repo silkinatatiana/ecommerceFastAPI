@@ -253,14 +253,12 @@ async def build_full_page_context(
             user_id = user_data["user_id"]
         products_data = await fetch_products_for_category(
             category_id=category["id"],
-            db=db,
             user_id=user_id,
             favorite_product_ids=user_data["favorite_product_ids"],
             colors=colors,
             built_in_memory=built_in_memory,
             is_favorite=is_favorite,
             current_page=current_page,
-            per_page=3,
         )
 
         formatted_products = [

@@ -1,7 +1,7 @@
 from sqlalchemy import delete, select, update
 
 from config import Config, Statuses
-from database.crud.orders import create_new_order, get_orders
+from database.crud.orders import create_new_order, get_orders, update_status
 from database.crud.users import get_user, set_telegram_data
 from database.db import async_session_maker
 from general_functions.product_func import update_stock
@@ -190,21 +190,7 @@ async def handle_order_status_change_request(event: dict, logger):
             if not order:
                 logger.info("Заказ не найден")
             else:
-                new_status_text = getattr(Statuses, target_status, None)
-                allowed_previous_status = Statuses.changing_statuses.get(target_status)
-
-                update_stmt = (
-                    update(Orders)
-                    .where(
-                        Orders.id == order.id, Orders.status == allowed_previous_status
-                    )
-                    .values(status=new_status_text)
-                    .returning(Orders.status)
-                )
-                (
-                    await db.execute(update_stmt)
-                ).scalar_one_or_none()  # TODO переиспользовать метод crud
-                await db.commit()
+                await update_status(db=db, new_status=target_status, order_id=order.id)
 
                 if target_status == "CANCELLED":
                     for product_id, product_info in order.products.items():
