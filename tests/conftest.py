@@ -1,14 +1,15 @@
-from faker import Faker
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from faker import Faker
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
-from httpx import AsyncClient, ASGITransport
 
 from app.main import app
 from app_support.main import app as app_support
 from config import Config
 from database.db import Base
 from database.db_depends import get_db
+
 
 fake = Faker()
 SECRET_KEY = Config.SECRET_KEY
@@ -20,7 +21,7 @@ pytest_plugins = [
     "tests.fixtures.review",
     "tests.fixtures.user",
     "tests.fixtures.products",
-    "tests.fixtures.message"
+    "tests.fixtures.message",
 ]
 
 engine = create_async_engine(
@@ -58,13 +59,17 @@ async def register_and_login(ac: AsyncClient, role: str) -> str:
         "role": role,
     }
     response = await ac.post("/auth/register", json=register_data)
-    assert response.status_code == 303, f"Registration failed: {response.status_code}, body: {response.text}"
+    assert response.status_code == 303, (
+        f"Registration failed: {response.status_code}, body: {response.text}"
+    )
 
     token = ac.cookies.get("token")
     assert token is not None, "Token cookie not set after registration"
 
 
-async def _create_client(app_instance, db: AsyncSession, role: str = None) -> AsyncClient:
+async def _create_client(
+    app_instance, db: AsyncSession, role: str = None
+) -> AsyncClient:
     async def override_get_db():
         yield db
 

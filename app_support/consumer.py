@@ -1,12 +1,12 @@
 from sqlalchemy import delete, select, update
 
-from config import Config
-from config import Statuses
+from config import Config, Statuses
 from database.crud.orders import create_new_order, get_orders
 from database.crud.users import get_user, set_telegram_data
 from database.db import async_session_maker
 from general_functions.product_func import update_stock
-from models import Cart, Product, Orders
+from models import Cart, Orders, Product
+
 
 KAFKA_BOOTSTRAP_SERVERS = Config.KAFKA_HOST
 
@@ -28,24 +28,27 @@ async def consume_orders(consumer):
             logger.info(f"Получено сообщение (raw): {msg.value}")
             logger.info(msg.value, type(msg.value))
             payload = msg.value
-            logger.info(f"Получен заказ: {payload.get('user_id')}, {len(payload.get('products', {}))} товаров")
+            logger.info(
+                f"Получен заказ: {payload.get('user_id')}, {len(payload.get('products', {}))} товаров"
+            )
 
             try:
                 async with async_session_maker() as db:
-                    for product_id_str, item in payload['products'].items():
+                    for product_id_str, item in payload["products"].items():
                         product_id = int(product_id_str)
-                        await update_stock(product_id=product_id, count=item['count'], db=db)
+                        await update_stock(
+                            product_id=product_id, count=item["count"], db=db
+                        )
 
                     order = await create_new_order(
-                        user_id=payload['user_id'],
-                        products=payload['products'],
-                        summa=payload['total_sum'],
-                        slug=payload['slug'],
-                        db=db
-
+                        user_id=payload["user_id"],
+                        products=payload["products"],
+                        summa=payload["total_sum"],
+                        slug=payload["slug"],
+                        db=db,
                     )
                     await db.execute(
-                        delete(Cart).where(Cart.user_id == payload['user_id'])
+                        delete(Cart).where(Cart.user_id == payload["user_id"])
                     )
                     await db.commit()
 
@@ -55,7 +58,9 @@ async def consume_orders(consumer):
                     product_map = {}
                     if product_ids:
                         products_rows = await db.execute(
-                            select(Product.id, Product.name).where(Product.id.in_(product_ids))
+                            select(Product.id, Product.name).where(
+                                Product.id.in_(product_ids)
+                            )
                         )
                         product_map = {row.id: row.name for row in products_rows}
 
@@ -68,7 +73,8 @@ async def consume_orders(consumer):
                                 "name": product_map.get(pid, f"Товар {pid}"),
                                 "count": item.get("count"),
                                 "price": item.get("price"),
-                                "subtotal": (item.get("price") or 0) * (item.get("count") or 0),
+                                "subtotal": (item.get("price") or 0)
+                                * (item.get("count") or 0),
                             }
                         )
 
@@ -88,7 +94,9 @@ async def consume_orders(consumer):
                     # )
 
             except Exception as e:
-                logger.exception(f"Ошибка обработки заказа {payload.get('user_id')}: {e}")
+                logger.exception(
+                    f"Ошибка обработки заказа {payload.get('user_id')}: {e}"
+                )
 
     finally:
         await consumer.stop()
@@ -142,7 +150,9 @@ async def handle_telegram_verification_response(event: dict, logger):
 
     is_verified = decision == "approve"
     if not is_verified:
-        logger.info("User %s rejected Telegram verification; skipping DB update", user_id)
+        logger.info(
+            "User %s rejected Telegram verification; skipping DB update", user_id
+        )
         return
 
     try:
@@ -158,9 +168,13 @@ async def handle_telegram_verification_response(event: dict, logger):
                 user_id=user_id,
                 tg_id=int(tg_id),
                 tg_username=tg_username,
-                is_verified=is_verified
+                is_verified=is_verified,
             )
-            logger.info("Updated Telegram linkage for user %s (verified=%s)", user_id, is_verified)
+            logger.info(
+                "Updated Telegram linkage for user %s (verified=%s)",
+                user_id,
+                is_verified,
+            )
 
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to handle telegram verification response: %s", exc)
@@ -181,16 +195,25 @@ async def handle_order_status_change_request(event: dict, logger):
 
                 update_stmt = (
                     update(Orders)
-                    .where(Orders.id == order.id, Orders.status == allowed_previous_status)
+                    .where(
+                        Orders.id == order.id, Orders.status == allowed_previous_status
+                    )
                     .values(status=new_status_text)
                     .returning(Orders.status)
                 )
-                (await db.execute(update_stmt)).scalar_one_or_none() # TODO переиспользовать метод crud
+                (
+                    await db.execute(update_stmt)
+                ).scalar_one_or_none()  # TODO переиспользовать метод crud
                 await db.commit()
 
                 if target_status == "CANCELLED":
                     for product_id, product_info in order.products.items():
-                        await update_stock(product_id=int(product_id), count=product_info["count"], db=db, add=True)
+                        await update_stock(
+                            product_id=int(product_id),
+                            count=product_info["count"],
+                            db=db,
+                            add=True,
+                        )
 
         except Exception as exc:
             await db.rollback()

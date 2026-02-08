@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from sqlalchemy import select, update, func
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import Statuses
@@ -8,19 +8,10 @@ from models import Orders
 
 
 @handle_db_errors
-async def create_new_order(db: AsyncSession,
-                           user_id: int,
-                           products: dict,
-                           summa: int,
-                           slug: str
-
+async def create_new_order(
+    db: AsyncSession, user_id: int, products: dict, summa: int, slug: str
 ):
-    order = Orders(
-        user_id=user_id,
-        products=products,
-        summa=summa,
-        slug=slug
-    )
+    order = Orders(user_id=user_id, products=products, summa=summa, slug=slug)
     db.add(order)
     await db.flush()
     await db.commit()
@@ -29,15 +20,16 @@ async def create_new_order(db: AsyncSession,
 
 
 @handle_db_errors
-async def get_orders(db: AsyncSession,
-                     order_id: int = None,
-                     slug: str = None,
-                     user_id: int = None,
-                     limit: int = None,
-                     offset: int = None,
-                     sort_asc: bool = False,
-                     sort_desc: bool = False,
-                     func_count: bool = False# добавить фильтр по статусу (может быть несколько [list])
+async def get_orders(
+    db: AsyncSession,
+    order_id: int = None,
+    slug: str = None,
+    user_id: int = None,
+    limit: int = None,
+    offset: int = None,
+    sort_asc: bool = False,
+    sort_desc: bool = False,
+    func_count: bool = False,  # добавить фильтр по статусу (может быть несколько [list])
 ):
     query = select(Orders)
 
@@ -76,57 +68,11 @@ async def get_orders(db: AsyncSession,
 
 
 @handle_db_errors
-async def get_orders(
+async def update_status(
     db: AsyncSession,
+    new_status: str,
     order_id: int = None,
     slug: str = None,
-    user_id: int = None,
-    limit: int = None,
-    offset: int = None,
-    sort_asc: bool = False,
-    sort_desc: bool = False,
-    func_count: bool = False
-):
-    if func_count:
-        query = select(func.count()).select_from(Orders)
-        if user_id:
-            query = query.where(Orders.user_id == user_id)
-        result = await db.scalar(query)
-        return result
-
-    query = select(Orders)
-
-    if order_id:
-        query = query.where(Orders.id == order_id)
-
-    if slug:
-        query = query.where(Orders.slug == slug)
-
-    if user_id:
-        query = query.where(Orders.user_id == user_id)
-
-    if sort_asc:
-        query = query.order_by(Orders.date.asc())
-    if sort_desc:
-        query = query.order_by(Orders.date.desc())
-    if limit:
-        query = query.limit(limit)
-    if offset:
-        query = query.offset(offset)
-
-    result = await db.execute(query)
-
-    if order_id or slug or limit == 1:
-        return result.scalar_one_or_none()
-    else:
-        return result.scalars().all()
-
-
-@handle_db_errors
-async def update_status(db: AsyncSession,
-                        new_status: str,
-                        order_id: int = None,
-                        slug: str = None,
 ):
     order = None
     query = None
@@ -141,34 +87,27 @@ async def update_status(db: AsyncSession,
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Заказ с ID {order_id} и slug {slug} не найден'
+            detail=f"Заказ с ID {order_id} и slug {slug} не найден",
         )
 
     allowed_previous_status = Statuses.changing_statuses.get(new_status)
     if allowed_previous_status is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Недопустимый новый статус'
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Недопустимый новый статус"
         )
 
     if allowed_previous_status != order.status:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'Недопустимый переход статуса. Текущий статус: "{order.status}"'
+            detail=f'Недопустимый переход статуса. Текущий статус: "{order.status}"',
         )
 
     new_status_text = getattr(Statuses, new_status, None)
     if new_status_text is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Недопустимый новый статус'
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Недопустимый новый статус"
         )
 
     query = query.values(status=new_status_text)
     await db.execute(query)
     await db.commit()
-
-
-
-
-

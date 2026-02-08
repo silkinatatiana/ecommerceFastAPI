@@ -1,37 +1,39 @@
-from typing import Optional
 
-from fastapi import APIRouter, Depends, status, HTTPException, Query, Cookie
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, status
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import RedirectResponse
 
 from database.crud.chats import get_chat
 from database.crud.decorators import handler_base_errors
-from database.db_depends import get_db
 from database.crud.messages import create_message
-from models import *
+from database.db_depends import get_db
 from general_functions.auth_func import checking_access_rights
+from models import Messages, User
 from schemas import MessageCreate
 
-router = APIRouter(prefix='/messages', tags=['messages'])
-templates = Jinja2Templates(directory='app_support/templates/')
+
+router = APIRouter(prefix="/messages", tags=["messages"])
+templates = Jinja2Templates(directory="app_support/templates/")
 
 
-@router.get('/by_chat/{chat_id}')
+@router.get("/by_chat/{chat_id}")
 @handler_base_errors
-async def messages_by_chat_id(chat_id: int,
-                              page: int = Query(1, ge=1),
-                              limit: int = Query(15, ge=1, le=50),
-                              db: AsyncSession = Depends(get_db),
-                              token: Optional[str] = Cookie(default=None, alias="token")
+async def messages_by_chat_id(
+    chat_id: int,
+    page: int = Query(1, ge=1),
+    limit: int = Query(15, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    token: str | None = Cookie(default=None, alias="token"),
 ):
     try:
-        user_id = await checking_access_rights(token=token, roles=['customer'])
+        user_id = await checking_access_rights(token=token, roles=["customer"])
         chat = await get_chat(db=db, chat_id=chat_id)
         if user_id != chat.user_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                detail='Нет прав для доступа')
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Нет прав для доступа"
+            )
 
         offset = (page - 1) * limit
 
@@ -57,7 +59,7 @@ async def messages_by_chat_id(chat_id: int,
                 "sender_id": msg.sender_id,
                 "sender_name": sender_name,
                 "message": msg.message,
-                "created_at": msg.created_at.isoformat() if msg.created_at else None
+                "created_at": msg.created_at.isoformat() if msg.created_at else None,
             }
             messages.append(msg_dict)
         return messages
@@ -68,19 +70,21 @@ async def messages_by_chat_id(chat_id: int,
         raise
 
 
-@router.post('/create', status_code=status.HTTP_201_CREATED)
+@router.post("/create", status_code=status.HTTP_201_CREATED)
 @handler_base_errors
-async def messages_create(message_data: MessageCreate,
-                          db: AsyncSession = Depends(get_db),
-                          token: Optional[str] = Cookie(None, alias='token')
+async def messages_create(
+    message_data: MessageCreate,
+    db: AsyncSession = Depends(get_db),
+    token: str | None = Cookie(None, alias="token"),
 ):
     try:
-        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
+        user_id = await checking_access_rights(
+            token=token, roles=["customer", "seller"]
+        )
 
-        chat = await get_chat(chat_id=message_data.chat_id,
-                              user_id=user_id,
-                              active=True,
-                              db=db)
+        chat = await get_chat(
+            chat_id=message_data.chat_id, user_id=user_id, active=True, db=db
+        )
 
         if not chat:
             raise HTTPException(status_code=404, detail="Активный чат не найден")
@@ -89,7 +93,7 @@ async def messages_create(message_data: MessageCreate,
             chat_id=message_data.chat_id,
             message=message_data.message,
             sender_id=user_id,
-            db=db
+            db=db,
         )
         return message
 

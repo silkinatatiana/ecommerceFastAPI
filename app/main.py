@@ -1,28 +1,45 @@
+import logging
+import sys
 import time
-from typing import AsyncGenerator, Optional, Annotated
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Annotated
 
 import httpx
 from aiokafka import AIOKafkaProducer
-from fastapi import FastAPI, Request, Query, Depends, Cookie
+from fastapi import Cookie, Depends, FastAPI, Query, Request
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import logging
-import sys
-from pathlib import Path
 
-from config import Config
-from app.functions.main_func import parse_int_list, auth_user, handle_partial_request, build_full_page_context
-from app.routers import category, products, auth, reviews, favorites, cart, orders, chats, messages
+from app.functions.main_func import (
+    auth_user,
+    build_full_page_context,
+    handle_partial_request,
+    parse_int_list,
+)
+from app.routers import (
+    auth,
+    cart,
+    category,
+    chats,
+    favorites,
+    messages,
+    orders,
+    products,
+    reviews,
+)
 from app.routers.auth import auto_refresh_token
 from app_support.kafka_producer import KafkaEventPublisher
-from database.db import engine, Base
+from config import Config
+from database.db import Base, engine
 from database.db_depends import get_db
 from redis_client import init_redis
+
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
@@ -34,20 +51,22 @@ if LOGGER.handlers:
 
 class ColorFormatter(logging.Formatter):
     colors = {
-        'INFO': '\033[92m',
-        'WARNING': '\033[93m',
-        'ERROR': '\033[91m',
-        'RESET': '\033[0m'
+        "INFO": "\033[92m",
+        "WARNING": "\033[93m",
+        "ERROR": "\033[91m",
+        "RESET": "\033[0m",
     }
 
     def format(self, record):
-        color = self.colors.get(record.levelname, self.colors['RESET'])
+        color = self.colors.get(record.levelname, self.colors["RESET"])
         message = super().format(record)
         return f"{color}{message}{self.colors['RESET']}"
 
 
 console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setFormatter(ColorFormatter('%(asctime)s - %(levelname)s - %(message)s'))
+console_handler.setFormatter(
+    ColorFormatter("%(asctime)s - %(levelname)s - %(message)s")
+)
 LOGGER.addHandler(console_handler)
 
 
@@ -56,8 +75,10 @@ if not Config.TESTING:
     LOG_DIR.mkdir(exist_ok=True)
     LOG_FILE = LOG_DIR / "all_logs.log"
 
-    file_handler = logging.FileHandler(LOG_FILE, encoding='utf-8')
-    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    )
     LOGGER.addHandler(file_handler)
 
 logger = LOGGER
@@ -90,7 +111,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         try:
             await engine.dispose()
         except Exception as e:
-            print(f"⚠️ DB shutdown error: {e}")
+            logger.error(f"⚠️ DB shutdown error: {e}")
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -136,11 +157,7 @@ def custom_openapi():
         routes=app.routes,
     )
     openapi_schema["components"]["securitySchemes"] = {
-        "CookieAuth": {
-            "type": "apiKey",
-            "in": "cookie",
-            "name": "token"
-        }
+        "CookieAuth": {"type": "apiKey", "in": "cookie", "name": "token"}
     }
     for path in openapi_schema["paths"].values():
         for method in path.values():
@@ -180,16 +197,17 @@ async def log_requests(request: Request, call_next):
         )
         raise
 
-@app.get('/', response_class=HTMLResponse)
+
+@app.get("/", response_class=HTMLResponse)
 async def get_main_page(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
-    token: Optional[str] = Cookie(None, alias='token'),
-    category_id: Optional[str] = Query(None),
-    colors: Optional[str] = Query(None),
-    built_in_memory: Optional[str] = Query(None),
+    token: str | None = Cookie(None, alias="token"),
+    category_id: str | None = Query(None),
+    colors: str | None = Query(None),
+    built_in_memory: str | None = Query(None),
     is_favorite: bool = Query(False),
-    partial: bool = Query(False)
+    partial: bool = Query(False),
 ):
     user_data = await auth_user(token, db)
     selected_category_ids = parse_int_list(category_id)
@@ -207,11 +225,15 @@ async def get_main_page(
                         recommend_product_ids = data.get("ids", [])
                         if not isinstance(recommend_product_ids, list):
                             recommend_product_ids = []
-                        recommend_product_ids = [x for x in recommend_product_ids if isinstance(x, int)]
+                        recommend_product_ids = [
+                            x for x in recommend_product_ids if isinstance(x, int)
+                        ]
                     except Exception as e:
                         logger.warning(f"Failed to parse recommendations JSON: {e}")
                 else:
-                    logger.info(f"Recommendations endpoint returned {resp.status_code} for user")
+                    logger.info(
+                        f"Recommendations endpoint returned {resp.status_code} for user"
+                    )
 
         except Exception as e:
             logger.warning(f"Error fetching recommendations: {e}")
@@ -223,8 +245,14 @@ async def get_main_page(
         return templates.TemplateResponse(*response)
 
     context = await build_full_page_context(
-        request, db, user_data, selected_category_ids, recommend_product_ids,
-        colors, built_in_memory, is_favorite
+        request,
+        db,
+        user_data,
+        selected_category_ids,
+        recommend_product_ids,
+        colors,
+        built_in_memory,
+        is_favorite,
     )
 
     response = templates.TemplateResponse("index.html", context)

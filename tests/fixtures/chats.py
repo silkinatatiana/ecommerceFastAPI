@@ -2,18 +2,15 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.crud.chats import get_chat
-from tests.conftest import fake
 from models import Chats
+from tests.conftest import fake
 
 
 @pytest_asyncio.fixture
 async def test_chat(db: AsyncSession):
     async def _create_chat(user_id: int, employee_id: int):
         chat = Chats(
-            user_id=user_id,
-            employee_id=employee_id,
-            topic=fake.sentence(),
-            active=True
+            user_id=user_id, employee_id=employee_id, topic=fake.sentence(), active=True
         )
         db.add(chat)
         await db.flush()
@@ -31,7 +28,7 @@ async def test_chat_negative(db: AsyncSession):
             user_id=user_id,
             employee_id=employee_id,
             topic=fake.sentence(),
-            active=False
+            active=False,
         )
         db.add(chat)
         await db.flush()
@@ -44,9 +41,7 @@ async def test_chat_negative(db: AsyncSession):
 
 @pytest_asyncio.fixture
 async def test_chat_create():
-    return {
-        "topic": fake.sentence()
-    }
+    return {"topic": fake.sentence()}
 
 
 @pytest_asyncio.fixture

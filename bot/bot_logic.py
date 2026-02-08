@@ -7,6 +7,7 @@ from bot.kafka_consumer import build_status_keyboard, update_status_line
 from bot.kafka_producer import KafkaEventPublisher
 from config import Statuses
 
+
 router = Router()
 publisher: KafkaEventPublisher | None = None
 logger = logging.getLogger(__name__)
@@ -20,16 +21,17 @@ def set_publisher(instance: KafkaEventPublisher) -> None:
 @router.message(CommandStart())
 async def start_command(message: types.Message) -> None:
     await message.answer(
-        "✅ Привет! Твой Telegram ID: {tg_id}.\n"
+        f"✅ Привет! Твой Telegram ID: {message.from_user.id}.\n"
         "Ожидайте запрос на подтверждение регистрации и выберите: подтвердить или отклонить."
-        .format(tg_id=message.from_user.id)
     )
 
 
 @router.callback_query(lambda c: c.data and c.data.startswith("verify:"))
 async def handle_verification_callback(callback: types.CallbackQuery) -> None:
     if publisher is None:
-        await callback.answer("⏳ Сервис недоступен, попробуйте позже.", show_alert=True)
+        await callback.answer(
+            "⏳ Сервис недоступен, попробуйте позже.", show_alert=True
+        )
         logger.error("Kafka publisher is not initialised")
         return
 
@@ -56,7 +58,11 @@ async def handle_verification_callback(callback: types.CallbackQuery) -> None:
         decision=decision,
     )
 
-    text = "✅ Вы подтвердили аккаунт." if decision == "approve" else "❌ Вы отклонили подтверждение."
+    text = (
+        "✅ Вы подтвердили аккаунт."
+        if decision == "approve"
+        else "❌ Вы отклонили подтверждение."
+    )
     if callback.message:
         await callback.message.edit_text(text)
     await callback.answer(text)
@@ -65,7 +71,9 @@ async def handle_verification_callback(callback: types.CallbackQuery) -> None:
 @router.callback_query(lambda c: c.data and c.data.startswith("order_status:"))
 async def handle_order_status_callback(callback: types.CallbackQuery) -> None:
     if publisher is None:
-        await callback.answer("⏳ Сервис недоступен, попробуйте позже.", show_alert=True)
+        await callback.answer(
+            "⏳ Сервис недоступен, попробуйте позже.", show_alert=True
+        )
         logger.error("Kafka publisher is not initialised")
         return
 
@@ -98,7 +106,6 @@ async def handle_order_status_callback(callback: types.CallbackQuery) -> None:
             logger.warning("Не удалось обновить сообщение заказа: %s", e)
 
     await publisher.send_order_status_change_request(
-        slug=slug,
-        target_status=target_status
+        slug=slug, target_status=target_status
     )
     await callback.answer("Запрос на смену статуса отправлен")

@@ -5,7 +5,6 @@ Revises: 20260111_tg_id_bigint, 7916f92361fa
 Create Date: 2026-01-11
 """
 
-from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "20260111_merge_heads"

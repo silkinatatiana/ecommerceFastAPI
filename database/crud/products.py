@@ -1,21 +1,20 @@
-from typing import Optional, List
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.crud.decorators import handle_db_errors
-from models import Product, Favorites
+from models import Favorites, Product
 from schemas import CreateProduct
 
 
 @handle_db_errors
-async def create_new_product(db: AsyncSession,
-                             product_data: CreateProduct,
-                             supplier_id: int,
+async def create_new_product(
+    db: AsyncSession,
+    product_data: CreateProduct,
+    supplier_id: int,
 ):
     product = Product(
-        **product_data.model_dump(exclude_unset=True),
-        supplier_id=supplier_id
+        **product_data.model_dump(exclude_unset=True), supplier_id=supplier_id
     )
 
     db.add(product)
@@ -26,14 +25,15 @@ async def create_new_product(db: AsyncSession,
 
 
 @handle_db_errors
-async def get_product(db: AsyncSession,
-                      category_ids: list = None,
-                      product_id: int = None,
-                      product_ids: list = None,
-                      func_count: bool = False,
-                      colors: list = None,
-                      built_in_memory: list = None,
-                      order_dy_: int | str = None
+async def get_product(
+    db: AsyncSession,
+    category_ids: list = None,
+    product_id: int = None,
+    product_ids: list = None,
+    func_count: bool = False,
+    colors: list = None,
+    built_in_memory: list = None,
+    order_dy_: int | str = None,
 ):
     query = select(Product)
 
@@ -73,14 +73,20 @@ async def get_products_with_filters(
     category_id: int,
     page: int = 1,
     per_page: int = 3,
-    colors: Optional[str] = None,
-    built_in_memory: Optional[str] = None,
-    user_id: Optional[int] = None,
-    favorites: Optional[List[str]] = None,
-) -> tuple[List[Product], int]:
+    colors: str | None = None,
+    built_in_memory: str | None = None,
+    user_id: int | None = None,
+    favorites: list[str] | None = None,
+) -> tuple[list[Product], int]:
 
-    base_query = select(Product).where(Product.category_id == category_id).order_by(Product.id)
-    count_query = select(func.count()).select_from(Product).where(Product.category_id == category_id)
+    base_query = (
+        select(Product).where(Product.category_id == category_id).order_by(Product.id)
+    )
+    count_query = (
+        select(func.count())
+        .select_from(Product)
+        .where(Product.category_id == category_id)
+    )
 
     if colors:
         colors_list = [c.strip() for c in colors.split(",") if c.strip()]
@@ -97,7 +103,9 @@ async def get_products_with_filters(
             count_query = count_query.where(memory_condition)
 
     if favorites is not None and user_id:
-        favorite_ids_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
+        favorite_ids_query = select(Favorites.product_id).where(
+            Favorites.user_id == user_id
+        )
         favorite_ids = (await db.scalars(favorite_ids_query)).all()
         if favorite_ids:
             base_query = base_query.where(Product.id.in_(favorite_ids))
@@ -113,6 +121,3 @@ async def get_products_with_filters(
     products = (await db.scalars(paginated_query)).all()
 
     return products, total_count
-
-
-

@@ -1,20 +1,20 @@
 import asyncio
 import json
+import logging
 import threading
-from typing import Optional
+
+import redis.asyncio as redis
 
 from config import Config
 from database.crud.users import get_all_users
 from database.db import async_session_maker
 from general_functions.product_func import get_recommend_product_ids
-from .celery_app import celery_app
-import redis.asyncio as redis
 
-import logging
+from .celery_app import celery_app
+
 
 logger = logging.getLogger(__name__)
 
-# ✅ Используем thread-local storage для loop'ов (работает и с --pool=threads, и с --pool=prefork)
 _LOOP_LOCAL = threading.local()
 
 
@@ -26,7 +26,6 @@ def get_or_create_eventloop() -> asyncio.AbstractEventLoop:
             raise RuntimeError("Event loop is closed")
         return loop
     except (RuntimeError, ValueError):
-        # Нет loop'а → создаём и устанавливаем
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         return loop
@@ -47,7 +46,7 @@ def generate_recommendations(self):
         return result
     except Exception as exc:
         logger.exception("💥 Ошибка в задаче generate_recommendations")
-        raise self.retry(exc=exc, countdown=60, max_retries=3)
+        raise self.retry(exc=exc, countdown=60, max_retries=3) from exc
 
 
 async def _run_async() -> str:
@@ -64,7 +63,7 @@ async def _run_async() -> str:
     try:
         await redis_client.ping()
         logger.info("📡 Подключение к Redis успешно")
-    except redis.ConnectionError as e:
+    except redis.ConnectionError:
         logger.error("❌ Не удалось подключиться к Redis", exc_info=True)
         raise
 
@@ -77,16 +76,18 @@ async def _run_async() -> str:
             for user in users:
                 recommend_ids = await get_recommend_product_ids(db=db, user_id=user.id)
                 users_rec[user.id] = recommend_ids
-                logger.info(f"🧾 Сформированы рекомендации для user_id={user.id}: {len(recommend_ids)} товаров")
+                logger.info(
+                    f"🧾 Сформированы рекомендации для user_id={user.id}: {len(recommend_ids)} товаров"
+                )
 
             payload = json.dumps(users_rec, ensure_ascii=False).encode("utf-8")
             await redis_client.setex(
-                Config.REDIS_RECOMMENDATIONS_KEY,
-                Config.RECOMMENDATIONS_TIME,
-                payload
+                Config.REDIS_RECOMMENDATIONS_KEY, Config.RECOMMENDATIONS_TIME, payload
             )
 
-            logger.info(f"💾 Рекомендации сохранены в Redis для {len(users)} пользователей")
+            logger.info(
+                f"💾 Рекомендации сохранены в Redis для {len(users)} пользователей"
+            )
             return "OK"
 
     except Exception as e:

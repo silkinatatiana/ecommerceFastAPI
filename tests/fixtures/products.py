@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.crud.category import get_category
 from database.crud.products import get_product
-from tests.conftest import fake
 from models import Category
+from tests.conftest import fake
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -30,7 +30,7 @@ async def test_product_data(db: AsyncSession):
         "cpu": None,
         "number_of_processor_cores": None,
         "number_of_graphics_cores": None,
-        "color": None
+        "color": None,
     }
 
     return product_data
@@ -47,7 +47,9 @@ async def create_category_id(db: AsyncSession):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def create_product(client_seller: AsyncClient, db: AsyncSession, test_product_data):
+async def create_product(
+    client_seller: AsyncClient, db: AsyncSession, test_product_data
+):
     product_data = test_product_data
     response = await client_seller.post("/products/create", json=product_data)
     created_product = response.json()
@@ -68,4 +70,5 @@ def product_factory(client_seller: AsyncClient, db: AsyncSession, test_product_d
         product_in_db = await get_product(db=db, product_id=created_product["id"])
         assert created_product["name"] == product_in_db.name
         return product_in_db
+
     return _create_product

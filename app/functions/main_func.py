@@ -1,16 +1,16 @@
-from typing import Optional, Annotated, List, Dict, Any
+from typing import Annotated, Any
 
-from sqlalchemy import select, distinct
 import httpx
-from fastapi import (Request, HTTPException, Depends)
+from fastapi import Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt
+from sqlalchemy import distinct, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.routers import products
+from config import Config
 from database.crud.products import get_product
 from database.db_depends import get_db
-from config import Config
 from general_functions.cart_func import get_in_cart_product_ids
 from general_functions.favorites_func import get_favorite_product_ids
 from models import Product
@@ -24,14 +24,14 @@ async def get_filters(db: Annotated[AsyncSession, Depends(get_db)]) -> dict:
         "screens": "screen",
         "cpus": "cpu",
         "processor_cores": "number_of_processor_cores",
-        "graphics_cores": "number_of_graphics_cores"
+        "graphics_cores": "number_of_graphics_cores",
     }
 
     filters = {}
 
     for name, column in filter_fields.items():
         query = select(distinct(getattr(products.Product, column)))
-        query = query.where(getattr(products.Product, column) != None)
+        query = query.where(getattr(products.Product, column).isnot(None))
         query = query.order_by(getattr(products.Product, column))
 
         result = await db.execute(query)
@@ -46,27 +46,28 @@ def sort_func(memory):
     return val, int(num)
 
 
-async def fetch_categories() -> List[Dict[str, Any]]:
+async def fetch_categories() -> list[dict[str, Any]]:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{Config.url}/categories/")
             response.raise_for_status()
             return response.json()
     except httpx.HTTPStatusError:
-        raise HTTPException(502, detail="Сервис каталога недоступен")
+        raise HTTPException(502, detail="Сервис каталога недоступен") from None
     except Exception as e:
-        raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}")
+        raise HTTPException(500, detail=f"Ошибка при запросе к API: {str(e)}") from e
 
 
-async def fetch_products_for_category(category_id: int,
-                                      db: AsyncSession,
-                                      user_id: Optional[int],
-                                      favorite_product_ids: List[int],
-                                      colors: Optional[str] = None,
-                                      built_in_memory: Optional[str] = None,
-                                      is_favorite: bool = False,
-                                      current_page: int = 1,
-                                      per_page: int = 3) -> Dict[str, Any]:
+async def fetch_products_for_category(
+    category_id: int,
+    user_id: int | None,
+    favorite_product_ids: list[int],
+    colors: str | None = None,
+    built_in_memory: str | None = None,
+    is_favorite: bool = False,
+    current_page: int = 1,
+) -> dict[str, Any]:
+    from app.main import logger
     params = {
         "page": current_page,
         "user_id": user_id or 0,
@@ -85,28 +86,28 @@ async def fetch_products_for_category(category_id: int,
             response.raise_for_status()
             return response.json()
     except Exception as e:
-        print(f"Ошибка при запросе продуктов для категории {category_id}: {e}")
+        logger.error(f"Ошибка при запросе продуктов для категории {category_id}: {e}")
         return {"products": [], "pagination": {}}
 
 
-def format_product_name(product: Dict[str, Any]) -> str:
+def format_product_name(product: dict[str, Any]) -> str:
     parts = [
-        product.get('name'),
-        product.get('RAM_capacity'),
-        product.get('built_in_memory_capacity'),
-        product.get('screen'),
-        product.get('cpu'),
-        product.get('color')
+        product.get("name"),
+        product.get("RAM_capacity"),
+        product.get("built_in_memory_capacity"),
+        product.get("screen"),
+        product.get("cpu"),
+        product.get("color"),
     ]
-    return ', '.join(str(p) for p in parts if p is not None)
+    return ", ".join(str(p) for p in parts if p is not None)
 
 
 async def get_filtered_values(
     db: AsyncSession,
     column,
     model,
-    category_ids: Optional[List[int]] = None,
-    sort_key=None
+    category_ids: list[int] | None = None,
+    sort_key=None,
 ):
     query = select(distinct(column)).where(column.isnot(None))
     if category_ids:
@@ -118,23 +119,24 @@ async def get_filtered_values(
     return sorted(values)
 
 
-def parse_int_list(param: Optional[str]) -> List[int]:
+def parse_int_list(param: str | None) -> list[int]:
     if not param:
         return []
     try:
-        return [int(cid.strip()) for cid in param.split(',') if cid.strip()]
+        return [int(cid.strip()) for cid in param.split(",") if cid.strip()]
     except ValueError:
-        raise HTTPException(400, "Некорректный формат параметра")
+        raise HTTPException(400, "Некорректный формат параметра") from None
 
 
-async def auth_user(token: Optional[str], db: AsyncSession):
+async def auth_user(token: str | None, db: AsyncSession):
+    from app.main import logger
     if not token:
         return {
             "is_authenticated": False,
             "user_id": None,
             "role": None,
             "favorite_product_ids": [],
-            "in_cart_product_ids": []
+            "in_cart_product_ids": [],
         }
 
     try:
@@ -149,27 +151,27 @@ async def auth_user(token: Optional[str], db: AsyncSession):
                 "user_id": user_id,
                 "role": role,
                 "favorite_product_ids": favorite_ids,
-                "in_cart_product_ids": cart_ids
+                "in_cart_product_ids": cart_ids,
             }
     except Exception as e:
-        print(f"Ошибка декодирования токена: {e}")
+        logger.error(f"Ошибка декодирования токена: {e}")
 
     return {
         "is_authenticated": False,
         "user_id": None,
         "role": None,
         "favorite_product_ids": [],
-        "in_cart_product_ids": []
+        "in_cart_product_ids": [],
     }
 
 
 async def handle_partial_request(
     request: Request,
     db: AsyncSession,
-    user_data: Dict[str, Any],
-    colors: Optional[str],
-    built_in_memory: Optional[str],
-    is_favorite: bool
+    user_data: dict[str, Any],
+    colors: str | None,
+    built_in_memory: str | None,
+    is_favorite: bool,
 ):
     cat_id_str = request.query_params.get("category_id")
     if not cat_id_str:
@@ -177,7 +179,9 @@ async def handle_partial_request(
 
     target_cat_id = parse_int_list(cat_id_str)[0]
     categories_data = await fetch_categories()
-    target_category = next((c for c in categories_data if c["id"] == target_cat_id), None)
+    target_category = next(
+        (c for c in categories_data if c["id"] == target_cat_id), None
+    )
     if not target_category:
         return HTMLResponse("")
 
@@ -224,13 +228,13 @@ async def handle_partial_request(
 async def build_full_page_context(
     request: Request,
     db: AsyncSession,
-    user_data: Dict[str, Any],
-    selected_category_ids: List[int],
-    recommend_product_ids: List[int],
-    colors: Optional[str],
-    built_in_memory: Optional[str],
-    is_favorite: bool
-) -> Dict[str, Any]:
+    user_data: dict[str, Any],
+    selected_category_ids: list[int],
+    recommend_product_ids: list[int],
+    colors: str | None,
+    built_in_memory: str | None,
+    is_favorite: bool,
+) -> dict[str, Any]:
     recommend_products = []
     if recommend_product_ids:
         recommend_products = await get_product(db=db, product_ids=recommend_product_ids)
@@ -260,7 +264,8 @@ async def build_full_page_context(
         )
 
         formatted_products = [
-            {**p, "name": format_product_name(p)} for p in products_data.get("products", [])
+            {**p, "name": format_product_name(p)}
+            for p in products_data.get("products", [])
         ]
 
         pagination_info = products_data.get("pagination", {})
@@ -287,7 +292,11 @@ async def build_full_page_context(
     )
 
     all_built_in_memory = await get_filtered_values(
-        db, Product.built_in_memory_capacity, Product, selected_category_ids, sort_key=sort_func
+        db,
+        Product.built_in_memory_capacity,
+        Product,
+        selected_category_ids,
+        sort_key=sort_func,
     )
 
     selected_colors_list = colors.split(",") if colors else []
@@ -309,5 +318,5 @@ async def build_full_page_context(
         "filters": filters,
         "has_products": any(c["products"] for c in categories_products.values()),
         "is_favorite": is_favorite,
-        **user_data
+        **user_data,
     }

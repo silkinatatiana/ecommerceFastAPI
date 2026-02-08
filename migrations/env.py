@@ -1,15 +1,15 @@
 import asyncio
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from alembic import context
-
 from config import Config
 from database.db import Base
 from models import *  # noqa: F401,F403 - ensure all models are imported so metadata is populated
+
 
 # Alembic configuration, gives access to values within alembic.ini.
 config = context.config

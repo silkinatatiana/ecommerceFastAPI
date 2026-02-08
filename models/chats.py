@@ -1,11 +1,12 @@
-from database.db import Base
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
+
+from database.db import Base
 
 
 class Chats(Base):
-    __tablename__ = 'chats'
-    __table_args__ = {'extend_existing': True}
+    __tablename__ = "chats"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -16,14 +17,8 @@ class Chats(Base):
 
     messages = relationship("Messages", back_populates="chat")
 
-    user = relationship(
-        "User",
-        foreign_keys=[user_id],
-        back_populates="chats"
-    )
+    user = relationship("User", foreign_keys=[user_id], back_populates="chats")
 
     employee = relationship(
-        "User",
-        foreign_keys=[employee_id],
-        back_populates="employee_chats"
+        "User", foreign_keys=[employee_id], back_populates="employee_chats"
     )

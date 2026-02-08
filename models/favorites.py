@@ -1,5 +1,6 @@
+from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
+
 from database.db import Base
-from sqlalchemy import Column, Integer, ForeignKey, UniqueConstraint
 
 
 class Favorites(Base):
@@ -10,9 +11,8 @@ class Favorites(Base):
     product_id = Column(Integer, ForeignKey("products.id"))
 
     __table_args__ = (
-        UniqueConstraint('user_id', 'product_id', name='_user_product_uc'),
+        UniqueConstraint("user_id", "product_id", name="_user_product_uc"),
     )
 
     # user = relationship("User", back_populates="favorites")
     # products = relationship("Product", back_populates="in_favorites")
-

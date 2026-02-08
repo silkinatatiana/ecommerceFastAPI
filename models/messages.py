@@ -1,11 +1,12 @@
-from database.db import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
+
+from database.db import Base
 
 
 class Messages(Base):
-    __tablename__ = 'messages'
-    __table_args__ = {'extend_existing': True}
+    __tablename__ = "messages"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
     chat_id = Column(Integer, ForeignKey("chats.id"), nullable=False)

@@ -1,11 +1,13 @@
-from database.db import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, JSON, FLOAT
+from sqlalchemy import FLOAT, JSON, Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
+
+from database.db import Base
+
 from .users import User
 
 
 class Product(Base):
-    __tablename__ = 'products'
+    __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
@@ -14,7 +16,7 @@ class Product(Base):
     color = Column(String)
     image_urls = Column(JSON, default=list)
     stock = Column(Integer)
-    category_id = Column(Integer, ForeignKey('categories.id'))
+    category_id = Column(Integer, ForeignKey("categories.id"))
     RAM_capacity = Column(String, nullable=True)
     built_in_memory_capacity = Column(String, nullable=True)
     screen = Column(FLOAT, nullable=True)
@@ -26,7 +28,7 @@ class Product(Base):
     supplier_id = Column(Integer, ForeignKey(User.id))
     supplier = relationship("User", back_populates="products")
     reviews = relationship("Review", back_populates="product")
-    carts = relationship('Cart', back_populates='product')
+    carts = relationship("Cart", back_populates="product")
 
     class Config:
         json_schema_extra = {
@@ -34,7 +36,10 @@ class Product(Base):
                 "name": "Смартфон",
                 "description": "Мощный смартфон с процессором последнего поколения",
                 "price": 99999,
-                "image_urls": ["https://example.com/phone1.jpg", "https://example.com/phone2.jpg"],
+                "image_urls": [
+                    "https://example.com/phone1.jpg",
+                    "https://example.com/phone2.jpg",
+                ],
                 "stock": 100,
                 "category_id": 1,
                 "RAM_capacity": "24 GB",
@@ -43,6 +48,6 @@ class Product(Base):
                 "cpu": " Apple M4 Pro",
                 "number_of_processor_cores": 5,
                 "number_of_graphics_cores": 5,
-                "color": "Silver"
+                "color": "Silver",
             }
         }

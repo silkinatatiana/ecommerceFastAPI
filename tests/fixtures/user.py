@@ -5,12 +5,12 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from general_functions.auth_func import get_user_id_by_token
-from tests.conftest import fake
 from models import User
+from tests.conftest import fake
 
 
 @pytest_asyncio.fixture
-async def get_user_data(): # test_data_user
+async def get_user_data():  # test_data_user
     return {
         "first_name": fake.first_name(),
         "last_name": fake.last_name(),
@@ -18,7 +18,7 @@ async def get_user_data(): # test_data_user
         "email": fake.email(),
         "password": "pass123123",
         "confirm_password": "pass123123",
-        "role": choice(["customer", "seller"])
+        "role": choice(["customer", "seller"]),
     }
 
 
@@ -31,7 +31,7 @@ async def test_data_user_negative():
         "email": fake.email(),
         "password": "pass123123",
         "confirm_password": "pass",
-        "role": choice(["customer", "seller"])
+        "role": choice(["customer", "seller"]),
     }
 
 
@@ -41,7 +41,7 @@ async def create_test_user(db: AsyncSession) -> User:
         username=fake.user_name(),
         email=fake.email(),
         role="customer",
-        hashed_password="fake_hashed_password"
+        hashed_password="fake_hashed_password",
     )
     db.add(user)
     await db.flush()
@@ -55,7 +55,7 @@ async def create_test_support(db: AsyncSession) -> User:
         username=fake.user_name(),
         email=fake.email(),
         role="support",
-        hashed_password="fake_hashed_password"
+        hashed_password="fake_hashed_password",
     )
     db.add(user)
     await db.flush()
@@ -63,13 +63,13 @@ async def create_test_support(db: AsyncSession) -> User:
     return user
 
 
-@pytest_asyncio.fixture(scope='function')
+@pytest_asyncio.fixture(scope="function")
 async def test_profile_update():
     return {
         "first_name": fake.first_name(),
         "last_name": fake.last_name(),
-        "email": fake.email()
-        }
+        "email": fake.email(),
+    }
 
 
 @pytest_asyncio.fixture
@@ -78,7 +78,9 @@ async def user_and_employee_ids(client_any: AsyncClient, client_support: AsyncCl
     token_user = client_any.cookies.get("token")
 
     if not token_user or not token_support:
-        raise ValueError("Токены не найдены в куках клиентов. Убедитесь, что клиенты аутентифицированы.")
+        raise ValueError(
+            "Токены не найдены в куках клиентов. Убедитесь, что клиенты аутентифицированы."
+        )
 
     employee_id = get_user_id_by_token(token=token_support)
     user_id = get_user_id_by_token(token=token_user)

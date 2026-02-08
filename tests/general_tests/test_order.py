@@ -10,8 +10,12 @@ from general_functions.auth_func import get_user_id_by_token
 class TestOrder:
     @pytest.mark.positive
     @pytest.mark.asyncio
-    async def test_check_order_status(self, client_customer: AsyncClient, client_support: AsyncClient,
-                                      db: AsyncSession, product_factory
+    async def test_check_order_status(
+        self,
+        client_customer: AsyncClient,
+        client_support: AsyncClient,
+        db: AsyncSession,
+        product_factory,
     ):
         token = client_customer.cookies.get("token")
         user_id = get_user_id_by_token(token=token)
@@ -19,7 +23,9 @@ class TestOrder:
         for _ in range(3):
             product = await product_factory()
             count = randint(1, 10)
-            response = await client_customer.post("/cart/add", json={"product_id": product.id, "count": count})
+            response = await client_customer.post(
+                "/cart/add", json={"product_id": product.id, "count": count}
+            )
             assert response.status_code == 201
 
             resp = await client_customer.get(f"/cart/{user_id}")
@@ -37,6 +43,9 @@ class TestOrder:
 
         assert response_support.status_code == 200
         order_data = response_support.json()
-        assert order_data["order"]["id"] == order_id, f"Заказ с номером {order_id} не создан"
-        assert order_data["user"]["id"] == user_id, f"Заказ для пользователя № {user_id} не создан"
-
+        assert order_data["order"]["id"] == order_id, (
+            f"Заказ с номером {order_id} не создан"
+        )
+        assert order_data["user"]["id"] == user_id, (
+            f"Заказ для пользователя № {user_id} не создан"
+        )

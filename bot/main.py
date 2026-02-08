@@ -9,6 +9,7 @@ from bot.kafka_consumer import KafkaEventConsumer
 from bot.kafka_producer import KafkaEventPublisher
 from config import Config
 
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 

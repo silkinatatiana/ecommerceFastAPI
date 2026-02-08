@@ -1,6 +1,5 @@
-import uuid
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, UUID
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.sql import func
 
@@ -13,7 +12,9 @@ class Orders(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    products = Column(JSON, nullable=False)  # dict{product_id: {‘price’: price, ‘count’: count}}
+    products = Column(
+        JSON, nullable=False
+    )  # dict{product_id: {‘price’: price, ‘count’: count}}
     summa = Column(Integer, nullable=False)
     date = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(String, nullable=False, server_default=Statuses.DESIGNED)

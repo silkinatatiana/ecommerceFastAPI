@@ -1,77 +1,98 @@
-from typing import Annotated, Optional
-from datetime import timedelta, datetime, timezone
+from datetime import UTC, datetime, timedelta
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status, Cookie, Query
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
+from jose import JWTError, jwt
 from passlib.context import CryptContext
-from jose import jwt, JWTError
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from general_functions.auth_func import logout_func, create_tokens_and_set_cookies
-from database.crud.users import create_user, get_user, update_user_info, delete_user_from_db
-from general_functions.auth_func import get_current_user, authenticate_user, create_access_token, verify_password
-from general_functions.profile import get_tab_by_section
-from database.db_depends import get_db
 from config import Config
-from schemas import ProfileUpdate, PasswordUpdate, RegisterData, LoginData
+from database.crud.users import (
+    create_user,
+    delete_user_from_db,
+    get_user,
+    update_user_info,
+)
+from database.db_depends import get_db
+from general_functions.auth_func import (
+    authenticate_user,
+    create_access_token,
+    create_tokens_and_set_cookies,
+    get_current_user,
+    logout_func,
+    verify_password,
+)
+from general_functions.profile import get_tab_by_section
+from schemas import LoginData, PasswordUpdate, ProfileUpdate, RegisterData
 
-router = APIRouter(prefix='/auth', tags=['auth'])
-templates = Jinja2Templates(directory='app/templates/')
-bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+templates = Jinja2Templates(directory="app/templates/")
+bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-@router.get('/read_current_user')
+@router.get("/read_current_user")
 async def read_current_user(user: dict = Depends(get_current_user)):
-    return {'User': user}
+    return {"User": user}
 
 
-@router.post('/token')
-async def login(db: Annotated[AsyncSession, Depends(get_db)],
-                form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    user = await authenticate_user(db, form_data.username, form_data.password, roles=['customer', 'seller'])
+@router.post("/token")
+async def login_by_token(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+):
+    user = await authenticate_user(
+        db, form_data.username, form_data.password, roles=["customer", "seller"]
+    )
 
-    token = create_access_token(username=user.username,
-                                user_id=user.id,
-                                role=user.role,
-                                is_admin=user.is_admin)
+    token = create_access_token(
+        username=user.username, user_id=user.id, role=user.role, is_admin=user.is_admin
+    )
 
-    return {
-        'access_token': token,
-        'token_type': 'bearer'
-    }
+    return {"access_token": token, "token_type": "bearer"}
 
 
-@router.get('/account')
-async def personal_account(request: Request,
-                           page: int = Query(1, ge=1),
-                           section: str = Query('profile_tab'),
-                           token: Optional[str] = Cookie(None, alias='token'),
-                           db: AsyncSession = Depends(get_db)
+@router.get("/account")
+async def personal_account(
+    request: Request,
+    page: int = Query(1, ge=1),
+    section: str = Query("profile_tab"),
+    token: str | None = Cookie(None, alias="token"),
+    db: AsyncSession = Depends(get_db),
 ):
     if not token:
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            url="/auth/create", status_code=status.HTTP_303_SEE_OTHER
+        )
 
     try:
         user_dict = await get_current_user(token=token)
-        user = await get_user(user_id=user_dict['id'], db=db)
-        response = await get_tab_by_section(section, templates, request, user, page, db, user_dict)
+        user = await get_user(user_id=user_dict["id"], db=db)
+        response = await get_tab_by_section(
+            section, templates, request, user, page, db, user_dict
+        )
         return response
 
     except HTTPException:
-        response = RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+        response = RedirectResponse(
+            url="/auth/create", status_code=status.HTTP_303_SEE_OTHER
+        )
         return response
 
 
 @router.post("/telegram/verification")
 async def request_telegram_verification(
     request: Request,
-    token: Optional[str] = Cookie(None, alias="token"),
+    token: str | None = Cookie(None, alias="token"),
     db: AsyncSession = Depends(get_db),
 ):
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Необходима авторизация")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Необходима авторизация"
+        )
 
     try:
         user_dict = await get_current_user(token=token)
@@ -81,7 +102,7 @@ async def request_telegram_verification(
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка получения пользователя: {exc}"
+            detail=f"Ошибка получения пользователя: {exc}",
         ) from exc
 
     if user.is_verified:
@@ -90,21 +111,25 @@ async def request_telegram_verification(
     if not user.tg_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="В профиле отсутствует Telegram ID"
+            detail="В профиле отсутствует Telegram ID",
         )
 
-    producer = request.app.state.kafka_producer if hasattr(request.app.state, "kafka_producer") else None
+    producer = (
+        request.app.state.kafka_producer
+        if hasattr(request.app.state, "kafka_producer")
+        else None
+    )
     if not producer:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Сервис подтверждения недоступен, попробуйте позже"
+            detail="Сервис подтверждения недоступен, попробуйте позже",
         )
 
     await producer.send_verification_prompt(
         tg_id=user.tg_id,
         # chat_id=user.tg_id,
         user_id=user.id,
-        message="Подтвердите аккаунт в PEAR."
+        message="Подтвердите аккаунт в PEAR.",
     )
 
     return {"detail": "Запрос отправлен. Проверьте сообщения бота в Telegram."}
@@ -114,22 +139,20 @@ async def request_telegram_verification(
 def create_auth_form(request: Request):
     return templates.TemplateResponse(
         "auth/create_auth_form.html",
-        {
-            "request": request,
-            "config": {"url": Config.url}
-        }
+        {"request": request, "config": {"url": Config.url}},
     )
 
 
-@router.post('/register')
-async def register(register_data: RegisterData,
-                   request: Request,
-                   db: AsyncSession = Depends(get_db),
+@router.post("/register")
+async def register(
+    register_data: RegisterData,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
     if register_data.password != register_data.confirm_password:
         return JSONResponse(
             content={"detail": "Пароли не совпадают"},
-            status_code=status.HTTP_400_BAD_REQUEST
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
 
     try:
@@ -139,53 +162,63 @@ async def register(register_data: RegisterData,
         except Exception:
             tg_id = None
 
-        user = await create_user(first_name=register_data.first_name,
-                                 last_name=register_data.last_name,
-                                 username=register_data.username,
-                                 email=register_data.email,
-                                 tg_id=tg_id,
-                                 hashed_password=bcrypt_context.hash(register_data.password),
-                                 role=register_data.role,
-                                 db=db)
+        user = await create_user(
+            first_name=register_data.first_name,
+            last_name=register_data.last_name,
+            username=register_data.username,
+            email=register_data.email,
+            tg_id=tg_id,
+            hashed_password=bcrypt_context.hash(register_data.password),
+            role=register_data.role,
+            db=db,
+        )
 
-        producer = request.app.state.kafka_producer if hasattr(request.app.state, "kafka_producer") else None
+        producer = (
+            request.app.state.kafka_producer
+            if hasattr(request.app.state, "kafka_producer")
+            else None
+        )
         if producer and tg_id:
             await producer.send_verification_prompt(
                 tg_id=user.tg_id,
                 # chat_id=user.tg_id,
                 user_id=user.id,
-                message="Подтвердите регистрацию в PEAR."
+                message="Подтвердите регистрацию в PEAR.",
             )
 
         return create_tokens_and_set_cookies(
             username=user.username,
             user_id=user.id,
             role=user.role,
-            is_admin=user.is_admin
+            is_admin=user.is_admin,
         )
 
     except Exception as e:
         await db.rollback()
-        error_msg = "Пользователь с таким именем уже существует" if "username" in str(e) else "Ошибка регистрации"
+        error_msg = (
+            "Пользователь с таким именем уже существует"
+            if "username" in str(e)
+            else "Ошибка регистрации"
+        )
         return JSONResponse(
-            content={"detail": error_msg},
-            status_code=status.HTTP_400_BAD_REQUEST
+            content={"detail": error_msg}, status_code=status.HTTP_400_BAD_REQUEST
         )
 
 
-@router.post('/login')
-async def login(request: Request,
-                login_data: LoginData,
-                db: AsyncSession = Depends(get_db)
+@router.post("/login")
+async def login(
+    request: Request, login_data: LoginData, db: AsyncSession = Depends(get_db)
 ):
     try:
-        user = await authenticate_user(db, login_data.username, login_data.password, roles=['customer', 'seller'])
+        user = await authenticate_user(
+            db, login_data.username, login_data.password, roles=["customer", "seller"]
+        )
 
         return create_tokens_and_set_cookies(
             username=user.username,
             user_id=user.id,
             role=user.role,
-            is_admin=user.is_admin
+            is_admin=user.is_admin,
         )
 
     except HTTPException:
@@ -194,27 +227,20 @@ async def login(request: Request,
             {
                 "request": request,
                 "error": "Неверное имя пользователя или пароль",
-                "config": {"url": Config.url}
+                "config": {"url": Config.url},
             },
-            status_code=status.HTTP_401_UNAUTHORIZED
+            status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
 
-async def set_token(request: Request,
-                    token: str,
-                    secret_key: str,
-                    call_next):
-    payload = jwt.decode(
-        token,
-        secret_key,
-        algorithms=[Config.ALGORITHM]
-    )
+async def set_token(request: Request, token: str, secret_key: str, call_next):
+    payload = jwt.decode(token, secret_key, algorithms=[Config.ALGORITHM])
 
     new_access_token = create_access_token(
         username=payload["sub"],
         user_id=payload["id"],
         role=payload["role"],
-        is_admin=payload.get("is_admin", False)
+        is_admin=payload.get("is_admin", False),
     )
 
     response = await call_next(request)
@@ -225,8 +251,8 @@ async def set_token(request: Request,
         httponly=True,
         max_age=int(Config.timedelta_token.total_seconds()),
         secure=False,
-        samesite='lax',
-        path='/'
+        samesite="lax",
+        path="/",
     )
     return response
 
@@ -241,14 +267,16 @@ async def auto_refresh_token(request: Request, call_next):
     if not access_token and not refresh_token:
         return await call_next(request)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if access_token:
         try:
-            payload = jwt.decode(access_token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM])
+            payload = jwt.decode(
+                access_token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM]
+            )
             exp = payload.get("exp")
             if exp is not None:
-                token_expire_time = datetime.fromtimestamp(exp, tz=timezone.utc)
+                token_expire_time = datetime.fromtimestamp(exp, tz=UTC)
                 time_until_expire = token_expire_time - now
 
                 if time_until_expire > timedelta(seconds=20):
@@ -260,9 +288,7 @@ async def auto_refresh_token(request: Request, call_next):
     if refresh_token:
         try:
             refresh_payload = jwt.decode(
-                refresh_token,
-                Config.SECRET_KEY,
-                algorithms=[Config.ALGORITHM]
+                refresh_token, Config.SECRET_KEY, algorithms=[Config.ALGORITHM]
             )
             if refresh_payload.get("type") != "refresh":
                 raise JWTError("Invalid refresh token type")
@@ -271,7 +297,7 @@ async def auto_refresh_token(request: Request, call_next):
                 username=refresh_payload["sub"],
                 user_id=refresh_payload["id"],
                 role=refresh_payload["role"],
-                is_admin=refresh_payload.get("is_admin", False)
+                is_admin=refresh_payload.get("is_admin", False),
             )
 
             response = await call_next(request)
@@ -282,7 +308,7 @@ async def auto_refresh_token(request: Request, call_next):
                 max_age=int(Config.timedelta_token.total_seconds()),
                 secure=False,
                 samesite="lax",
-                path="/"
+                path="/",
             )
             return response
 
@@ -292,66 +318,75 @@ async def auto_refresh_token(request: Request, call_next):
     return await call_next(request)
 
 
-@router.get('/logout')
+@router.get("/logout")
 async def logout():
     response = await logout_func()
     return response
 
 
-@router.put('/update')
-async def update_profile(profile_update: ProfileUpdate,
-                         token: Optional[str] = Cookie(None, alias='token'),
-                         db: AsyncSession = Depends(get_db)
+@router.put("/update")
+async def update_profile(
+    profile_update: ProfileUpdate,
+    token: str | None = Cookie(None, alias="token"),
+    db: AsyncSession = Depends(get_db),
 ):
     try:
         if not token:
-            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+            return RedirectResponse(
+                url="/auth/create", status_code=status.HTTP_303_SEE_OTHER
+            )
 
         user = await get_current_user(token)
 
-        await update_user_info(user_id=user['id'],
-                               first_name=profile_update.first_name,
-                               last_name=profile_update.last_name,
-                               email=profile_update.email,
-                               db=db)
+        await update_user_info(
+            user_id=user["id"],
+            first_name=profile_update.first_name,
+            last_name=profile_update.last_name,
+            email=profile_update.email,
+            db=db,
+        )
         return {"message": "Данные профиля успешно обновлены"}
 
     except Exception as e:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при обновлении данных: {str(e)}"
-        )
+            detail=f"Ошибка при обновлении данных: {str(e)}",
+        ) from e
 
 
-@router.patch('/update/password')
-async def update_password(data: PasswordUpdate,
-                          token: Optional[str] = Cookie(None, alias='token'),
-                          db: AsyncSession = Depends(get_db)
-                          ):
+@router.patch("/update/password")
+async def update_password(
+    data: PasswordUpdate,
+    token: str | None = Cookie(None, alias="token"),
+    db: AsyncSession = Depends(get_db),
+):
     try:
         if not token:
-            return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+            return RedirectResponse(
+                url="/auth/create", status_code=status.HTTP_303_SEE_OTHER
+            )
 
         if data.new_password != data.new_password_one_more_time:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Пароли не совпадают'
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Пароли не совпадают"
             )
 
         data_user = await get_current_user(token)
-        user = await get_user(user_id=data_user['id'], db=db)
+        user = await get_user(user_id=data_user["id"], db=db)
 
-        if not verify_password(plain_password=data.old_password,
-                               hashed_password=user.hashed_password):
+        if not verify_password(
+            plain_password=data.old_password, hashed_password=user.hashed_password
+        ):
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Неправильный пароль'
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Неправильный пароль"
             )
 
-        await update_user_info(db=db,
-                               user_id=data_user['id'],
-                               hashed_password=bcrypt_context.hash(data.new_password))
+        await update_user_info(
+            db=db,
+            user_id=data_user["id"],
+            hashed_password=bcrypt_context.hash(data.new_password),
+        )
 
         return {"message": "Данные профиля успешно обновлены"}
 
@@ -359,23 +394,26 @@ async def update_password(data: PasswordUpdate,
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при обновлении данных: {str(e)}"
-        )
+            detail=f"Ошибка при обновлении данных: {str(e)}",
+        ) from e
 
 
-@router.delete('/delete')
-async def delete_user(token: Optional[str] = Cookie(None, alias='token'),
-                      db: AsyncSession = Depends(get_db),
+@router.delete("/delete")
+async def delete_user(
+    token: str | None = Cookie(None, alias="token"),
+    db: AsyncSession = Depends(get_db),
 ):
     if not token:
-        return RedirectResponse(url='/auth/create', status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            url="/auth/create", status_code=status.HTTP_303_SEE_OTHER
+        )
 
     current_user = await get_current_user(token)
 
-    current_user_id = current_user['id']
-    role = current_user.get('role')
+    current_user_id = current_user["id"]
+    role = current_user.get("role")
 
-    if role == 'seller' or role == 'customer':
+    if role == "seller" or role == "customer":
         await delete_user_from_db(db, current_user_id)
 
         response = await logout_func()
@@ -383,5 +421,5 @@ async def delete_user(token: Optional[str] = Cookie(None, alias='token'),
 
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail="Нет прав для удаления пользователя"
+        detail="Нет прав для удаления пользователя",
     )

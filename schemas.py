@@ -1,41 +1,41 @@
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
-from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CreateProduct(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     price: int
     stock: int
     category_id: int
-    image_urls: Optional[List[str]] = None
-    RAM_capacity: Optional[str] = None
-    built_in_memory_capacity: Optional[str] = None
-    screen: Optional[float] = None
-    cpu: Optional[str] = None
-    number_of_processor_cores: Optional[int] = None
-    number_of_graphics_cores: Optional[int] = None
-    color: Optional[str] = None
+    image_urls: list[str] | None = None
+    RAM_capacity: str | None = None
+    built_in_memory_capacity: str | None = None
+    screen: float | None = None
+    cpu: str | None = None
+    number_of_processor_cores: int | None = None
+    number_of_graphics_cores: int | None = None
+    color: str | None = None
 
 
 class ProductOut(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     price: int
-    image_urls: List[str] = Field(default_factory=list)
+    image_urls: list[str] = Field(default_factory=list)
     stock: int
     category_id: int
-    supplier_id: Optional[int] = None
+    supplier_id: int | None = None
 
-    RAM_capacity: Optional[str] = None
-    built_in_memory_capacity: Optional[str] = None
-    screen: Optional[float] = None
-    cpu: Optional[str] = None
-    number_of_processor_cores: Optional[int] = None
-    number_of_graphics_cores: Optional[int] = None
-    color: Optional[str] = None
+    RAM_capacity: str | None = None
+    built_in_memory_capacity: str | None = None
+    screen: float | None = None
+    cpu: str | None = None
+    number_of_processor_cores: int | None = None
+    number_of_graphics_cores: int | None = None
+    color: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -57,7 +57,7 @@ class CreateUser(BaseModel):
 class CreateReviews(BaseModel):
     grade: int = Field(..., ge=1, le=5)
     comment: str = None
-    photo_urls: Optional[List[str]] = None
+    photo_urls: list[str] | None = None
 
 
 class Favorites(BaseModel):
@@ -147,4 +147,4 @@ class LoginData(BaseModel):
 
 
 class RecommendOut(BaseModel):
-    ids: List[int]
+    ids: list[int]

@@ -1,40 +1,48 @@
 import json
-from typing import Annotated, Optional, List
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, status, HTTPException, Request, Query, Cookie
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
-from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
-from sqlalchemy import select
 import httpx
 import jwt
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, status
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from loguru import logger
+from redis.asyncio import Redis
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from starlette.responses import RedirectResponse
 
-from database.crud.category import get_category
-from database.crud.products import get_product, get_products_with_filters, create_new_product
-from database.crud.views import get_views_by_product_user, update_views_by_product_user, create_views_product
-from database.db_depends import get_db, get_redis
-from schemas import CreateProduct, ProductOut, RecommendOut
-from models import *
-from models import Review
-from general_functions.cart_func import get_in_cart_product_ids
-from general_functions.auth_func import get_current_user, checking_access_rights
-from general_functions.favorites_func import get_favorite_product_ids
 from config import Config
+from database.crud.category import get_category
+from database.crud.products import (
+    create_new_product,
+    get_product,
+    get_products_with_filters,
+)
+from database.crud.views import (
+    create_views_product,
+    get_views_by_product_user,
+    update_views_by_product_user,
+)
+from database.db_depends import get_db, get_redis
+from general_functions.auth_func import checking_access_rights, get_current_user
+from general_functions.cart_func import get_in_cart_product_ids
+from general_functions.favorites_func import get_favorite_product_ids
+from models import Product, Review
+from schemas import CreateProduct, ProductOut, RecommendOut
 
-router = APIRouter(prefix='/products', tags=['products'])
-templates = Jinja2Templates(directory='app/templates/')
+
+router = APIRouter(prefix="/products", tags=["products"])
+templates = Jinja2Templates(directory="app/templates/")
 
 
 @router.get("/create", response_class=HTMLResponse)
-async def create_product_form(request: Request,
-                              token: Optional[str] = Cookie(None, alias='token')
+async def create_product_form(
+    request: Request, token: str | None = Cookie(None, alias="token")
 ):
     try:
-        await checking_access_rights(token=token, roles=['seller'])
+        await checking_access_rights(token=token, roles=["seller"])
 
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{Config.url}/categories/")
@@ -49,8 +57,8 @@ async def create_product_form(request: Request,
                 {
                     "request": request,
                     "categories": categories,
-                    "config": {"url": Config.url}
-                }
+                    "config": {"url": Config.url},
+                },
             )
     except HTTPException as e:
         if e.status_code == 401:
@@ -58,20 +66,22 @@ async def create_product_form(request: Request,
         raise
 
 
-@router.post('/create', response_model=ProductOut)
-async def create_product(db: Annotated[AsyncSession, Depends(get_db)],
-                         product_data: CreateProduct,
-                         token: Optional[str] = Cookie(None, alias='token')
+@router.post("/create", response_model=ProductOut)
+async def create_product(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    product_data: CreateProduct,
+    token: str | None = Cookie(None, alias="token"),
 ):
     try:
-        supplier_id = await checking_access_rights(token=token, roles=['seller'])
+        supplier_id = await checking_access_rights(token=token, roles=["seller"])
         category = await get_category(db=db, category_id=product_data.category_id)
         if not category:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='NOT FOUND'
+                status_code=status.HTTP_404_NOT_FOUND, detail="NOT FOUND"
             )
-        product = await create_new_product(db=db, product_data=product_data, supplier_id=supplier_id)
+        product = await create_new_product(
+            db=db, product_data=product_data, supplier_id=supplier_id
+        )
         return product
 
     except HTTPException as e:
@@ -81,59 +91,57 @@ async def create_product(db: Annotated[AsyncSession, Depends(get_db)],
 
     except Exception as e:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.get("/")
-async def all_products(db: AsyncSession = Depends(get_db),
-                       category_id: Optional[str] = Query(None),
-                       colors: Optional[str] = Query(None),
-                       built_in_memory: Optional[str] = Query(None),
-                       product_ids: Optional[str] = Query(None)
+async def all_products(
+    db: AsyncSession = Depends(get_db),
+    category_id: str | None = Query(None),
+    colors: str | None = Query(None),
+    built_in_memory: str | None = Query(None),
+    product_ids: str | None = Query(None),
 ):
     try:
         params = {}
 
         if category_id:
             categ_ids = [int(categ_id) for categ_id in category_id.split(",")]
-            params['categ_ids'] = categ_ids
+            params["categ_ids"] = categ_ids
 
         if product_ids:
             ids_list = [int(id_) for id_ in product_ids.split(",")]
-            params['ids_list'] = ids_list
+            params["ids_list"] = ids_list
 
         if colors:
-            params['colors'] = colors.split(",")
+            params["colors"] = colors.split(",")
 
         if built_in_memory:
-            params['built_in_memory'] = built_in_memory.split(",")
+            params["built_in_memory"] = built_in_memory.split(",")
 
         products = await get_product(db=db, **params)
         return products
 
     except Exception as e:
         logger.error(f"Error fetching products: {repr(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get('/by_category/{category_id}')
-async def products_by_category(category_id: int,
-                               request: Request,
-                               user_id: Optional[int] = Query(None),
-                               per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
-                               colors: str = Query(None),
-                               built_in_memory: str = Query(None),
-                               favorites: Optional[List[str]] = Query(None),
-                               db: AsyncSession = Depends(get_db)
+@router.get("/by_category/{category_id}")
+async def products_by_category(
+    category_id: int,
+    request: Request,
+    user_id: int | None = Query(None),
+    per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
+    colors: str = Query(None),
+    built_in_memory: str = Query(None),
+    favorites: list[str] | None = Query(None),
+    db: AsyncSession = Depends(get_db),
 ):
     category = await get_category(db=db, category_id=category_id)
     if category is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Category not found'
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
         )
 
     try:
@@ -151,32 +159,31 @@ async def products_by_category(category_id: int,
         colors=colors,
         built_in_memory=built_in_memory,
         user_id=user_id,
-        favorites=favorites
+        favorites=favorites,
     )
 
-    total_pages = max(1, (total_count + per_page - 1) // per_page) if total_count > 0 else 1
+    total_pages = (
+        max(1, (total_count + per_page - 1) // per_page) if total_count > 0 else 1
+    )
     pagination = {
         "page": page,
         "per_page": per_page,
         "total_count": total_count,
         "total_pages": total_pages,
         "has_next": page < total_pages,
-        "has_prev": page > 1
+        "has_prev": page > 1,
     }
 
-    return {
-        "products": products,
-        "pagination": pagination
-    }
+    return {"products": products, "pagination": pagination}
 
 
-@router.get('/recommendations', response_model=RecommendOut)
+@router.get("/recommendations", response_model=RecommendOut)
 async def get_recommend_products_id(
     redis_client: Redis = Depends(get_redis),
-    token: Optional[str] = Cookie(None, alias='token'),
+    token: str | None = Cookie(None, alias="token"),
 ):
     try:
-        user_id = await checking_access_rights(token=token, roles=['customer'])
+        user_id = await checking_access_rights(token=token, roles=["customer"])
     except Exception:
         return RecommendOut(ids=[])
 
@@ -193,12 +200,14 @@ async def get_recommend_products_id(
     return RecommendOut(ids=[])
 
 
-@router.get('/{product_id}', response_class=HTMLResponse)
-async def product_detail_page(request: Request,
-                              product_id: int,
-                              db: AsyncSession = Depends(get_db),
-                              token: Optional[str] = Cookie(default=None, alias="token")
+@router.get("/{product_id}", response_class=HTMLResponse)
+async def product_detail_page(
+    request: Request,
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+    token: str | None = Cookie(default=None, alias="token"),
 ):
+    from app.main import logger
     is_authenticated = False
     is_favorite = False
     in_cart = False
@@ -210,28 +219,38 @@ async def product_detail_page(request: Request,
     if token and token != "None" and token != "undefined":
         try:
             current_user = await get_current_user(token)
-            user_id = current_user['id']
-            role = current_user['role']
+            user_id = current_user["id"]
+            role = current_user["role"]
             is_authenticated = True
-            find_views = await get_views_by_product_user(user_id=user_id, product_id=product_id, db=db)
+            find_views = await get_views_by_product_user(
+                user_id=user_id, product_id=product_id, db=db
+            )
 
             if find_views:
-                await update_views_by_product_user(user_id=user_id, product_id=product_id, db=db)
+                await update_views_by_product_user(
+                    user_id=user_id, product_id=product_id, db=db
+                )
 
             else:
-                await create_views_product(user_id=user_id, product_id=product_id, db=db)
-            favorite_product_ids = await get_favorite_product_ids(user_id=current_user['id'], db=db)
+                await create_views_product(
+                    user_id=user_id, product_id=product_id, db=db
+                )
+            favorite_product_ids = await get_favorite_product_ids(
+                user_id=current_user["id"], db=db
+            )
             is_favorite = product_id in favorite_product_ids
 
-            in_cart_product_ids = await get_in_cart_product_ids(user_id=current_user['id'], db=db)
+            in_cart_product_ids = await get_in_cart_product_ids(
+                user_id=current_user["id"], db=db
+            )
             in_cart = product_id in in_cart_product_ids
 
         except jwt.ExpiredSignatureError:
-            print("Токен истёк")
+            logger.error("Токен истёк")
         except jwt.InvalidTokenError as e:
-            print(f"Невалидный токен: {e}")
+            logger.error(f"Невалидный токен: {e}")
         except Exception as e:
-            print(f"Ошибка при проверке авторизации: {e}")
+            logger.error(f"Ошибка при проверке авторизации: {e}")
 
     product = await db.scalar(
         select(Product)
@@ -242,23 +261,26 @@ async def product_detail_page(request: Request,
 
     if not product:
         return templates.TemplateResponse(
-            "exceptions/not_found.html",
-            {"request": request}
+            "exceptions/not_found.html", {"request": request}
         )
 
     review_count = len(product.reviews)
-    avg_rating = sum(r.grade for r in product.reviews) / review_count if review_count > 0 else 0
+    avg_rating = (
+        sum(r.grade for r in product.reviews) / review_count if review_count > 0 else 0
+    )
 
     formatted_reviews = []
 
     for review in product.reviews:
-        formatted_reviews.append({
-            "author": review.user.username if review.user else "Аноним",
-            "date": review.comment_date.strftime("%d.%m.%Y"),
-            "rating": review.grade,
-            "text": review.comment,
-            "images": review.photo_urls or []
-        })
+        formatted_reviews.append(
+            {
+                "author": review.user.username if review.user else "Аноним",
+                "date": review.comment_date.strftime("%d.%m.%Y"),
+                "rating": review.grade,
+                "text": review.comment,
+                "images": review.photo_urls or [],
+            }
+        )
 
     recommended_products = await db.scalars(
         select(Product)
@@ -266,14 +288,11 @@ async def product_detail_page(request: Request,
         .where(Product.id != product.id)
     )
 
-    spec = [product.name, product.RAM_capacity, product.built_in_memory_capacity, product.screen, product.cpu,
-            product.color]
-
-    name = ', '.join([str(s) for s in spec if s is not None])
-
     product.is_favorite = is_favorite
     product.in_cart = in_cart
-    product.category_name = product.category.name if product.category else "Без категории"
+    product.category_name = (
+        product.category.name if product.category else "Без категории"
+    )
 
     return templates.TemplateResponse(
         "products/product.html",
@@ -292,5 +311,5 @@ async def product_detail_page(request: Request,
             "url": Config.url,
             "shop_name": Config.shop_name,
             "descr": Config.descr,
-        }
+        },
     )

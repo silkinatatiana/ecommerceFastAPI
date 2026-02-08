@@ -5,6 +5,7 @@ from redis.asyncio import Redis
 
 from config import Config
 
+
 redis_instance: Redis | None = None
 
 
@@ -16,6 +17,7 @@ async def init_redis(
     socket_connect_timeout: int = 5,
     socket_timeout: int = 5,
 ) -> Redis:
+    from app.main import logger
     global redis_instance
     if redis_instance is None:
         redis_instance = Redis(
@@ -29,9 +31,9 @@ async def init_redis(
         )
         try:
             await redis_instance.ping()
-            print("✅ Redis connected")
+            logger.info("✅ Redis connected")
         except Exception as e:
-            print(f"❌ Redis connection failed: {e}")
+            logger.info(f"❌ Redis connection failed: {e}")
             await redis_instance.aclose()
             raise
     return redis_instance

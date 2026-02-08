@@ -1,14 +1,14 @@
 from celery import Celery
+from celery.schedules import crontab
 
 from config import Config
-from celery.schedules import crontab
 
 
 celery_app = Celery(
     "ecommerce_app",
     broker=Config.BROKER_URL,
     backend=Config.BROKER_URL,
-    include=["app.tasks"]
+    include=["app.tasks"],
 )
 
 celery_app.conf.update(

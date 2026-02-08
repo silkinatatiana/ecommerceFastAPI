@@ -5,18 +5,19 @@ Revises: c468bda49966
 Create Date: 2025-12-30 00:00:00.000000
 
 """
-from typing import Sequence, Union
-import uuid
 
-from alembic import op
+import uuid
+from collections.abc import Sequence
+
 import sqlalchemy as sa
+from alembic import op
 
 
 # revision identifiers, used by Alembic.
 revision: str = "3b45d86c4416"
-down_revision: Union[str, None] = "c468bda49966"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "c468bda49966"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -38,4 +39,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     op.drop_column("orders", "slug")
-

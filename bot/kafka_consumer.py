@@ -4,11 +4,12 @@ import logging
 from collections import defaultdict
 from typing import Any
 
-from aiokafka import AIOKafkaConsumer
 from aiogram import Bot
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiokafka import AIOKafkaConsumer
 
-from config import Statuses, Config
+from config import Config, Statuses
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,24 +45,28 @@ class KafkaEventConsumer:
         self._task_order_change_status: asyncio.Task | None = None
         self._order_messages: dict[int, list[dict[str, Any]]] = defaultdict(list)
 
-        logger.info('init1')
+        logger.info("init1")
 
     async def start(self) -> None:
         await self.consumer_order_created.start()
         await self.consumer_verified.start()
         await self.consumer_change_status.start()
 
-        self._task_order_created = asyncio.create_task(self._consume_loop_order_created())
+        self._task_order_created = asyncio.create_task(
+            self._consume_loop_order_created()
+        )
         self._task_order_verified = asyncio.create_task(self._consume_loop_verified())
-        self._task_order_change_status = asyncio.create_task(self._consume_loop_change_status())
+        self._task_order_change_status = asyncio.create_task(
+            self._consume_loop_change_status()
+        )
 
-        logger.info('start1')
+        logger.info("start1")
 
     async def stop(self) -> None:
         for task, consumer in [
-                (self._task_order_created, self.consumer_order_created),
-                (self._task_order_verified, self.consumer_verified),
-                (self._task_order_change_status, self.consumer_change_status)
+            (self._task_order_created, self.consumer_order_created),
+            (self._task_order_verified, self.consumer_verified),
+            (self._task_order_change_status, self.consumer_change_status),
         ]:
             if task:
                 task.cancel()
@@ -119,20 +124,18 @@ class KafkaEventConsumer:
                     [
                         InlineKeyboardButton(
                             text="✅ Подтвердить",
-                            callback_data=f"verify:{user_id}:approve"
+                            callback_data=f"verify:{user_id}:approve",
                         ),
                         InlineKeyboardButton(
                             text="❌ Отклонить",
-                            callback_data=f"verify:{user_id}:reject"
+                            callback_data=f"verify:{user_id}:reject",
                         ),
                     ]
                 ]
             )
 
             await self.bot.send_message(
-                chat_id=tg_id,
-                text=message,
-                reply_markup=keyboard
+                chat_id=tg_id, text=message, reply_markup=keyboard
             )
         except Exception as e:
             logger.error(f"Ошибка при попытке подтвердить аккаунт телеграм: {e}")
@@ -159,9 +162,9 @@ class KafkaEventConsumer:
         ]
 
         for idx, pos in enumerate(positions, start=1):
-            name = pos.get('name', '—')
-            count = pos.get('count', 0)
-            subtotal = pos.get('subtotal', 0)
+            name = pos.get("name", "—")
+            count = pos.get("count", 0)
+            subtotal = pos.get("subtotal", 0)
             lines.append(f"{idx}) {name} x{count} = {subtotal} ₽")
 
         message_text = "\n".join(lines)
@@ -171,18 +174,20 @@ class KafkaEventConsumer:
         for chat_id in chat_ids:
             try:
                 sent = await self.bot.send_message(
-                    chat_id=chat_id,
-                    text=message_text,
-                    reply_markup=keyboard_status
+                    chat_id=chat_id, text=message_text, reply_markup=keyboard_status
                 )
                 if slug:
-                    self._order_messages.setdefault(slug, []).append({
-                        "chat_id": chat_id,
-                        "message_id": sent.message_id,
-                        "text": message_text,
-                    })
+                    self._order_messages.setdefault(slug, []).append(
+                        {
+                            "chat_id": chat_id,
+                            "message_id": sent.message_id,
+                            "text": message_text,
+                        }
+                    )
             except Exception:
-                logger.exception("Failed to send order notification to chat %s", chat_id)
+                logger.exception(
+                    "Failed to send order notification to chat %s", chat_id
+                )
 
     async def _handle_status_change_result(self, event: dict[str, Any]) -> None:
         slug = event.get("slug")
@@ -191,7 +196,10 @@ class KafkaEventConsumer:
 
         entries = self._order_messages.get(slug, [])
         if not entries:
-            logger.warning("No stored messages for slug %s (bot may have restarted after order created)", slug)
+            logger.warning(
+                "No stored messages for slug %s (bot may have restarted after order created)",
+                slug,
+            )
         for entry in entries:
             updated_text = update_status_line(entry.get("text"), current_status_text)
             try:
@@ -199,25 +207,32 @@ class KafkaEventConsumer:
                     chat_id=entry["chat_id"],
                     message_id=entry["message_id"],
                     text=updated_text,
-                    reply_markup=keyboard
+                    reply_markup=keyboard,
                 )
                 entry["text"] = updated_text
             except Exception as e:  # noqa: BLE001
-                logger.warning("Cannot edit order message for chat %s: %s", entry["chat_id"], e)
+                logger.warning(
+                    "Cannot edit order message for chat %s: %s", entry["chat_id"], e
+                )
 
         if not keyboard:
             self._order_messages.pop(slug, None)
 
 
-def build_status_keyboard(slug: str, current_status_text: str | None) -> InlineKeyboardMarkup | None:
+def build_status_keyboard(
+    slug: str, current_status_text: str | None
+) -> InlineKeyboardMarkup | None:
     """Собирает клавиатуру доступных переходов по статусу заказа. Используется в consumer и в колбеке смены статуса."""
     if not current_status_text:
         return None
 
     next_status_key = next(
-        (status_key for status_key, prev_status in Statuses.changing_statuses.items()
-         if prev_status == current_status_text),
-        None
+        (
+            status_key
+            for status_key, prev_status in Statuses.changing_statuses.items()
+            if prev_status == current_status_text
+        ),
+        None,
     )
 
     buttons_row = []
@@ -227,15 +242,14 @@ def build_status_keyboard(slug: str, current_status_text: str | None) -> InlineK
         buttons_row.append(
             InlineKeyboardButton(
                 text=f"🔄{next_label}",
-                callback_data=f"order_status:{slug}:{next_status_key}"
+                callback_data=f"order_status:{slug}:{next_status_key}",
             )
         )
 
     if current_status_text == Statuses.DESIGNED:
         buttons_row.append(
             InlineKeyboardButton(
-                text="❌ Отменить",
-                callback_data=f"order_status:{slug}:CANCELLED"
+                text="❌ Отменить", callback_data=f"order_status:{slug}:CANCELLED"
             )
         )
 

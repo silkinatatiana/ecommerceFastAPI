@@ -1,6 +1,6 @@
+from fastapi import HTTPException, Request, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Request, HTTPException, status
 
 from database.db import async_session_maker
 
@@ -18,6 +18,6 @@ def get_redis(request: Request) -> Redis:
     if not redis:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Redis is not available"
+            detail="Redis is not available",
         )
     return redis
