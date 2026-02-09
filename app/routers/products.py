@@ -74,15 +74,27 @@ async def create_product(
     token: str | None = Cookie(None, alias="token"),
 ):
     try:
+        from app.main import producer
         supplier_id = await checking_access_rights(token=token, roles=["seller"])
         category = await get_category(db=db, category_id=product_data.category_id)
         if not category:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="NOT FOUND"
             )
+
+        payload = {
+            "supplier_id": supplier_id,
+            "product_data": product_data,
+        }
+
         product = await create_new_product(
-            db=db, product_data=product_data, supplier_id=supplier_id
+            db=db, product_data=product_data, supplier_id=supplier_id, verify=False
         )
+
+        await producer.send_and_wait(
+            Config.GOODS_TO_BOT_TOPIC, json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        )
+
         return product
 
     except HTTPException as e:

@@ -40,17 +40,26 @@ class KafkaEventConsumer:
             value_deserializer=lambda v: v and v.decode("utf-8"),
         )
 
+        self.consumer_goods_verify = AIOKafkaConsumer(
+            Config.GOODS_TO_BOT_TOPIC,
+            bootstrap_servers=Config.KAFKA_HOST,
+            group_id="bot-goods-verify",
+            auto_offset_reset="earliest",
+            value_deserializer=lambda v: v and v.decode("utf-8"),
+        )
+
         self._task_order_created: asyncio.Task | None = None
         self._task_order_verified: asyncio.Task | None = None
         self._task_order_change_status: asyncio.Task | None = None
         self._order_messages: dict[int, list[dict[str, Any]]] = defaultdict(list)
+        self._task_goods_verify: asyncio.Task | None = None
 
-        logger.info("init1")
 
     async def start(self) -> None:
         await self.consumer_order_created.start()
         await self.consumer_verified.start()
         await self.consumer_change_status.start()
+        await self.consumer_goods_verify.start()
 
         self._task_order_created = asyncio.create_task(
             self._consume_loop_order_created()
@@ -59,14 +68,16 @@ class KafkaEventConsumer:
         self._task_order_change_status = asyncio.create_task(
             self._consume_loop_change_status()
         )
-
-        logger.info("start1")
+        self._task_goods_verify = asyncio.create_task(
+            self._consume_loop_goods_verify()
+        )
 
     async def stop(self) -> None:
         for task, consumer in [
             (self._task_order_created, self.consumer_order_created),
             (self._task_order_verified, self.consumer_verified),
             (self._task_order_change_status, self.consumer_change_status),
+            (self._task_goods_verify, self._consume_loop_goods_verify),
         ]:
             if task:
                 task.cancel()
@@ -109,6 +120,18 @@ class KafkaEventConsumer:
 
                 event = json.loads(msg.value)
                 await self._handle_status_change_result(event)
+
+            except Exception:  # noqa: BLE001
+                logger.exception("Failed to process kafka message: %s", msg.value)
+
+    async def _consume_loop_goods_verify(self) -> None:
+        async for msg in self.consumer_goods_verify:
+            try:
+                if not msg.value:
+                    continue
+
+                event = json.loads(msg.value)
+                await self._handle_goods_verify(event)
 
             except Exception:  # noqa: BLE001
                 logger.exception("Failed to process kafka message: %s", msg.value)
@@ -217,6 +240,9 @@ class KafkaEventConsumer:
 
         if not keyboard:
             self._order_messages.pop(slug, None)
+
+    async def _handle_goods_verify(self):
+        pass
 
 
 def build_status_keyboard(

@@ -1,4 +1,4 @@
-from sqlalchemy import FLOAT, JSON, Column, ForeignKey, Integer, String
+from sqlalchemy import FLOAT, JSON, Column, ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship
 
 from database.db import Base
@@ -23,6 +23,7 @@ class Product(Base):
     cpu = Column(String, nullable=True)
     number_of_processor_cores = Column(Integer, nullable=True)
     number_of_graphics_cores = Column(Integer, nullable=True)
+    verify = Column(Boolean, default=False)
 
     category = relationship("Category", back_populates="products")
     supplier_id = Column(Integer, ForeignKey(User.id))

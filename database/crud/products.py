@@ -12,9 +12,10 @@ async def create_new_product(
     db: AsyncSession,
     product_data: CreateProduct,
     supplier_id: int,
+    verify: bool
 ):
     product = Product(
-        **product_data.model_dump(exclude_unset=True), supplier_id=supplier_id
+        **product_data.model_dump(exclude_unset=True), supplier_id=supplier_id, verify=verify
     )
 
     db.add(product)
@@ -44,7 +45,7 @@ async def get_product(
         query = query.where(Product.id == product_id)
 
     if product_ids:
-        query = query.where(Product.id.in_(product_ids))
+        query = query.where(Product.id.in_(product_ids)).where(Product.verify)
 
     if category_ids:
         query = query.where(Product.category_id.in_(category_ids))
