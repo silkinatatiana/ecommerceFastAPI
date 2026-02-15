@@ -31,6 +31,7 @@ async def get_product(
     category_ids: list = None,
     product_id: int = None,
     product_ids: list = None,
+    user_id: int = None,
     func_count: bool = False,
     colors: list = None,
     built_in_memory: list = None,
@@ -46,6 +47,9 @@ async def get_product(
 
     if product_ids:
         query = query.where(Product.id.in_(product_ids)).where(Product.verify)
+
+    if user_id:
+        query = query.where(Product.supplier_id == user_id)
 
     if category_ids:
         query = query.where(Product.category_id.in_(category_ids))

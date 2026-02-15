@@ -1,0 +1,114 @@
+/* Основной контейнер */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Сетка товаров */
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Название товара */
+.product-name {
+    padding: 0.8rem 1rem 0;
+    font-size: 1rem;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--dark-color);
+    font-weight: 600;
+}
+
+/* Изображение товара */
+.product-image {
+    width: 100%;
+    height: 200px;
+    object-fit: contain;
+    padding: 1rem;
+    background: var(--light-gray);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Категория товара */
+.product-category {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    margin: 0.5rem 1rem;
+    background: var(--light-gray);
+    border-radius: 12px;
+    font-size: 0.85rem;
+    color: var(--secondary-color);
+}
+
+/* Низкий остаток */
+.product-stock.low {
+    color: #ffc107;
+    font-weight: bold;
+}
+
+/* Кнопка добавления */
+.btn-add {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    font-size: 2.5rem;
+    font-weight: bold;
+    border: none;
+    box-shadow: 0 4px 12px rgba(44, 95, 138, 0.3);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    z-index: 100;
+}
+
+.btn-add:hover {
+    background: var(--primary-hover);
+    transform: scale(1.1) rotate(90deg);
+    box-shadow: 0 6px 16px rgba(44, 95, 138, 0.4);
+}
+
+/* Пустое состояние */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+
+.empty-icon {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+    color: var(--secondary-color);
+}
+
+.empty-text {
+    font-size: 1.2rem;
+    color: var(--secondary-color);
+    margin-bottom: 1.5rem;
+}
+
+/* Описание товара */
+.product-card .product-description {
+    padding: 0 1rem 0.5rem;
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+    line-height: 1.4;
+    margin: 0;
+}

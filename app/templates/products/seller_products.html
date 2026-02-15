@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}| {{ shop_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/product/product.css') }}?v=1.0">
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/product/product_card.css') }}?v=1.0">
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/product/seller_products.css') }}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>📦 Мои товары</h1>
+
+    <div class="products-grid">
+        {% for product in products %}
+        {% if product.verify %}
+        <div class="product-card"
+             onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', '_blank')">
+            <img
+                    src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}"
+                    alt="{{ product.name }}"
+                    loading="lazy"
+                    onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+
+            <h3>{{ product.name }}</h3>
+            <p class="product-price">{{ product.price|default("Цена не указана", true) }} ₽</p>
+            <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
+                {{product.stock}} шт. в наличии
+            </p>
+            {% if is_authenticated and role in ['customer', 'seller'] %}
+            <div class="product-actions">
+                {% include 'products/favorite.html' %}
+
+                {% if role == 'customer' %}
+                {% if product.id in in_cart_product_ids %}
+                <button class="btn-cart remove"
+                        onclick="event.stopPropagation(); removeFromCart('{{ product.id }}')"
+                        title="Удалить из корзины">
+                    <i class="fas fa-shopping-cart"></i>
+                </button>
+                {% else %}
+                <button class="btn-cart add"
+                        onclick="event.stopPropagation(); addProduct('{{ product.id }}')"
+                        title="Добавить в корзину">
+                    <i class="fas fa-shopping-cart"></i>
+                </button>
+                {% endif %}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <a href="/products/create" class="btn-add" title="Добавить товар">+</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/product/seller_products.js') }}?v=1.0"></script>
+{% endblock %}

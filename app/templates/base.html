@@ -59,6 +59,7 @@
         <a href="/">Главная</a>
         {% if role == 'seller' %}
             | <a href="{{ url_for('create_product_form') }}">Добавить товар</a>
+            | <a href="{{ url_for('seller_products') }}">Мои товары</a>
         {% endif %}
     </nav>
 

@@ -67,6 +67,32 @@ async def create_product_form(
         raise
 
 
+@router.get("/seller_products", response_class=HTMLResponse) # разделить на JSON и HTML
+async def seller_products(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    request: Request, token: str | None = Cookie(None, alias="token")
+):
+    try:
+        seller_id = await checking_access_rights(token=token, roles=["seller"])
+        products = await get_product(db=db, user_id=seller_id)
+
+        return templates.TemplateResponse(
+            "products/seller_products.html",
+            {
+                "request": request,
+                "products": products,
+                "config": {"url": Config.url},
+                "shop_name": Config.shop_name,
+                "descr": Config.descr,
+            },
+        )
+
+    except HTTPException as e:
+        if e.status_code == 401:
+            return RedirectResponse(url="/auth/create", status_code=303)
+        raise
+
+
 @router.post("/create", response_model=ProductOut)
 async def create_product(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -294,11 +320,13 @@ async def product_detail_page(
             }
         )
 
-    recommended_products = await db.scalars(
+    recommended_result = await db.execute(
         select(Product)
+        .options(joinedload(Product.category))
         .where(Product.category_id == product.category_id)
         .where(Product.id != product.id)
     )
+    recommended_products = recommended_result.unique().scalars().all()
 
     product.is_favorite = is_favorite
     product.in_cart = in_cart
