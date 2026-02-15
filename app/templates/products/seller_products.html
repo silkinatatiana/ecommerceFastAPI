@@ -12,49 +12,94 @@
 <div class="container">
     <h1>📦 Мои товары</h1>
 
-    <div class="products-grid">
-        {% for product in products %}
-        {% if product.verify %}
-        <div class="product-card"
-             onclick="window.open('{{ url_for('product_detail_page', product_id=product.id) }}', '_blank')">
-            <img
-                    src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}"
-                    alt="{{ product.name }}"
-                    loading="lazy"
-                    onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
-
-            <h3>{{ product.name }}</h3>
-            <p class="product-price">{{ product.price|default("Цена не указана", true) }} ₽</p>
-            <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
-                {{product.stock}} шт. в наличии
-            </p>
-            {% if is_authenticated and role in ['customer', 'seller'] %}
-            <div class="product-actions">
-                {% include 'products/favorite.html' %}
-
-                {% if role == 'customer' %}
-                {% if product.id in in_cart_product_ids %}
-                <button class="btn-cart remove"
-                        onclick="event.stopPropagation(); removeFromCart('{{ product.id }}')"
-                        title="Удалить из корзины">
-                    <i class="fas fa-shopping-cart"></i>
-                </button>
-                {% else %}
-                <button class="btn-cart add"
-                        onclick="event.stopPropagation(); addProduct('{{ product.id }}')"
-                        title="Добавить в корзину">
-                    <i class="fas fa-shopping-cart"></i>
-                </button>
-                {% endif %}
-                {% endif %}
-            </div>
-            {% endif %}
+    <div class="tabs-container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('active')" id="tab-active">
+                ✅ Активные <span class="count" id="count-active">{{ active_products|length }}</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('inactive')" id="tab-inactive">
+                ⏸️ Неактивные <span class="count" id="count-inactive">{{ inactive_products|length }}</span>
+            </button>
         </div>
-        {% endif %}
-        {% endfor %}
     </div>
 
-    <a href="/products/create" class="btn-add" title="Добавить товар">+</a>
+    <div id="content-active" class="tab-content active">
+        {% if active_products %}
+        <div class="products-grid">
+            {% for product in active_products %}
+            <a href="{{ url_for('product_detail_page', product_id=product.id) }}" class="product-card" data-product-id="{{ product.id }}">
+                <div class="card-image">
+                    <img
+                        src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}"
+                        alt="{{ product.name }}"
+                        loading="lazy"
+                        onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+                </div>
+
+                <div class="card-content">
+                    <h3>{{ product.name }}</h3>
+                    <p class="product-price">{{ "{:.0f}".format(product.price)|default("Цена не указана", true) }} ₽</p>
+                    <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
+                        {% if product.stock > 0 %}
+                            {{ product.stock }} шт. в наличии
+                        {% else %}
+                            Нет в наличии
+                        {% endif %}
+                    </p>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="products-grid">
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <h3>Нет активных товаров</h3>
+                <p>Добавьте свой первый товар, чтобы начать продажи</p>
+                <a href="/products/create" class="btn btn-primary">Добавить товар</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="content-inactive" class="tab-content">
+        {% if inactive_products %}
+        <div class="products-grid">
+            {% for product in inactive_products %}
+            <a href="{{ url_for('product_detail_page', product_id=product.id) }}" class="product-card inactive" data-product-id="{{ product.id }}">
+                <div class="card-image">
+                    <img
+                        src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}"
+                        alt="{{ product.name }}"
+                        loading="lazy"
+                        onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+                </div>
+
+                <div class="card-content">
+                    <h3>{{ product.name }}</h3>
+                    <p class="product-price">{{ "{:.0f}".format(product.price)|default("Цена не указана", true) }} ₽</p>
+                    <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
+                        {% if product.stock > 0 %}
+                            {{ product.stock }} шт. в наличии
+                        {% else %}
+                            Нет в наличии
+                        {% endif %}
+                    </p>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="products-grid">
+            <div class="empty-state">
+                <div class="empty-state-icon">📦</div>
+                <h3>Нет неактивных товаров</h3>
+                <p>Все ваши товары активны и доступны для покупки</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
 </div>
 {% endblock %}
 

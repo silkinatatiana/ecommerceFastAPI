@@ -31,13 +31,14 @@ async def get_product(
     category_ids: list = None,
     product_id: int = None,
     product_ids: list = None,
+    verify: bool = True,
     user_id: int = None,
     func_count: bool = False,
     colors: list = None,
     built_in_memory: list = None,
     order_dy_: int | str = None,
 ):
-    query = select(Product)
+    query = select(Product).where(Product.verify == verify)
 
     if func_count:
         query = select(func.count()).select_from(Product)
@@ -46,7 +47,7 @@ async def get_product(
         query = query.where(Product.id == product_id)
 
     if product_ids:
-        query = query.where(Product.id.in_(product_ids)).where(Product.verify)
+        query = query.where(Product.id.in_(product_ids))
 
     if user_id:
         query = query.where(Product.supplier_id == user_id)
@@ -85,12 +86,13 @@ async def get_products_with_filters(
 ) -> tuple[list[Product], int]:
 
     base_query = (
-        select(Product).where(Product.category_id == category_id).order_by(Product.id)
+        select(Product).where(Product.category_id == category_id).where(Product.verify == True).order_by(Product.id)
     )
     count_query = (
         select(func.count())
         .select_from(Product)
         .where(Product.category_id == category_id)
+        .where(Product.verify == True)
     )
 
     if colors:

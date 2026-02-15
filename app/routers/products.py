@@ -32,7 +32,6 @@ from general_functions.favorites_func import get_favorite_product_ids
 from models import Product, Review
 from schemas import CreateProduct, ProductOut, RecommendOut
 
-
 router = APIRouter(prefix="/products", tags=["products"])
 templates = Jinja2Templates(directory="app/templates/")
 logger = logging.getLogger(__name__)
@@ -40,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/create", response_class=HTMLResponse)
 async def create_product_form(
-    request: Request, token: str | None = Cookie(None, alias="token")
+        request: Request, token: str | None = Cookie(None, alias="token")
 ):
     try:
         await checking_access_rights(token=token, roles=["seller"])
@@ -67,25 +66,17 @@ async def create_product_form(
         raise
 
 
-@router.get("/seller_products", response_class=HTMLResponse) # разделить на JSON и HTML
-async def seller_products(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    request: Request, token: str | None = Cookie(None, alias="token")
+@router.get("/seller_products_data", response_class=HTMLResponse)
+async def seller_products_data(
+        verify: bool,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        token: str | None = Cookie(None, alias="token")
 ):
     try:
         seller_id = await checking_access_rights(token=token, roles=["seller"])
-        products = await get_product(db=db, user_id=seller_id)
+        products = await get_product(db=db, user_id=seller_id, verify=verify)
 
-        return templates.TemplateResponse(
-            "products/seller_products.html",
-            {
-                "request": request,
-                "products": products,
-                "config": {"url": Config.url},
-                "shop_name": Config.shop_name,
-                "descr": Config.descr,
-            },
-        )
+        return products
 
     except HTTPException as e:
         if e.status_code == 401:
@@ -93,11 +84,38 @@ async def seller_products(
         raise
 
 
+@router.get("/seller_products", response_class=HTMLResponse)
+async def seller_products(
+        db: Annotated[AsyncSession, Depends(get_db)],
+        request: Request,
+        token: str | None = Cookie(None, alias="token")
+):
+    seller_products_active = await seller_products_data(db=db, token=token, verify=True)
+    seller_products_inactive = await seller_products_data(db=db, token=token, verify=False)
+
+    if isinstance(seller_products_active, RedirectResponse):
+        return RedirectResponse(url="/auth/create", status_code=303)
+
+    return templates.TemplateResponse(
+        "products/seller_products.html",
+        {
+            "request": request,
+            "active_products": seller_products_active,
+            "inactive_products": seller_products_inactive,
+            "is_authenticated": True,
+            "role": "seller",
+            "config": {"url": Config.url},
+            "shop_name": Config.shop_name,
+            "descr": Config.descr,
+        },
+    )
+
+
 @router.post("/create", response_model=ProductOut)
 async def create_product(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    product_data: CreateProduct,
-    token: str | None = Cookie(None, alias="token"),
+        db: Annotated[AsyncSession, Depends(get_db)],
+        product_data: CreateProduct,
+        token: str | None = Cookie(None, alias="token"),
 ):
     try:
         from app.main import producer
@@ -135,18 +153,18 @@ async def create_product(
 
 @router.get("/")
 async def all_products(
-    db: AsyncSession = Depends(get_db),
-    category_id: str | None = Query(None),
-    colors: str | None = Query(None),
-    built_in_memory: str | None = Query(None),
-    product_ids: str | None = Query(None),
+        db: AsyncSession = Depends(get_db),
+        category_id: str | None = Query(None),
+        colors: str | None = Query(None),
+        built_in_memory: str | None = Query(None),
+        product_ids: str | None = Query(None),
 ):
     try:
         params = {}
 
         if category_id:
-            categ_ids = [int(categ_id) for categ_id in category_id.split(",")]
-            params["categ_ids"] = categ_ids
+            category_ids = [int(categ_id) for categ_id in category_id.split(",")]
+            params["category_ids"] = category_ids
 
         if product_ids:
             ids_list = [int(id_) for id_ in product_ids.split(",")]
@@ -168,14 +186,14 @@ async def all_products(
 
 @router.get("/by_category/{category_id}")
 async def products_by_category(
-    category_id: int,
-    request: Request,
-    user_id: int | None = Query(None),
-    per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
-    colors: str = Query(None),
-    built_in_memory: str = Query(None),
-    favorites: list[str] | None = Query(None),
-    db: AsyncSession = Depends(get_db),
+        category_id: int,
+        request: Request,
+        user_id: int | None = Query(None),
+        per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
+        colors: str = Query(None),
+        built_in_memory: str = Query(None),
+        favorites: list[str] | None = Query(None),
+        db: AsyncSession = Depends(get_db),
 ):
     category = await get_category(db=db, category_id=category_id)
     if category is None:
@@ -218,8 +236,9 @@ async def products_by_category(
 
 @router.get("/recommendations", response_model=RecommendOut)
 async def get_recommend_products_id(
-    redis_client: Redis = Depends(get_redis),
-    token: str | None = Cookie(None, alias="token"),
+        redis_client: Redis = Depends(get_redis),
+        token: str | None = Cookie(None, alias="token"),
+        db: AsyncSession = Depends(get_db),
 ):
     try:
         user_id = await checking_access_rights(token=token, roles=["customer"])
@@ -231,9 +250,21 @@ async def get_recommend_products_id(
         if cached:
             users_recs = json.loads(cached)
             ids = users_recs.get(str(user_id), [])
-            if isinstance(ids, list) and all(isinstance(x, int) for x in ids):
-                return RecommendOut(ids=ids)
+            logger.warning(f"[DEBUG] Raw IDs from Redis: {ids}")
+
+            if isinstance(ids, list) and all(isinstance(x, int) for x in ids) and ids:
+                verified_products = await get_product(
+                    db=db,
+                    product_ids=ids,
+                    verify=True,
+                )
+                logger.warning(f"[DEBUG] Verified products: {verified_products}")
+                verified_ids = [p.id for p in verified_products]
+                logger.warning(f"[DEBUG] Verified IDs: {verified_ids}")
+                return RecommendOut(ids=verified_ids)
+
     except Exception as e:
+        logger.error(f"[DEBUG] Exception: {e}", exc_info=True)
         logger.warning(f"⚠️ Failed to get recommendations for user {user_id}: {e}")
 
     return RecommendOut(ids=[])
@@ -241,10 +272,10 @@ async def get_recommend_products_id(
 
 @router.get("/{product_id}", response_class=HTMLResponse)
 async def product_detail_page(
-    request: Request,
-    product_id: int,
-    db: AsyncSession = Depends(get_db),
-    token: str | None = Cookie(default=None, alias="token"),
+        request: Request,
+        product_id: int,
+        db: AsyncSession = Depends(get_db),
+        token: str | None = Cookie(default=None, alias="token"),
 ):
     is_authenticated = False
     is_favorite = False
@@ -325,6 +356,7 @@ async def product_detail_page(
         .options(joinedload(Product.category))
         .where(Product.category_id == product.category_id)
         .where(Product.id != product.id)
+        .where(Product.verify == True)
     )
     recommended_products = recommended_result.unique().scalars().all()
 

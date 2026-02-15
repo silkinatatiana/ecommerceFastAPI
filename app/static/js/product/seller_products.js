@@ -325,3 +325,67 @@ function sortProducts(criteria) {
     productsGrid.innerHTML = '';
     cards.forEach(card => productsGrid.appendChild(card));
 }
+
+// Переключение вкладок без перезагрузки
+function switchTab(tabName) {
+    // Убираем активный класс со всех вкладок и контента
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+    // Добавляем активный класс к выбранной вкладке и контенту
+    document.getElementById('tab-' + tabName).classList.add('active');
+    document.getElementById('content-' + tabName).classList.add('active');
+
+    // Сохраняем выбор в localStorage
+    localStorage.setItem('seller_products_active_tab', tabName);
+}
+
+// Восстанавливаем выбранную вкладку при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTab = localStorage.getItem('seller_products_active_tab');
+    if (savedTab && document.getElementById('content-' + savedTab)) {
+        switchTab(savedTab);
+    }
+});
+
+// Открытие карточки товара
+function openProduct(productId) {
+    window.open('{{ url_for("product_detail_page", product_id=0) }}'.replace('0', productId), '_blank');
+}
+
+
+// Обновление счётчиков на вкладках
+function updateCounts() {
+    const activeCount = document.querySelectorAll('#content-active .product-card').length;
+    const inactiveCount = document.querySelectorAll('#content-inactive .product-card').length;
+
+    document.getElementById('count-active').textContent = activeCount;
+    document.getElementById('count-inactive').textContent = inactiveCount;
+}
+
+// Проверка и отображение пустых состояний
+function checkEmptyStates() {
+    ['active', 'inactive'].forEach(type => {
+        const container = document.querySelector(`#content-${type} .products-grid`);
+        const cards = container.querySelectorAll('.product-card');
+        const existingEmpty = container.querySelector('.empty-state');
+
+        if (cards.length === 0 && !existingEmpty) {
+            const emptyHtml = type === 'active'
+                ? `<div class="empty-state">
+                    <div class="empty-state-icon">📭</div>
+                    <h3>Нет активных товаров</h3>
+                    <p>Добавьте свой первый товар, чтобы начать продажи</p>
+                    <a href="/products/create" class="btn btn-primary">Добавить товар</a>
+                   </div>`
+                : `<div class="empty-state">
+                    <div class="empty-state-icon">📦</div>
+                    <h3>Нет неактивных товаров</h3>
+                    <p>Все ваши товары активны и доступны для покупки</p>
+                   </div>`;
+            container.innerHTML = emptyHtml;
+        } else if (cards.length > 0 && existingEmpty) {
+            existingEmpty.remove();
+        }
+    });
+}
