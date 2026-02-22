@@ -77,6 +77,8 @@
                 {% else %}
                     <button class="btn btn-primary" onclick="addProduct('{{ product.id }}')">Добавить в корзину</button>
                 {% endif %}
+            {% endif %}
+            {% if is_authenticated and (role == 'customer' or (role == 'seller' and product.supplier_id != user_id)) %}
                 {% include 'products/favorite.html' %}
             {% endif %}
         </div>

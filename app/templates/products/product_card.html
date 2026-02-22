@@ -14,7 +14,11 @@
     </p>
     {% if is_authenticated and role in ['customer', 'seller'] %}
         <div class="product-actions">
-            {% include 'products/favorite.html' %}
+            {% set prod_supplier = product.get("supplier_id") if product is mapping else product.supplier_id %}
+            {% if role == 'customer' or (role == 'seller' and prod_supplier != user_id) %}
+                {% include 'products/favorite.html' %}
+            {% endif %}
+            
 
             {% if role == 'customer' %}
                 {% if product.id in in_cart_product_ids %}

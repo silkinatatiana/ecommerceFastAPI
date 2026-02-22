@@ -128,7 +128,7 @@ async def create_product(
 
         payload = {
             "supplier_id": supplier_id,
-            "product_data": product_data,
+            "product_data": product_data.model_dump(),
         }
 
         product = await create_new_product(
@@ -138,7 +138,6 @@ async def create_product(
         await producer.send_and_wait(
             Config.GOODS_TO_BOT_TOPIC, json.dumps(payload, ensure_ascii=False).encode("utf-8")
         )
-
         return product
 
     except HTTPException as e:
