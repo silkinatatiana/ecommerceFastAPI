@@ -3,7 +3,7 @@ import logging
 from aiogram import Router, types
 from aiogram.filters import CommandStart
 
-from bot.kafka_consumer import build_status_keyboard, update_status_line
+from bot.kafka_consumer import build_status_keyboard, get_goods_verify_message_ids, update_status_line
 from bot.kafka_producer import KafkaEventPublisher
 from config import Statuses
 
@@ -109,3 +109,51 @@ async def handle_order_status_callback(callback: types.CallbackQuery) -> None:
         slug=slug, target_status=target_status
     )
     await callback.answer("Запрос на смену статуса отправлен")
+
+
+@router.callback_query(lambda c: c.data and c.data.startswith("verify_goods:"))
+async def handle_verification_goods_callback(callback: types.CallbackQuery) -> None:
+    if publisher is None:
+        await callback.answer(
+            "⏳ Сервис недоступен, попробуйте позже.", show_alert=True
+        )
+        logger.error("Kafka publisher is not initialised")
+        return
+
+    try:
+        parts = callback.data.split(":")
+        if len(parts) != 4:
+            raise ValueError(f"Expected 3 parts, got {len(parts)}")
+        _, product_id_str, message_id_str, decision = parts
+        product_id, message_id = int(product_id_str), int(message_id_str)
+        if decision not in ("approve", "reject"):
+            raise ValueError(f"Invalid decision: {decision}")
+    except (ValueError, IndexError) as e:
+        logger.warning("Invalid goods_verify callback: %r, error: %s", callback.data, e)
+        await callback.answer("Некорректный запрос.", show_alert=True)
+        return
+
+    await publisher.send_goods_verify_decision(
+        product_id=product_id,
+        decision=decision,
+    )
+
+    status_suffix = "✅ Товар одобрен." if decision == "approve" else "❌ Товар отклонён."
+    for chat_id, media_msg_id, original_caption, keyboard_msg_id in get_goods_verify_message_ids(
+        product_id
+    ):
+        try:
+            new_caption = f"{original_caption}\n\n{status_suffix}"
+            await callback.bot.edit_message_caption(
+                chat_id=chat_id,
+                message_id=media_msg_id,
+                caption=new_caption,
+            )
+        except Exception as e:
+            logger.warning("Не удалось обновить подпись в чате %s: %s", chat_id, e)
+        try:
+            await callback.bot.delete_message(chat_id=chat_id, message_id=keyboard_msg_id)
+        except Exception as e:
+            logger.warning("Не удалось удалить сообщение с кнопками в чате %s: %s", chat_id, e)
+
+    await callback.answer("Решение отправлено.")

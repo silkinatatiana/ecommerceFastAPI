@@ -1,17 +1,25 @@
 import asyncio
 import json
 import logging
+import re
 from collections import defaultdict
 from typing import Any
 
 from aiogram import Bot
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from aiokafka import AIOKafkaConsumer
 
 from config import Config, Statuses
 
-
 logger = logging.getLogger(__name__)
+
+# product_id -> [(chat_id, media_message_id, original_caption, keyboard_message_id), ...]
+_goods_verify_messages: dict[int, list[tuple[int, int, str, int]]] = defaultdict(list)
+
+
+def get_goods_verify_message_ids(product_id: int) -> list[tuple[int, int, str, int]]:
+    """Возвращает и удаляет список (chat_id, media_msg_id, caption, keyboard_msg_id) для данного product_id."""
+    return _goods_verify_messages.pop(product_id, [])
 
 
 class KafkaEventConsumer:
@@ -53,7 +61,6 @@ class KafkaEventConsumer:
         self._task_order_change_status: asyncio.Task | None = None
         self._order_messages: dict[int, list[dict[str, Any]]] = defaultdict(list)
         self._task_goods_verify: asyncio.Task | None = None
-
 
     async def start(self) -> None:
         await self.consumer_order_created.start()
@@ -101,7 +108,6 @@ class KafkaEventConsumer:
 
     async def _consume_loop_verified(self) -> None:
         async for msg in self.consumer_verified:
-            logger.info(1)
             try:
                 if not msg.value:
                     continue
@@ -241,12 +247,67 @@ class KafkaEventConsumer:
         if not keyboard:
             self._order_messages.pop(slug, None)
 
-    async def _handle_goods_verify(self):
-        pass
+    async def _handle_goods_verify(self, event: dict[str, Any]) -> None:
+        try:
+            product_id = event.get("product_id")
+            supplier_id = event.get("supplier_id")
+            product_data = event.get("product_data")
+            chat_ids = event.get("chat_ids") or []
+
+            if not chat_ids:
+                logger.warning("No support chat_ids in goods_verify event: %s", event)
+                return
+            if product_id is None:
+                logger.warning("No product_id in goods_verify event: %s", event)
+                return
+
+            desc = product_data.get("description") or ""
+
+            message = (f"Добавлен новый товар: {product_data['name']}\n"
+                       f"Описание: {desc or '—'}\n"
+                       f"Цена: {product_data['price']} руб.\n"
+                       f"Поставщик id: {supplier_id}")
+
+            image_urls = product_data.get("image_urls") or []
+            message_id = None
+
+            for chat_id in chat_ids:
+                media = [InputMediaPhoto(media=url) for i, url in enumerate(image_urls)]
+
+                if media:
+                    media[0].caption = message
+                    message_id = (await self.bot.send_media_group(chat_id=chat_id, media=media))[0].message_id
+
+                    keyboard = InlineKeyboardMarkup(
+                        # TODO вытащить клавиатуры и кнопки в отдельный класс в файлик keyboards
+                        inline_keyboard=[
+                            [
+                                InlineKeyboardButton(
+                                    text="✅ Подтвердить",
+                                    callback_data=f"verify_goods:{product_id}:{message_id}:approve",
+                                ),
+                                InlineKeyboardButton(
+                                    text="❌ Отклонить",
+                                    callback_data=f"verify_goods:{product_id}:{message_id}:reject",
+                                ),
+                            ]
+                        ]
+                    )
+                    keyboard_msg = await self.bot.send_message(
+                        chat_id=chat_id,
+                        text="Принять или отклонить товар?",
+                        reply_markup=keyboard,
+                    )
+                    _goods_verify_messages[product_id].append(
+                        (chat_id, message_id, message, keyboard_msg.message_id)
+                    )
+
+        except Exception as e:
+            logger.error(f"Ошибка при попытке подтвердить новый товар: {e}")
 
 
 def build_status_keyboard(
-    slug: str, current_status_text: str | None
+        slug: str, current_status_text: str | None
 ) -> InlineKeyboardMarkup | None:
     """Собирает клавиатуру доступных переходов по статусу заказа. Используется в consumer и в колбеке смены статуса."""
     if not current_status_text:

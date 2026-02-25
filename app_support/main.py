@@ -21,6 +21,7 @@ from starlette.staticfiles import StaticFiles
 import app.log.log  # noqa: F401
 from app.routers.auth import auto_refresh_token
 from app_support.consumer import (
+    consume_goods_verify_decision,
     consume_orders,
     consume_support_change_orders_status,
     consume_support_verified,
@@ -71,15 +72,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         value_deserializer=lambda v: json.loads(v.decode("utf-8")),
     )
 
+    support_consumer_goods_verify = AIOKafkaConsumer(
+        Config.GOODS_VERIFY_DECISION_TOPIC,
+        bootstrap_servers=Config.KAFKA_HOST,
+        group_id="support-goods-verify-decision",
+        auto_offset_reset="earliest",
+        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
+    )
+
     producer = KafkaEventPublisher()
 
     app.state.kafka_consumer = consumer
     app.state.kafka_support_consumer = support_consumer_verify
     app.state.kafka_support_change_status_consumer = support_consumer_change_status
+    app.state.kafka_support_goods_verify_consumer = support_consumer_goods_verify
     app.state.kafka_producer = producer
     consumer_task = None
     support_task_verify = None
     support_task_change = None
+    support_task_goods_verify = None
 
     try:
         await producer.start()
@@ -98,6 +109,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             )
         )
         app.state.kafka_support_change_status_task = support_task_change
+        await support_consumer_goods_verify.start()
+        support_task_goods_verify = asyncio.create_task(
+            consume_goods_verify_decision(support_consumer_goods_verify)
+        )
+        app.state.kafka_support_goods_verify_task = support_task_goods_verify
         yield
     except Exception as e:
         logger.exception(f"❌ Failed to start Kafka consumer: {e}")
@@ -135,11 +151,24 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                     f"Error while cancelling support change-status task: {e}"
                 )
 
+        if support_task_goods_verify and not support_task_goods_verify.done():
+            logger.info("Cancelling support goods-verify consumer task...")
+            support_task_goods_verify.cancel()
+            try:
+                await support_task_goods_verify
+            except asyncio.CancelledError:
+                logger.info("Support goods-verify consumer task cancelled")
+            except Exception as e:
+                logger.exception(
+                    f"Error while cancelling support goods-verify task: {e}"
+                )
+
         await producer.stop()
         await redis_client.aclose()
         await consumer.stop()
         await support_consumer_verify.stop()
         await support_consumer_change_status.stop()
+        await support_consumer_goods_verify.stop()
 
 
 class NoCacheStaticFiles(StaticFiles):

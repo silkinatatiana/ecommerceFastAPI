@@ -42,3 +42,10 @@ class KafkaEventPublisher:
         await self.producer.send_and_wait(
             Config.CHANGE_STATUS_TOPIC_TO_SUPPORT, json.dumps(payload).encode("utf-8")
         )
+
+    async def send_goods_verify_decision(self, *, product_id: int, decision: str) -> None:
+        payload = {"product_id": product_id, "decision": decision}
+        await self.producer.send_and_wait(
+            Config.GOODS_VERIFY_DECISION_TOPIC,
+            json.dumps(payload).encode("utf-8"),
+        )

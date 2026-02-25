@@ -1,9 +1,10 @@
 import logging
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from config import Config, Statuses
 from database.crud.orders import create_new_order, get_orders, update_status
+from database.crud.products import get_product
 from database.crud.users import get_user, set_telegram_data
 from database.db import async_session_maker
 from general_functions.product_func import update_stock
@@ -135,6 +136,20 @@ async def consume_support_change_orders_status(consumer):
         await consumer.stop()
 
 
+async def consume_goods_verify_decision(consumer):
+    try:
+        async for msg in consumer:
+            event = msg.value
+
+            if not isinstance(event, dict):
+                logger.warning("Ignore malformed event: %s", event)
+                continue
+
+            await handle_goods_verify_decision(event)
+    finally:
+        await consumer.stop()
+
+
 async def handle_telegram_verification_response(event: dict, logger):
     user_id = event.get("user_id")
     tg_id = event.get("tg_id")
@@ -197,6 +212,30 @@ async def handle_order_status_change_request(event: dict, logger):
                             db=db,
                             add=True,
                         )
+
+        except Exception as exc:
+            await db.rollback()
+            logger.exception("Failed to change order status: %s", exc)
+
+
+async def handle_goods_verify_decision(event: dict):
+    product_id = event.get("product_id")
+    decision = event.get("decision")
+
+    if decision != "approve":
+        return
+
+    async with async_session_maker() as db:
+        try:
+            product = await get_product(db=db, product_id=product_id, verify=False)
+
+            if not product:
+                logger.info("Товар не найден")
+            else:
+                await db.execute(
+                    update(Product).where(Product.id == product_id).values(verify=True)
+                )
+                await db.commit()
 
         except Exception as exc:
             await db.rollback()

@@ -29,6 +29,7 @@ from database.db_depends import get_db, get_redis
 from general_functions.auth_func import checking_access_rights, get_current_user
 from general_functions.cart_func import get_in_cart_product_ids
 from general_functions.favorites_func import get_favorite_product_ids
+from general_functions.kafka_func import get_chat_ids
 from models import Product, Review
 from schemas import CreateProduct, ProductOut, RecommendOut
 
@@ -125,15 +126,18 @@ async def create_product(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="NOT FOUND"
             )
-
-        payload = {
-            "supplier_id": supplier_id,
-            "product_data": product_data.model_dump(),
-        }
+        chat_ids = await get_chat_ids(db=db)
 
         product = await create_new_product(
             db=db, product_data=product_data, supplier_id=supplier_id, verify=False
         )
+
+        payload = {
+            "product_id": product.id,
+            "supplier_id": supplier_id,
+            "product_data": product_data.model_dump(),
+            "chat_ids": chat_ids,
+        }
 
         await producer.send_and_wait(
             Config.GOODS_TO_BOT_TOPIC, json.dumps(payload, ensure_ascii=False).encode("utf-8")
