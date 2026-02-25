@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Body, Cookie, Depends, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError

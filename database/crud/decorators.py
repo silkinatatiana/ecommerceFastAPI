@@ -12,7 +12,9 @@ def handle_db_errors(func):
             return await func(db, *args, **kwargs)
         except SQLAlchemyError as e:
             await db.rollback()
-            raise HTTPException(status_code=500, detail=f"Ошибка базы данных: {e}") from e
+            raise HTTPException(
+                status_code=500, detail=f"Ошибка базы данных: {e}"
+            ) from e
         except Exception as e:
             await db.rollback()
             raise HTTPException(

@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, status
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select

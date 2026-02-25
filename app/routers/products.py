@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/create", response_class=HTMLResponse)
 async def create_product_form(
-        request: Request, token: str | None = Cookie(None, alias="token")
+    request: Request, token: str | None = Cookie(None, alias="token")
 ):
     try:
         await checking_access_rights(token=token, roles=["seller"])
@@ -69,9 +69,9 @@ async def create_product_form(
 
 @router.get("/seller_products_data", response_class=HTMLResponse)
 async def seller_products_data(
-        verify: bool,
-        db: Annotated[AsyncSession, Depends(get_db)],
-        token: str | None = Cookie(None, alias="token")
+    verify: bool,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    token: str | None = Cookie(None, alias="token"),
 ):
     try:
         seller_id = await checking_access_rights(token=token, roles=["seller"])
@@ -87,12 +87,14 @@ async def seller_products_data(
 
 @router.get("/seller_products", response_class=HTMLResponse)
 async def seller_products(
-        db: Annotated[AsyncSession, Depends(get_db)],
-        request: Request,
-        token: str | None = Cookie(None, alias="token")
+    db: Annotated[AsyncSession, Depends(get_db)],
+    request: Request,
+    token: str | None = Cookie(None, alias="token"),
 ):
     seller_products_active = await seller_products_data(db=db, token=token, verify=True)
-    seller_products_inactive = await seller_products_data(db=db, token=token, verify=False)
+    seller_products_inactive = await seller_products_data(
+        db=db, token=token, verify=False
+    )
 
     if isinstance(seller_products_active, RedirectResponse):
         return RedirectResponse(url="/auth/create", status_code=303)
@@ -114,12 +116,13 @@ async def seller_products(
 
 @router.post("/create", response_model=ProductOut)
 async def create_product(
-        db: Annotated[AsyncSession, Depends(get_db)],
-        product_data: CreateProduct,
-        token: str | None = Cookie(None, alias="token"),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    product_data: CreateProduct,
+    token: str | None = Cookie(None, alias="token"),
 ):
     try:
         from app.main import producer
+
         supplier_id = await checking_access_rights(token=token, roles=["seller"])
         category = await get_category(db=db, category_id=product_data.category_id)
         if not category:
@@ -140,7 +143,8 @@ async def create_product(
         }
 
         await producer.send_and_wait(
-            Config.GOODS_TO_BOT_TOPIC, json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            Config.GOODS_TO_BOT_TOPIC,
+            json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         )
         return product
 
@@ -151,16 +155,18 @@ async def create_product(
 
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 @router.get("/")
 async def all_products(
-        db: AsyncSession = Depends(get_db),
-        category_id: str | None = Query(None),
-        colors: str | None = Query(None),
-        built_in_memory: str | None = Query(None),
-        product_ids: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    category_id: str | None = Query(None),
+    colors: str | None = Query(None),
+    built_in_memory: str | None = Query(None),
+    product_ids: str | None = Query(None),
 ):
     try:
         params = {}
@@ -189,14 +195,14 @@ async def all_products(
 
 @router.get("/by_category/{category_id}")
 async def products_by_category(
-        category_id: int,
-        request: Request,
-        user_id: int | None = Query(None),
-        per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
-        colors: str = Query(None),
-        built_in_memory: str = Query(None),
-        favorites: list[str] | None = Query(None),
-        db: AsyncSession = Depends(get_db),
+    category_id: int,
+    request: Request,
+    user_id: int | None = Query(None),
+    per_page: int = Query(3, ge=1, le=50, description="Количество товаров на странице"),
+    colors: str = Query(None),
+    built_in_memory: str = Query(None),
+    favorites: list[str] | None = Query(None),
+    db: AsyncSession = Depends(get_db),
 ):
     category = await get_category(db=db, category_id=category_id)
     if category is None:
@@ -239,9 +245,9 @@ async def products_by_category(
 
 @router.get("/recommendations", response_model=RecommendOut)
 async def get_recommend_products_id(
-        redis_client: Redis = Depends(get_redis),
-        token: str | None = Cookie(None, alias="token"),
-        db: AsyncSession = Depends(get_db),
+    redis_client: Redis = Depends(get_redis),
+    token: str | None = Cookie(None, alias="token"),
+    db: AsyncSession = Depends(get_db),
 ):
     try:
         user_id = await checking_access_rights(token=token, roles=["customer"])
@@ -275,10 +281,10 @@ async def get_recommend_products_id(
 
 @router.get("/{product_id}", response_class=HTMLResponse)
 async def product_detail_page(
-        request: Request,
-        product_id: int,
-        db: AsyncSession = Depends(get_db),
-        token: str | None = Cookie(default=None, alias="token"),
+    request: Request,
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+    token: str | None = Cookie(default=None, alias="token"),
 ):
     is_authenticated = False
     is_favorite = False

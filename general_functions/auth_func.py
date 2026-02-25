@@ -117,9 +117,7 @@ async def get_current_user(token: str):
             raise credentials_exception
 
         expire = payload.get("exp")
-        if expire is None or datetime.now(UTC) > datetime.fromtimestamp(
-            expire, tz=UTC
-        ):
+        if expire is None or datetime.now(UTC) > datetime.fromtimestamp(expire, tz=UTC):
             raise credentials_exception
 
         return {

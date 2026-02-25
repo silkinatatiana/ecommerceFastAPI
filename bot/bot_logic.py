@@ -3,7 +3,11 @@ import logging
 from aiogram import Router, types
 from aiogram.filters import CommandStart
 
-from bot.kafka_consumer import build_status_keyboard, get_goods_verify_message_ids, update_status_line
+from bot.kafka_consumer import (
+    build_status_keyboard,
+    get_goods_verify_message_ids,
+    update_status_line,
+)
 from bot.kafka_producer import KafkaEventPublisher
 from config import Statuses
 
@@ -138,10 +142,15 @@ async def handle_verification_goods_callback(callback: types.CallbackQuery) -> N
         decision=decision,
     )
 
-    status_suffix = "✅ Товар одобрен." if decision == "approve" else "❌ Товар отклонён."
-    for chat_id, media_msg_id, original_caption, keyboard_msg_id in get_goods_verify_message_ids(
-        product_id
-    ):
+    status_suffix = (
+        "✅ Товар одобрен." if decision == "approve" else "❌ Товар отклонён."
+    )
+    for (
+        chat_id,
+        media_msg_id,
+        original_caption,
+        keyboard_msg_id,
+    ) in get_goods_verify_message_ids(product_id):
         try:
             new_caption = f"{original_caption}\n\n{status_suffix}"
             await callback.bot.edit_message_caption(
@@ -152,8 +161,12 @@ async def handle_verification_goods_callback(callback: types.CallbackQuery) -> N
         except Exception as e:
             logger.warning("Не удалось обновить подпись в чате %s: %s", chat_id, e)
         try:
-            await callback.bot.delete_message(chat_id=chat_id, message_id=keyboard_msg_id)
+            await callback.bot.delete_message(
+                chat_id=chat_id, message_id=keyboard_msg_id
+            )
         except Exception as e:
-            logger.warning("Не удалось удалить сообщение с кнопками в чате %s: %s", chat_id, e)
+            logger.warning(
+                "Не удалось удалить сообщение с кнопками в чате %s: %s", chat_id, e
+            )
 
     await callback.answer("Решение отправлено.")

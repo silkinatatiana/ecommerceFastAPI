@@ -8,13 +8,12 @@ from schemas import CreateProduct
 
 @handle_db_errors
 async def create_new_product(
-    db: AsyncSession,
-    product_data: CreateProduct,
-    supplier_id: int,
-    verify: bool
+    db: AsyncSession, product_data: CreateProduct, supplier_id: int, verify: bool
 ):
     product = Product(
-        **product_data.model_dump(exclude_unset=True), supplier_id=supplier_id, verify=verify
+        **product_data.model_dump(exclude_unset=True),
+        supplier_id=supplier_id,
+        verify=verify,
     )
 
     db.add(product)
@@ -85,7 +84,10 @@ async def get_products_with_filters(
 ) -> tuple[list[Product], int]:
 
     base_query = (
-        select(Product).where(Product.category_id == category_id).where(Product.verify == True).order_by(Product.id)
+        select(Product)
+        .where(Product.category_id == category_id)
+        .where(Product.verify == True)
+        .order_by(Product.id)
     )
     count_query = (
         select(func.count())
