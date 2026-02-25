@@ -3,12 +3,12 @@ import logging
 from aiogram import Router, types
 from aiogram.filters import CommandStart
 
-from bot.kafka_consumer import (
-    build_status_keyboard,
+from bot.kafka.consumer import (
     get_goods_verify_message_ids,
     update_status_line,
 )
-from bot.kafka_producer import KafkaEventPublisher
+from bot.kafka.producer import KafkaEventPublisher
+from bot.keyboards import Keyboard
 from config import Statuses
 
 
@@ -100,7 +100,7 @@ async def handle_order_status_callback(callback: types.CallbackQuery) -> None:
     status_label = getattr(Statuses, target_status, target_status)
     if callback.message and callback.message.text:
         new_text = update_status_line(callback.message.text, status_label)
-        new_keyboard = build_status_keyboard(slug, status_label)
+        new_keyboard = Keyboard.build_status_keyboard(slug, status_label)
         try:
             await callback.message.edit_text(
                 new_text,

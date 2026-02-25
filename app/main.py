@@ -33,7 +33,7 @@ from app.routers import (
     reviews,
 )
 from app.routers.auth import auto_refresh_token
-from app_support.kafka_producer import KafkaEventPublisher
+from app_support.kafka.producer import KafkaEventPublisher
 from config import Config
 from database.db import Base, engine
 from database.db_depends import get_db

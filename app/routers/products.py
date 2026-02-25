@@ -33,6 +33,7 @@ from general_functions.kafka_func import get_chat_ids
 from models import Product, Review
 from schemas import CreateProduct, ProductOut, RecommendOut
 
+
 router = APIRouter(prefix="/products", tags=["products"])
 templates = Jinja2Templates(directory="app/templates/")
 logger = logging.getLogger(__name__)

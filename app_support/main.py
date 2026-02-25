@@ -1,5 +1,3 @@
-import asyncio
-import json
 import logging
 import time
 from collections.abc import AsyncGenerator
@@ -8,7 +6,6 @@ from datetime import datetime
 from functools import partial
 from math import ceil
 
-from aiokafka import AIOKafkaConsumer
 from fastapi import Cookie, Depends, FastAPI, Query, Request
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -20,19 +17,14 @@ from starlette.staticfiles import StaticFiles
 
 import app.log.log  # noqa: F401
 from app.routers.auth import auto_refresh_token
-from app_support.consumer import (
-    consume_goods_verify_decision,
-    consume_orders,
-    consume_support_change_orders_status,
-    consume_support_verified,
-)
 from app_support.functions.main_func import (
     build_pagination_url,
     build_sort_url,
     get_sort_column,
     to_date_str,
 )
-from app_support.kafka_producer import KafkaEventPublisher
+from app_support.kafka.consumer import KafkaEventConsumer
+from app_support.kafka.producer import KafkaEventPublisher
 from app_support.routers import auth, chats, messages, orders
 from config import Config, Statuses
 from database.db_depends import get_db
@@ -48,127 +40,26 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     redis_client = await init_redis()
     app.state.redis = redis_client
-    consumer = AIOKafkaConsumer(
-        Config.ORDERS_TOPIC,
-        bootstrap_servers=Config.KAFKA_HOST,
-        group_id="orders-group",
-        auto_offset_reset="earliest",
-        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
-    )
 
-    support_consumer_verify = AIOKafkaConsumer(
-        Config.TG_VERIFIED_TOPIC,
-        bootstrap_servers=Config.KAFKA_HOST,
-        group_id="support-bot-verified",
-        auto_offset_reset="earliest",
-        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
-    )
+    kafka_producer = KafkaEventPublisher()
+    await kafka_producer.start()
+    app.state.kafka_producer = kafka_producer
 
-    support_consumer_change_status = AIOKafkaConsumer(
-        Config.CHANGE_STATUS_TOPIC_TO_SUPPORT,
-        bootstrap_servers=Config.KAFKA_HOST,
-        group_id="support-bot_change_status",
-        auto_offset_reset="earliest",
-        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
-    )
+    kafka_consumer = KafkaEventConsumer()
+    await kafka_consumer.start()
+    app.state.kafka_consumer = kafka_consumer
 
-    support_consumer_goods_verify = AIOKafkaConsumer(
-        Config.GOODS_VERIFY_DECISION_TOPIC,
-        bootstrap_servers=Config.KAFKA_HOST,
-        group_id="support-goods-verify-decision",
-        auto_offset_reset="earliest",
-        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
-    )
-
-    producer = KafkaEventPublisher()
-
-    app.state.kafka_consumer = consumer
-    app.state.kafka_support_consumer = support_consumer_verify
-    app.state.kafka_support_change_status_consumer = support_consumer_change_status
-    app.state.kafka_support_goods_verify_consumer = support_consumer_goods_verify
-    app.state.kafka_producer = producer
-    consumer_task = None
-    support_task_verify = None
-    support_task_change = None
-    support_task_goods_verify = None
+    yield
 
     try:
-        await producer.start()
-        await consumer.start()
-        consumer_task = asyncio.create_task(consume_orders(consumer))
-        app.state.kafka_consumer_task = consumer_task
-        await support_consumer_verify.start()
-        support_task_verify = asyncio.create_task(
-            consume_support_verified(support_consumer_verify)
-        )
-        app.state.kafka_support_consumer_task = support_task_verify
-        await support_consumer_change_status.start()
-        support_task_change = asyncio.create_task(
-            consume_support_change_orders_status(
-                support_consumer_change_status,
-            )
-        )
-        app.state.kafka_support_change_status_task = support_task_change
-        await support_consumer_goods_verify.start()
-        support_task_goods_verify = asyncio.create_task(
-            consume_goods_verify_decision(support_consumer_goods_verify)
-        )
-        app.state.kafka_support_goods_verify_task = support_task_goods_verify
-        yield
-    except Exception as e:
-        logger.exception(f"❌ Failed to start Kafka consumer: {e}")
-        raise
-    finally:
-        if consumer_task and not consumer_task.done():
-            logger.info("Cancelling consumer task...")
-            consumer_task.cancel()
-            try:
-                await consumer_task
-            except asyncio.CancelledError:
-                logger.info("Consumer task cancelled")
-            except Exception as e:
-                logger.exception(f"Error while cancelling task: {e}")
-
-        if support_task_verify and not support_task_verify.done():
-            logger.info("Cancelling support consumer task...")
-            support_task_verify.cancel()
-            try:
-                await support_task_verify
-            except asyncio.CancelledError:
-                logger.info("Support consumer task cancelled")
-            except Exception as e:
-                logger.exception(f"Error while cancelling support task: {e}")
-
-        if support_task_change and not support_task_change.done():
-            logger.info("Cancelling support change-status consumer task...")
-            support_task_change.cancel()
-            try:
-                await support_task_change
-            except asyncio.CancelledError:
-                logger.info("Support change-status consumer task cancelled")
-            except Exception as e:
-                logger.exception(
-                    f"Error while cancelling support change-status task: {e}"
-                )
-
-        if support_task_goods_verify and not support_task_goods_verify.done():
-            logger.info("Cancelling support goods-verify consumer task...")
-            support_task_goods_verify.cancel()
-            try:
-                await support_task_goods_verify
-            except asyncio.CancelledError:
-                logger.info("Support goods-verify consumer task cancelled")
-            except Exception as e:
-                logger.exception(
-                    f"Error while cancelling support goods-verify task: {e}"
-                )
-
-        await producer.stop()
-        await redis_client.aclose()
-        await consumer.stop()
-        await support_consumer_verify.stop()
-        await support_consumer_change_status.stop()
-        await support_consumer_goods_verify.stop()
+        await kafka_consumer.stop()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to stop kafka consumer: %s", exc)
+    try:
+        await kafka_producer.stop()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to stop kafka producer: %s", exc)
+    await redis_client.aclose()
 
 
 class NoCacheStaticFiles(StaticFiles):

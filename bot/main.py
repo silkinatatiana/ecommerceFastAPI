@@ -5,8 +5,8 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.bot import DefaultBotProperties
 
 from bot.bot_logic import router, set_publisher
-from bot.kafka_consumer import KafkaEventConsumer
-from bot.kafka_producer import KafkaEventPublisher
+from bot.kafka.consumer import KafkaEventConsumer
+from bot.kafka.producer import KafkaEventPublisher
 from config import Config
 
 
