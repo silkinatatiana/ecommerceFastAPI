@@ -5,7 +5,6 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 
 import httpx
-from aiokafka import AIOKafkaProducer
 from fastapi import Cookie, Depends, FastAPI, Query, Request
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
@@ -21,6 +20,7 @@ from app.functions.main_func import (
     handle_partial_request,
     parse_int_list,
 )
+from app.kafka.producer import KafkaEventPublisher
 from app.routers import (
     auth,
     cart,
@@ -33,7 +33,6 @@ from app.routers import (
     reviews,
 )
 from app.routers.auth import auto_refresh_token
-from app_support.kafka.producer import KafkaEventPublisher
 from config import Config
 from database.db import Base, engine
 from database.db_depends import get_db
@@ -53,20 +52,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         redis_client = await init_redis()
         app.state.redis = redis_client
 
-        await verification_publisher.start()
-        app.state.kafka_producer = verification_publisher
-
-        await producer.start()
+        kafka_producer = KafkaEventPublisher()
+        await kafka_producer.start()
+        app.state.kafka_producer = kafka_producer
         yield
 
     finally:
         if redis_client:
             await redis_client.aclose()
-        try:
-            await verification_publisher.stop()
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Failed to stop verification publisher: %s", exc)
-        await producer.stop()
+            await kafka_producer.stop()
         try:
             await engine.dispose()
         except Exception as e:
@@ -89,8 +83,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-producer = AIOKafkaProducer(bootstrap_servers=Config.KAFKA_HOST)
-verification_publisher = KafkaEventPublisher()
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", NoCacheStaticFiles(directory="app/static"), name="static")
 

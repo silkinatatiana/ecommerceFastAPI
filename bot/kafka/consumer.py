@@ -70,7 +70,8 @@ class KafkaEventConsumer:
                     await task
                 except asyncio.CancelledError:
                     pass
-            await self.consumers[name].stop()
+            if name in self.consumers:
+                await self.consumers[name].stop()
 
     @staticmethod
     async def _consume_loop(

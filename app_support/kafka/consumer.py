@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class KafkaEventConsumer:
     TOPICS = {
+        "order_created": (Config.ORDERS_TOPIC, "support-order-created"),
         "verified": (Config.TG_VERIFIED_TOPIC, "support-bot-verified"),
         "change_status": (
             Config.CHANGE_STATUS_TOPIC_TO_SUPPORT,
@@ -51,6 +52,7 @@ class KafkaEventConsumer:
 
     async def start(self) -> None:
         handlers: dict[str, Callable] = {
+            "order_created": self.handle_order_created,
             "verified": self.handle_telegram_verification_response,
             "change_status": self.handle_order_status_change_request,
             "goods_verify": self.handle_goods_verify_decision,
@@ -96,6 +98,39 @@ class KafkaEventConsumer:
             if attr.isupper() and value == status_text:
                 return attr
         return None
+
+    async def handle_order_created(self, event: dict) -> None:
+        user_id = event.get("user_id")
+        products = event.get("products") or {}
+        total_sum = event.get("total_sum", 0)
+        slug = event.get("slug")
+        if user_id is None or not products or not slug:
+            logger.warning("Incomplete order event: user_id=%s, slug=%s", user_id, slug)
+            return
+        try:
+            async with async_session_maker() as db:
+                for product_id_str, item in products.items():
+                    product_id = int(product_id_str)
+                    await update_stock(
+                        product_id=product_id, count=item["count"], db=db
+                    )
+                order = await create_new_order(
+                    user_id=user_id,
+                    products=products,
+                    summa=total_sum,
+                    slug=slug,
+                    db=db,
+                )
+                await db.execute(delete(Cart).where(Cart.user_id == user_id))
+                await db.commit()
+                logger.info(
+                    "Order %s (id=%s) created, cart cleared for user_id=%s",
+                    slug,
+                    order.id,
+                    user_id,
+                )
+        except Exception as exc:
+            logger.exception("Failed to create order from event: %s", exc)
 
     @staticmethod
     async def consume_orders(consumer):

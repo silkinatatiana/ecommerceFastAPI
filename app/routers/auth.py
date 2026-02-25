@@ -127,7 +127,6 @@ async def request_telegram_verification(
 
     await producer.send_verification_prompt(
         tg_id=user.tg_id,
-        # chat_id=user.tg_id,
         user_id=user.id,
         message="Подтвердите аккаунт в PEAR.",
     )
@@ -181,7 +180,6 @@ async def register(
         if producer and tg_id:
             await producer.send_verification_prompt(
                 tg_id=user.tg_id,
-                # chat_id=user.tg_id,
                 user_id=user.id,
                 message="Подтвердите регистрацию в PEAR.",
             )

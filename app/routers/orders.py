@@ -1,4 +1,3 @@
-import json
 import logging
 import uuid
 from datetime import datetime
@@ -80,11 +79,10 @@ async def get_order_by_slug(
 
 @router.post("/create", status_code=status.HTTP_201_CREATED)
 async def create_order(
+    request: Request,
     token: str | None = Cookie(None, alias="token"),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.main import producer
-
     try:
         user_id = await checking_access_rights(token=token, roles=["customer"])
         if not user_id:
@@ -137,9 +135,13 @@ async def create_order(
             "status_text": Statuses.DESIGNED,
         }
 
-        await producer.send_and_wait(
-            Config.ORDERS_TOPIC, json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        producer = (
+            request.app.state.kafka_producer
+            if hasattr(request.app.state, "kafka_producer")
+            else None
         )
+        if producer:
+            await producer.send_order(payload)
 
     except HTTPException as e:
         if e.status_code == 401:

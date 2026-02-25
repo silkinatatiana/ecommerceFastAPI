@@ -117,13 +117,12 @@ async def seller_products(
 
 @router.post("/create", response_model=ProductOut)
 async def create_product(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     product_data: CreateProduct,
     token: str | None = Cookie(None, alias="token"),
 ):
     try:
-        from app.main import producer
-
         supplier_id = await checking_access_rights(token=token, roles=["seller"])
         category = await get_category(db=db, category_id=product_data.category_id)
         if not category:
@@ -143,10 +142,14 @@ async def create_product(
             "chat_ids": chat_ids,
         }
 
-        await producer.send_and_wait(
-            Config.GOODS_TO_BOT_TOPIC,
-            json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        producer = (
+            request.app.state.kafka_producer
+            if hasattr(request.app.state, "kafka_producer")
+            else None
         )
+        if producer:
+            await producer.send_create_product(payload)
+
         return product
 
     except HTTPException as e:
@@ -260,7 +263,6 @@ async def get_recommend_products_id(
         if cached:
             users_recs = json.loads(cached)
             ids = users_recs.get(str(user_id), [])
-            logger.warning(f"[DEBUG] Raw IDs from Redis: {ids}")
 
             if isinstance(ids, list) and all(isinstance(x, int) for x in ids) and ids:
                 verified_products = await get_product(
@@ -268,13 +270,11 @@ async def get_recommend_products_id(
                     product_ids=ids,
                     verify=True,
                 )
-                logger.warning(f"[DEBUG] Verified products: {verified_products}")
                 verified_ids = [p.id for p in verified_products]
-                logger.warning(f"[DEBUG] Verified IDs: {verified_ids}")
+
                 return RecommendOut(ids=verified_ids)
 
     except Exception as e:
-        logger.error(f"[DEBUG] Exception: {e}", exc_info=True)
         logger.warning(f"⚠️ Failed to get recommendations for user {user_id}: {e}")
 
     return RecommendOut(ids=[])
