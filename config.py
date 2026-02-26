@@ -88,6 +88,10 @@ class Topics:
     BOT_KAFKA_TOPICS = (
         (Config.ORDERS_TOPIC, "bot-order-created", "_handle_order_created"),
         (Config.VERIFIED_TOPIC, "bot-verified", "_handle_verification_prompt"),
-        (Config.CHANGE_STATUS_TOPIC_TO_BOT, "bot-change-status", "_handle_status_change_result"),
+        (
+            Config.CHANGE_STATUS_TOPIC_TO_BOT,
+            "bot-change-status",
+            "_handle_status_change_result",
+        ),
         (Config.GOODS_TO_BOT_TOPIC, "bot-goods-verify", "_handle_goods_verify"),
     )

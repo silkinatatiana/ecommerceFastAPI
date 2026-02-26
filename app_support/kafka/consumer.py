@@ -15,14 +15,13 @@ from database.db import async_session_maker
 from general_functions.product_func import update_stock
 from models import Cart, Product
 
+
 KAFKA_BOOTSTRAP_SERVERS = Config.KAFKA_HOST
 logger = logging.getLogger(__name__)
 
 
 class KafkaEventConsumer:
-    def __init__(
-        self, topic: str, group_id: str, handler_method_name: str
-    ) -> None:
+    def __init__(self, topic: str, group_id: str, handler_method_name: str) -> None:
         self.topic = topic
         self.group_id = group_id
         self.handler_method_name = handler_method_name
@@ -43,9 +42,7 @@ class KafkaEventConsumer:
         self._consumer = self._create_consumer()
         await self._consumer.start()
         self._task = asyncio.create_task(
-            self._consume_loop(
-                self._consumer, handler, self.handler_method_name
-            )
+            self._consume_loop(self._consumer, handler, self.handler_method_name)
         )
 
     async def stop(self) -> None:

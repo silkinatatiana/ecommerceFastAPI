@@ -24,8 +24,9 @@ def get_goods_verify_message_ids(product_id: int) -> list[tuple[int, int, str, i
 
 
 class KafkaEventConsumer:
-
-    def __init__(self, bot: Bot, topic: str, group_id: str, handler_method_name: str) -> None:
+    def __init__(
+        self, bot: Bot, topic: str, group_id: str, handler_method_name: str
+    ) -> None:
         self.bot = bot
         self.topic = topic
         self.group_id = group_id
@@ -47,9 +48,7 @@ class KafkaEventConsumer:
         self._consumer = self._create_consumer()
         await self._consumer.start()
         self._task = asyncio.create_task(
-            self._consume_loop(
-                self._consumer, handler, self.handler_method_name
-            )
+            self._consume_loop(self._consumer, handler, self.handler_method_name)
         )
 
     async def stop(self) -> None:

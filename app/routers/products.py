@@ -366,7 +366,7 @@ async def product_detail_page(
         .options(joinedload(Product.category))
         .where(Product.category_id == product.category_id)
         .where(Product.id != product.id)
-        .where(Product.verify == True)
+        .where(Product.verify)
     )
     recommended_products = recommended_result.unique().scalars().all()
 

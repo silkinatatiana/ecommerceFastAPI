@@ -86,14 +86,14 @@ async def get_products_with_filters(
     base_query = (
         select(Product)
         .where(Product.category_id == category_id)
-        .where(Product.verify == True)
+        .where(Product.verify)
         .order_by(Product.id)
     )
     count_query = (
         select(func.count())
         .select_from(Product)
         .where(Product.category_id == category_id)
-        .where(Product.verify == True)
+        .where(Product.verify)
     )
 
     if colors:

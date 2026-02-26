@@ -129,7 +129,7 @@ async def handle_verification_goods_callback(callback: types.CallbackQuery) -> N
         if len(parts) != 4:
             raise ValueError(f"Expected 3 parts, got {len(parts)}")
         _, product_id_str, message_id_str, decision = parts
-        product_id, message_id = int(product_id_str), int(message_id_str)
+        product_id, _ = int(product_id_str), int(message_id_str)
         if decision not in ("approve", "reject"):
             raise ValueError(f"Invalid decision: {decision}")
     except (ValueError, IndexError) as e:
