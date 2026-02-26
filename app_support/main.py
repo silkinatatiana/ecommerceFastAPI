@@ -26,7 +26,7 @@ from app_support.functions.main_func import (
 from app_support.kafka.consumer import KafkaEventConsumer
 from app_support.kafka.producer import KafkaEventPublisher
 from app_support.routers import auth, chats, messages, orders
-from config import Config, Statuses
+from config import Config, Statuses, Topics
 from database.db_depends import get_db
 from general_functions.auth_func import checking_access_rights
 from models import Orders, User
@@ -35,24 +35,7 @@ from redis_client import init_redis
 
 logger = logging.getLogger(__name__)
 
-SUPPORT_KAFKA_TOPICS = (
-    (Config.ORDERS_TOPIC, "support-order-created", "handle_order_created"),
-    (
-        Config.TG_VERIFIED_TOPIC,
-        "support-bot-verified",
-        "handle_telegram_verification_response",
-    ),
-    (
-        Config.CHANGE_STATUS_TOPIC_TO_SUPPORT,
-        "support-bot-change-status",
-        "handle_order_status_change_request",
-    ),
-    (
-        Config.GOODS_VERIFY_DECISION_TOPIC,
-        "support-goods-verify-decision",
-        "handle_goods_verify_decision",
-    ),
-)
+SUPPORT_KAFKA_TOPICS = Topics.SUPPORT_KAFKA_TOPICS
 
 
 @asynccontextmanager

@@ -63,3 +63,31 @@ class Statuses:
         # Отмена должна быть доступна только из состояния "Оформлен"
         "CANCELLED": "Оформлен",
     }
+
+
+class Topics:
+    SUPPORT_KAFKA_TOPICS = (
+        (Config.ORDERS_TOPIC, "support-order-created", "handle_order_created"),
+        (
+            Config.TG_VERIFIED_TOPIC,
+            "support-bot-verified",
+            "handle_telegram_verification_response",
+        ),
+        (
+            Config.CHANGE_STATUS_TOPIC_TO_SUPPORT,
+            "support-bot-change-status",
+            "handle_order_status_change_request",
+        ),
+        (
+            Config.GOODS_VERIFY_DECISION_TOPIC,
+            "support-goods-verify-decision",
+            "handle_goods_verify_decision",
+        ),
+    )
+
+    BOT_KAFKA_TOPICS = (
+        (Config.ORDERS_TOPIC, "bot-order-created", "_handle_order_created"),
+        (Config.VERIFIED_TOPIC, "bot-verified", "_handle_verification_prompt"),
+        (Config.CHANGE_STATUS_TOPIC_TO_BOT, "bot-change-status", "_handle_status_change_result"),
+        (Config.GOODS_TO_BOT_TOPIC, "bot-goods-verify", "_handle_goods_verify"),
+    )

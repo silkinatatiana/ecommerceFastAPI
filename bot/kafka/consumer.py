@@ -16,6 +16,7 @@ from config import Config
 logger = logging.getLogger(__name__)
 
 _goods_verify_messages: dict[int, list[tuple[int, int, str, int]]] = defaultdict(list)
+_order_messages: dict[str, list[dict]] = defaultdict(list)
 
 
 def get_goods_verify_message_ids(product_id: int) -> list[tuple[int, int, str, int]]:
@@ -23,55 +24,43 @@ def get_goods_verify_message_ids(product_id: int) -> list[tuple[int, int, str, i
 
 
 class KafkaEventConsumer:
-    TOPICS = {
-        "order_created": (Config.ORDERS_TOPIC, "bot-order-created"),
-        "verified": (Config.VERIFIED_TOPIC, "bot-verified"),
-        "change_status": (Config.CHANGE_STATUS_TOPIC_TO_BOT, "bot-change-status"),
-        "goods_verify": (Config.GOODS_TO_BOT_TOPIC, "bot-goods-verify"),
-    }
 
-    def __init__(self, bot: Bot) -> None:
+    def __init__(self, bot: Bot, topic: str, group_id: str, handler_method_name: str) -> None:
         self.bot = bot
-        self.consumers: dict[str, AIOKafkaConsumer] = {}
-        self.tasks: dict[str, asyncio.Task | None] = dict.fromkeys(self.TOPICS)
-        self._order_messages: dict[int, list[dict]] = defaultdict(list)
+        self.topic = topic
+        self.group_id = group_id
+        self.handler_method_name = handler_method_name
+        self._consumer: AIOKafkaConsumer | None = None
+        self._task: asyncio.Task | None = None
 
-    @staticmethod
-    def _create_consumer(topic: str, group_id: str) -> AIOKafkaConsumer:
+    def _create_consumer(self) -> AIOKafkaConsumer:
         return AIOKafkaConsumer(
-            topic,
+            self.topic,
             bootstrap_servers=Config.KAFKA_HOST,
-            group_id=group_id,
+            group_id=self.group_id,
             auto_offset_reset="earliest",
             value_deserializer=lambda v: v and v.decode("utf-8"),
         )
 
     async def start(self) -> None:
-        handlers: dict[str, Callable] = {
-            "order_created": self._handle_order_created,
-            "verified": self._handle_verification_prompt,
-            "change_status": self._handle_status_change_result,
-            "goods_verify": self._handle_goods_verify,
-        }
-
-        for name, (topic, group_id) in self.TOPICS.items():
-            consumer = self._create_consumer(topic, group_id)
-            await consumer.start()
-            self.consumers[name] = consumer
-            self.tasks[name] = asyncio.create_task(
-                self._consume_loop(consumer, handlers[name], name)
+        handler = getattr(self, self.handler_method_name)
+        self._consumer = self._create_consumer()
+        await self._consumer.start()
+        self._task = asyncio.create_task(
+            self._consume_loop(
+                self._consumer, handler, self.handler_method_name
             )
+        )
 
     async def stop(self) -> None:
-        for name, task in self.tasks.items():
-            if task:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-            if name in self.consumers:
-                await self.consumers[name].stop()
+        if self._task is not None:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+        if self._consumer is not None:
+            await self._consumer.stop()
 
     @staticmethod
     async def _consume_loop(
@@ -132,7 +121,7 @@ class KafkaEventConsumer:
                     chat_id=chat_id, text=message_text, reply_markup=keyboard
                 )
                 if slug:
-                    self._order_messages[slug].append(
+                    _order_messages[slug].append(
                         {
                             "chat_id": chat_id,
                             "message_id": sent.message_id,
@@ -147,7 +136,7 @@ class KafkaEventConsumer:
         status = event.get("current_status_text")
         keyboard = Keyboard.build_status_keyboard(slug, status)
 
-        entries = self._order_messages.get(slug, [])
+        entries = _order_messages.get(slug, [])
         if not entries:
             logger.warning("No stored messages for slug %s", slug)
 
@@ -167,7 +156,7 @@ class KafkaEventConsumer:
                 )
 
         if not keyboard:
-            self._order_messages.pop(slug, None)
+            _order_messages.pop(slug, None)
 
     async def _handle_goods_verify(self, event: dict) -> None:
         try:
