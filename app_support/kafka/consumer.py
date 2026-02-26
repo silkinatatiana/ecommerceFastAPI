@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
 
@@ -16,66 +15,48 @@ from database.db import async_session_maker
 from general_functions.product_func import update_stock
 from models import Cart, Product
 
-
 KAFKA_BOOTSTRAP_SERVERS = Config.KAFKA_HOST
 logger = logging.getLogger(__name__)
 
 
 class KafkaEventConsumer:
-    TOPICS = {
-        "order_created": (Config.ORDERS_TOPIC, "support-order-created"),
-        "verified": (Config.TG_VERIFIED_TOPIC, "support-bot-verified"),
-        "change_status": (
-            Config.CHANGE_STATUS_TOPIC_TO_SUPPORT,
-            "support-bot-change-status",
-        ),
-        "goods_verify": (
-            Config.GOODS_VERIFY_DECISION_TOPIC,
-            "support-goods-verify-decision",
-        ),
-    }
+    def __init__(
+        self, topic: str, group_id: str, handler_method_name: str
+    ) -> None:
+        self.topic = topic
+        self.group_id = group_id
+        self.handler_method_name = handler_method_name
+        self._consumer: AIOKafkaConsumer | None = None
+        self._task: asyncio.Task | None = None
 
-    def __init__(self) -> None:
-        self.consumers: dict[str, AIOKafkaConsumer] = {}
-        self.tasks: dict[str, asyncio.Task | None] = dict.fromkeys(self.TOPICS)
-        self._order_messages: dict[int, list[dict]] = defaultdict(list)
-
-    @staticmethod
-    def _create_consumer(topic: str, group_id: str) -> AIOKafkaConsumer:
+    def _create_consumer(self) -> AIOKafkaConsumer:
         return AIOKafkaConsumer(
-            topic,
+            self.topic,
             bootstrap_servers=Config.KAFKA_HOST,
-            group_id=group_id,
+            group_id=self.group_id,
             auto_offset_reset="earliest",
             value_deserializer=lambda v: v and v.decode("utf-8"),
         )
 
     async def start(self) -> None:
-        handlers: dict[str, Callable] = {
-            "order_created": self.handle_order_created,
-            "verified": self.handle_telegram_verification_response,
-            "change_status": self.handle_order_status_change_request,
-            "goods_verify": self.handle_goods_verify_decision,
-        }
-
-        for name, (topic, group_id) in self.TOPICS.items():
-            consumer = self._create_consumer(topic, group_id)
-            await consumer.start()
-            self.consumers[name] = consumer
-            self.tasks[name] = asyncio.create_task(
-                self._consume_loop(consumer, handlers[name], name)
+        handler = getattr(self, self.handler_method_name)
+        self._consumer = self._create_consumer()
+        await self._consumer.start()
+        self._task = asyncio.create_task(
+            self._consume_loop(
+                self._consumer, handler, self.handler_method_name
             )
+        )
 
     async def stop(self) -> None:
-        for name, task in self.tasks.items():
-            if task:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-            if name in self.consumers:
-                await self.consumers[name].stop()
+        if self._task is not None:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+        if self._consumer is not None:
+            await self._consumer.stop()
 
     @staticmethod
     async def _consume_loop(

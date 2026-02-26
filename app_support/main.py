@@ -35,6 +35,25 @@ from redis_client import init_redis
 
 logger = logging.getLogger(__name__)
 
+SUPPORT_KAFKA_TOPICS = (
+    (Config.ORDERS_TOPIC, "support-order-created", "handle_order_created"),
+    (
+        Config.TG_VERIFIED_TOPIC,
+        "support-bot-verified",
+        "handle_telegram_verification_response",
+    ),
+    (
+        Config.CHANGE_STATUS_TOPIC_TO_SUPPORT,
+        "support-bot-change-status",
+        "handle_order_status_change_request",
+    ),
+    (
+        Config.GOODS_VERIFY_DECISION_TOPIC,
+        "support-goods-verify-decision",
+        "handle_goods_verify_decision",
+    ),
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -45,16 +64,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await kafka_producer.start()
     app.state.kafka_producer = kafka_producer
 
-    kafka_consumer = KafkaEventConsumer()
-    await kafka_consumer.start()
-    app.state.kafka_consumer = kafka_consumer
+    kafka_consumers = [
+        KafkaEventConsumer(topic, group_id, handler_method_name)
+        for topic, group_id, handler_method_name in SUPPORT_KAFKA_TOPICS
+    ]
+    for consumer in kafka_consumers:
+        await consumer.start()
+    app.state.kafka_consumers = kafka_consumers
 
     yield
 
-    try:
-        await kafka_consumer.stop()
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Failed to stop kafka consumer: %s", exc)
+    for consumer in kafka_consumers:
+        try:
+            await consumer.stop()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to stop kafka consumer: %s", exc)
     try:
         await kafka_producer.stop()
     except Exception as exc:  # noqa: BLE001
