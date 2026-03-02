@@ -119,13 +119,8 @@ async def request_telegram_verification(
         if hasattr(request.app.state, "kafka_producer")
         else None
     )
-    if not producer:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Сервис подтверждения недоступен, попробуйте позже",
-        )
 
-    await producer.send_verification_prompt(
+    await request.app.state.kafka_producer.send_verification_prompt(
         tg_id=user.tg_id,
         user_id=user.id,
         message="Подтвердите аккаунт в PEAR.",
@@ -172,16 +167,11 @@ async def register(
             db=db,
         )
 
-        producer = (
-            request.app.state.kafka_producer
-            if hasattr(request.app.state, "kafka_producer")
-            else None
-        )
-        if producer and tg_id:
-            await producer.send_verification_prompt(
+        if tg_id:
+            await request.app.state.kafka_producer.send_verification_prompt(
                 tg_id=user.tg_id,
                 user_id=user.id,
-                message="Подтвердите регистрацию в PEAR.",
+                message="Подтвердите аккаунт в PEAR.",
             )
 
         return create_tokens_and_set_cookies(

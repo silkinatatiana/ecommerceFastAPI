@@ -142,13 +142,7 @@ async def create_product(
             "chat_ids": chat_ids,
         }
 
-        producer = (
-            request.app.state.kafka_producer
-            if hasattr(request.app.state, "kafka_producer")
-            else None
-        )
-        if producer:
-            await producer.send_create_product(payload)
+        await request.app.state.kafka_producer.send_create_product(payload)
 
         return product
 

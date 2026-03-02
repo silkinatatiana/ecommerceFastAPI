@@ -135,13 +135,7 @@ async def create_order(
             "status_text": Statuses.DESIGNED,
         }
 
-        producer = (
-            request.app.state.kafka_producer
-            if hasattr(request.app.state, "kafka_producer")
-            else None
-        )
-        if producer:
-            await producer.send_order(payload)
+        await request.app.state.kafka_producer.send_order(payload)
 
     except HTTPException as e:
         if e.status_code == 401:

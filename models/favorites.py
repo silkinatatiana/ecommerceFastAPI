@@ -13,6 +13,3 @@ class Favorites(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "product_id", name="_user_product_uc"),
     )
-
-    # user = relationship("User", back_populates="favorites")
-    # products = relationship("Product", back_populates="in_favorites")

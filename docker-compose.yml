@@ -108,6 +108,30 @@ services:
     volumes:
       - .:/app_support
 
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    container_name: ecommerce-admin
+    ports:
+      - "8003:8001"
+    env_file:
+      - .env
+    environment:
+      - SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://ecommerce:postgres@ecommerce-postgres:5432/fastapi_ecommerce
+      - REDIS_HOST=ecommerce-redis
+      - REDIS_PORT=6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    networks:
+      - default
+
   bot:
     build:
       context: .
