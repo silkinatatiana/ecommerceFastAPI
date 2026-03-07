@@ -9,7 +9,6 @@ class CreateProduct(BaseModel):
     price: int
     stock: int
     category_id: int
-    image_urls: list[str] | None = None
     RAM_capacity: str | None = None
     built_in_memory_capacity: str | None = None
     screen: float | None = None
@@ -19,12 +18,22 @@ class CreateProduct(BaseModel):
     color: str | None = None
 
 
+class FileOut(BaseModel):
+    id: int
+    original_filename: str
+    file_url: str
+    file_size: int
+    content_type: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ProductOut(BaseModel):
     id: int
     name: str
     description: str | None = None
     price: int
-    image_urls: list[str] = Field(default_factory=list)
+    image_urls: list[str] = Field(default_factory=list)  # из product.files
     stock: int
     category_id: int
     supplier_id: int | None = None

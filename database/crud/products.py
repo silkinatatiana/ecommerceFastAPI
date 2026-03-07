@@ -1,5 +1,6 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from database.crud.decorators import handle_db_errors
 from models import Favorites, Product
@@ -36,7 +37,11 @@ async def get_product(
     built_in_memory: list = None,
     order_dy_: int | str = None,
 ):
-    query = select(Product).where(Product.verify == verify)
+    query = (
+        select(Product)
+        .options(joinedload(Product.files))
+        .where(Product.verify == verify)
+    )
 
     if func_count:
         query = select(func.count()).select_from(Product)
@@ -85,6 +90,7 @@ async def get_products_with_filters(
 
     base_query = (
         select(Product)
+        .options(joinedload(Product.files))
         .where(Product.category_id == category_id)
         .where(Product.verify)
         .order_by(Product.id)

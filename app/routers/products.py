@@ -1,10 +1,20 @@
 import json
 import logging
+import uuid
 from typing import Annotated
 
 import httpx
 import jwt
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    Cookie,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from redis.asyncio import Redis
@@ -13,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from starlette.responses import RedirectResponse
 
+from app.s3_client import s3_client
 from config import Config
 from database.crud.category import get_category
 from database.crud.products import (
@@ -120,6 +131,7 @@ async def create_product(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     product_data: CreateProduct,
+    file: UploadFile,
     token: str | None = Cookie(None, alias="token"),
 ):
     try:
@@ -131,10 +143,24 @@ async def create_product(
             )
         chat_ids = await get_chat_ids(db=db)
 
+        file_ext = file.filename.split(".")[-1]
+        s3_key = f"users/{supplier_id}/{uuid.uuid4()}.{file_ext}"
+        _args = {"ContentType": file.content_type or "application/octet-stream"}
+
+        s3_client.upload_fileobj(fileobj=file.file, key=s3_key, extra_args=_args)
+
+        # TODO: created_file = File(original_filename=file.filename,
+        #                 s3_key=s3_key,
+        #                 file_url=file_url,
+        #                 file_size=file.size,
+        #                 content_type=file.content_type,
+        #                 product_id=pro
+        #
         product = await create_new_product(
             db=db, product_data=product_data, supplier_id=supplier_id, verify=False
         )
 
+        # TODO: создать запись File и привязать к product; добавить image_urls в payload для бота
         payload = {
             "product_id": product.id,
             "supplier_id": supplier_id,
@@ -328,6 +354,7 @@ async def product_detail_page(
     product = await db.scalar(
         select(Product)
         .options(joinedload(Product.category))
+        .options(joinedload(Product.files))
         .options(joinedload(Product.reviews).joinedload(Review.user))
         .where(Product.id == product_id)
     )
@@ -358,6 +385,7 @@ async def product_detail_page(
     recommended_result = await db.execute(
         select(Product)
         .options(joinedload(Product.category))
+        .options(joinedload(Product.files))
         .where(Product.category_id == product.category_id)
         .where(Product.id != product.id)
         .where(Product.verify)

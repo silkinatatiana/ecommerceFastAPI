@@ -1,4 +1,4 @@
-from sqlalchemy import FLOAT, JSON, Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import FLOAT, Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from database.db import Base
@@ -14,7 +14,6 @@ class Product(Base):
     description = Column(String)
     price = Column(Integer)
     color = Column(String)
-    image_urls = Column(JSON, default=list)
     stock = Column(Integer)
     category_id = Column(Integer, ForeignKey("categories.id"))
     RAM_capacity = Column(String, nullable=True)
@@ -30,6 +29,12 @@ class Product(Base):
     supplier = relationship("User", back_populates="products")
     reviews = relationship("Review", back_populates="product")
     carts = relationship("Cart", back_populates="product")
+    files = relationship("File", back_populates="product")
+
+    @property
+    def image_urls(self) -> list[str]:
+        """Ссылки на изображения из таблицы files (для обратной совместимости)."""
+        return [f.file_url for f in (self.files or [])]
 
     class Config:
         json_schema_extra = {
@@ -37,10 +42,6 @@ class Product(Base):
                 "name": "Смартфон",
                 "description": "Мощный смартфон с процессором последнего поколения",
                 "price": 99999,
-                "image_urls": [
-                    "https://example.com/phone1.jpg",
-                    "https://example.com/phone2.jpg",
-                ],
                 "stock": 100,
                 "category_id": 1,
                 "RAM_capacity": "24 GB",

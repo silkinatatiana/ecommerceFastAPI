@@ -3,6 +3,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from starlette.responses import HTMLResponse, RedirectResponse
 
 from app.exception import NotMoreProductsException
@@ -31,6 +32,7 @@ async def get_cart_by_user(
             select(Cart, Product)
             .join(Product, Cart.product_id == Product.id)
             .where(Cart.user_id == user_id)
+            .options(joinedload(Product.files))
         )
 
         cart_items = []
@@ -39,8 +41,11 @@ async def get_cart_by_user(
                 k: v for k, v in cart.__dict__.items() if not k.startswith("_")
             }
             product_dict = {
-                k: v for k, v in product.__dict__.items() if not k.startswith("_")
+                k: v
+                for k, v in product.__dict__.items()
+                if not k.startswith("_") and k != "files"
             }
+            product_dict["image_urls"] = [f.file_url for f in (product.files or [])]
             cart_dict["product"] = product_dict
             cart_items.append(cart_dict)
 

@@ -114,12 +114,6 @@ async def request_telegram_verification(
             detail="В профиле отсутствует Telegram ID",
         )
 
-    producer = (
-        request.app.state.kafka_producer
-        if hasattr(request.app.state, "kafka_producer")
-        else None
-    )
-
     await request.app.state.kafka_producer.send_verification_prompt(
         tg_id=user.tg_id,
         user_id=user.id,

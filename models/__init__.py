@@ -2,6 +2,7 @@ from .cart import Cart
 from .category import Category
 from .chats import Chats
 from .favorites import Favorites
+from .files import File
 from .messages import Messages
 from .orders import Orders
 from .products import Product
@@ -21,4 +22,5 @@ __all__ = [
     "Chats",
     "Messages",
     "Views",
+    "File",
 ]

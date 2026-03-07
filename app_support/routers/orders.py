@@ -3,6 +3,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from starlette.responses import HTMLResponse, RedirectResponse
 
 from config import Config
@@ -121,7 +122,11 @@ async def get_order_detail_json(
         user = await get_user(db=db, user_id=order.user_id)
 
         for product_id, product_data in order.products.items():
-            product_query = select(Product).where(Product.id == int(product_id))
+            product_query = (
+                select(Product)
+                .options(joinedload(Product.files))
+                .where(Product.id == int(product_id))
+            )
             product_result = await db.execute(product_query)
             product = product_result.scalar_one_or_none()
 

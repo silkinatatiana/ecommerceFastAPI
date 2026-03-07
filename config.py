@@ -45,6 +45,13 @@ class Config:
     GOODS_TO_BOT_TOPIC = os.getenv("GOODS_TO_BOT_TOPIC")
     GOODS_VERIFY_DECISION_TOPIC = os.getenv("GOODS_VERIFY_DECISION_TOPIC")
 
+    S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
+    S3_SECRET_KEY = os.getenv("S3_SECRET_KEY")
+    S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+    S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL")
+    S3_PUBLIC_URL = os.getenv("S3_PUBLIC_URL")
+    S3_REGION_NAME = os.getenv("S3_REGION_NAME")
+
 
 class Statuses:
     DESIGNED = "Оформлен"

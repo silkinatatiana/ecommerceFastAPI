@@ -1,31 +1,50 @@
 from fastapi import FastAPI
-from sqlalchemy import update
-from sqladmin import Admin, ModelView, action
+from sqladmin import Admin, ModelView
 from starlette.responses import RedirectResponse
-from starlette.requests import Request
 
 from database.db import engine
-from models import Product, User, Category, Views, Chats, Favorites, Messages, Cart
+from models import (
+    Cart,
+    Category,
+    Chats,
+    Favorites,
+    Messages,
+    Product,
+    User,
+    Views,
+)
+
 
 app = FastAPI(title="E-commerce Admin")
 
 admin = Admin(app=app, engine=engine)
 
 
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/admin")
+
+
 class ProductAdmin(ModelView, model=Product):
-    column_list = [Product.id, Product.name, Product.price, Product.verify, Product.supplier]
-    # form_columns = [Product.name, Product.description, Product.price, Product.category_id]
+    column_list = [
+        Product.id,
+        Product.name,
+        Product.price,
+        Product.verify,
+        Product.supplier,
+    ]
     column_formatters = {
         Product.price: lambda m, a: f"{m.price} руб",
-        Product.supplier: lambda m, a: m.supplier.email}
+        Product.supplier: lambda m, a: m.supplier.email,
+    }
 
     column_formatters_detail = {
         Product.price: lambda m, a: f"{m.price:,} ₽".replace(",", " "),
-
         Product.supplier: lambda m, a: (
             f"{m.supplier.first_name} {m.supplier.last_name}"
-        )}
-    # form_excluded_columns = [Product.description]
+        ),
+    }
+    form_excluded_columns = [Product.id, Product.verify]
     # form_readonly_columns = [Product.description]
 
 
@@ -43,7 +62,7 @@ class ProductAdmin(ModelView, model=Product):
 #         validators.Regexp(r'^\d+(\.\d{1,2})?$')
 #     ])
 
-#TODO сделать кастомную валидацию на длину имени пользоваля
+# TODO сделать кастомную валидацию на длину имени пользоваля
 # class ProductAdmin(ModelView, model=Product):
 #     form = ProductForm
 #
@@ -71,14 +90,42 @@ class UserAdmin(ModelView, model=User):
     name = "Пользователь"
 
     name_plural = "Пользователи"
-    column_list = [User.id, User.first_name, User.last_name, User.username, User.email, User.tg_id, User.tg_username,
-                   User.is_verified, User.is_admin, User.role]
+    column_list = [
+        User.id,
+        User.first_name,
+        User.last_name,
+        User.username,
+        User.email,
+        User.tg_id,
+        User.tg_username,
+        User.is_verified,
+        User.is_admin,
+        User.role,
+    ]
 
-    column_searchable_list = [User.id, User.first_name, User.last_name, User.username, User.email, User.tg_id,
-                              User.tg_username, User.is_verified, User.is_admin, User.role]
+    column_searchable_list = [
+        User.id,
+        User.first_name,
+        User.last_name,
+        User.username,
+        User.email,
+        User.tg_id,
+        User.tg_username,
+        User.is_verified,
+        User.is_admin,
+        User.role,
+    ]
 
-    column_sortable_list = [User.id, User.first_name, User.last_name, User.username, User.email, User.tg_id,
-                            User.tg_username, User.role]
+    column_sortable_list = [
+        User.id,
+        User.first_name,
+        User.last_name,
+        User.username,
+        User.email,
+        User.tg_id,
+        User.tg_username,
+        User.role,
+    ]
     column_default_sort = ("email", False)
     page_size = 20
 
@@ -86,10 +133,18 @@ class UserAdmin(ModelView, model=User):
         User.first_name: "Имя",
         User.last_name: "Фамилия",
     }
-    form_columns = [User.id, User.first_name, User.last_name, User.username, User.email, User.tg_id, User.tg_username,
-                   User.is_verified, User.is_admin, User.role]
-
-
+    form_columns = [
+        User.id,
+        User.first_name,
+        User.last_name,
+        User.username,
+        User.email,
+        User.tg_id,
+        User.tg_username,
+        User.is_verified,
+        User.is_admin,
+        User.role,
+    ]
 
     # @action(
     #     name="make_admin",
@@ -132,14 +187,27 @@ class CategoryAdmin(ModelView, model=Category):
     column_searchable_list = [Category.name]
 
 
-
 class ViewsAdmin(ModelView, model=Views):
     column_list = [Views.id, Views.user_id, Views.product_id, Views.count_views]
 
 
 class ChatsAdmin(ModelView, model=Chats):
-    column_list = [Chats.id, Chats.user_id, Chats.employee_id, Chats.topic, Chats.created_at, Chats.active]
-    column_searchable_list = [Chats.id, Chats.user_id, Chats.employee_id, Chats.topic, Chats.created_at, Chats.active]
+    column_list = [
+        Chats.id,
+        Chats.user_id,
+        Chats.employee_id,
+        Chats.topic,
+        Chats.created_at,
+        Chats.active,
+    ]
+    column_searchable_list = [
+        Chats.id,
+        Chats.user_id,
+        Chats.employee_id,
+        Chats.topic,
+        Chats.created_at,
+        Chats.active,
+    ]
 
 
 class FavoritesAdmin(ModelView, model=Favorites):
@@ -148,17 +216,25 @@ class FavoritesAdmin(ModelView, model=Favorites):
 
 
 class MessagesAdmin(ModelView, model=Messages):
-    column_list = [Messages.id, Messages.chat_id, Messages.message, Messages.sender_id, Messages.created_at]
-    column_searchable_list = [Messages.id, Messages.chat_id, Messages.message, Messages.sender_id, Messages.created_at]
+    column_list = [
+        Messages.id,
+        Messages.chat_id,
+        Messages.message,
+        Messages.sender_id,
+        Messages.created_at,
+    ]
+    column_searchable_list = [
+        Messages.id,
+        Messages.chat_id,
+        Messages.message,
+        Messages.sender_id,
+        Messages.created_at,
+    ]
 
 
 class CartAdmin(ModelView, model=Cart):
     column_list = [Cart.id, Cart.user_id, Cart.product_id, Cart.count]
     column_searchable_list = [Cart.id, Cart.user_id, Cart.product_id, Cart.count]
-
-
-from sqladmin import Admin
-from starlette.requests import Request
 
 
 # class SecureAdmin(Admin):
@@ -184,7 +260,7 @@ from starlette.requests import Request
 #     base_url="/secret-admin"  # Кастомный путь
 # )
 
-#TODO сделать авторизацию в админке
+# TODO сделать авторизацию в админке
 
 # class UserAdmin(ModelView, model=User):
 #     # Права доступа
@@ -205,7 +281,7 @@ from starlette.requests import Request
 #         obj = self.get_object(request, request.path_params.get("pk"))
 #         return not obj.is_superuser
 
-#TODO добавить выгрузку в эксель
+# TODO добавить выгрузку в эксель
 
 # class OrderAdmin(ModelView, model=Order):
 #     # Экспорт в разные форматы
@@ -222,7 +298,7 @@ from starlette.requests import Request
 #     }
 
 
-#TODO сделать интеграцию с кафкой для создания товаров
+# TODO сделать интеграцию с кафкой для создания товаров
 
 # class ProductAdmin(ModelView, model=Product):
 #     async def after_model_change(self, data, model, is_created, request):
