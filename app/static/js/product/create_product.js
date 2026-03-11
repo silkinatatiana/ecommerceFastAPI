@@ -1,101 +1,64 @@
 document.addEventListener('DOMContentLoaded', function() {
-
-    const MAX_IMAGES = 5;
-    const addImageBtn = document.getElementById('add-image-btn');
-    const imagesContainer = document.getElementById('image-inputs');
-
-    addImageBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        const inputs = document.querySelectorAll('#image-inputs input[type="url"]');
-        if (inputs.length >= MAX_IMAGES) {
-            alert(`Максимум ${MAX_IMAGES} изображений`);
-            return;
-        }
-
-        const newInput = document.createElement('input');
-        newInput.type = 'url';
-        newInput.name = 'image_urls[]';
-        newInput.className = 'form-control';
-        newInput.placeholder = `https://example.com/image${inputs.length + 1}.jpg`;
-        newInput.required = inputs.length === 0;
-
-        const container = document.createElement('div');
-        container.className = 'image-input-container';
-        container.appendChild(newInput);
-
-        if (inputs.length > 0) {
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'remove-image-btn';
-            removeBtn.textContent = '×';
-            removeBtn.addEventListener('click', function() {
-                container.remove();
-                addImageBtn.disabled = false;
-            });
-            container.appendChild(removeBtn);
-        }
-
-        imagesContainer.appendChild(container);
-
-        if (inputs.length + 1 >= MAX_IMAGES) {
-            addImageBtn.disabled = true;
-        }
-    });
-
     const productForm = document.getElementById('product-form');
     const alertContainer = document.getElementById('alert-container');
 
     productForm.addEventListener('submit', async function(e) {
         e.preventDefault();
-        console.log('Form submitted');
 
         try {
-            const formData = {
-                name: document.getElementById('name').value.trim(),
-                description: document.getElementById('description').value.trim() || null,
-                price: parseFloat(document.getElementById('price').value),
-                stock: parseInt(document.getElementById('stock').value),
-                category_id: parseInt(document.getElementById('category_id').value),
-                image_urls: Array.from(document.querySelectorAll('input[name="image_urls[]"]'))
-                    .map(input => input.value.trim())
-                    .filter(url => url),
-                color: document.getElementById('color').value.trim() || null
-            };
-
-            const laptopFields = document.getElementById('laptopFields');
-            if (laptopFields.style.display === 'block') {
-                formData.RAM_capacity = document.getElementById('RAM_capacity').value.trim() || null;
-                formData.built_in_memory_capacity = document.getElementById('built_in_memory_capacity').value.trim() || null;
-                formData.screen = document.getElementById('screen').value ? parseFloat(document.getElementById('screen').value) : null;
-                formData.cpu = document.getElementById('cpu').value.trim() || null;
-                formData.number_of_processor_cores = document.getElementById('number_of_processor_cores').value ? parseInt(document.getElementById('number_of_processor_cores').value) : null;
-                formData.number_of_graphics_cores = document.getElementById('number_of_graphics_cores').value ? parseInt(document.getElementById('number_of_graphics_cores').value) : null;
-            }
+            const name = document.getElementById('name').value.trim();
+            const price = parseFloat(document.getElementById('price').value);
+            const stock = parseInt(document.getElementById('stock').value);
+            const categoryId = document.getElementById('category_id').value;
+            const fileInput = document.getElementById('file');
 
             const errors = [];
-            if (!formData.name) errors.push('Укажите название товара');
-            if (isNaN(formData.price) || formData.price <= 0) errors.push('Укажите корректную цену');
-            if (isNaN(formData.stock) || formData.stock < 0) errors.push('Укажите корректное количество');
-            if (isNaN(formData.category_id)) errors.push('Выберите категорию');
-            if (formData.image_urls.length === 0) errors.push('Добавьте хотя бы одно изображение');
+            if (!name) errors.push('Укажите название товара');
+            if (isNaN(price) || price <= 0) errors.push('Укажите корректную цену');
+            if (isNaN(stock) || stock < 0) errors.push('Укажите корректное количество');
+            if (!categoryId) errors.push('Выберите категорию');
+            if (!fileInput.files?.length) errors.push('Добавьте изображение товара');
 
             if (errors.length > 0) {
                 showAlert(errors.join('<br>'), 'error');
                 return;
             }
 
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('description', document.getElementById('description').value.trim());
+            formData.append('price', price);
+            formData.append('stock', stock);
+            formData.append('category_id', categoryId);
+            formData.append('color', document.getElementById('color').value.trim());
+            formData.append('file', fileInput.files[0]);
+
+            const laptopFields = document.getElementById('laptopFields');
+            if (laptopFields && laptopFields.style.display === 'block') {
+                const ram = document.getElementById('RAM_capacity')?.value?.trim();
+                const mem = document.getElementById('built_in_memory_capacity')?.value?.trim();
+                const screenVal = document.getElementById('screen')?.value;
+                const cpu = document.getElementById('cpu')?.value?.trim();
+                const cores = document.getElementById('number_of_processor_cores')?.value;
+                const gpuCores = document.getElementById('number_of_graphics_cores')?.value;
+                if (ram) formData.append('RAM_capacity', ram);
+                if (mem) formData.append('built_in_memory_capacity', mem);
+                if (screenVal) formData.append('screen', screenVal);
+                if (cpu) formData.append('cpu', cpu);
+                if (cores) formData.append('number_of_processor_cores', cores);
+                if (gpuCores) formData.append('number_of_graphics_cores', gpuCores);
+            }
+
             const response = await fetch('/products/create', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
+                body: formData,
+                credentials: 'include'
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Ошибка сервера');
+                const err = await response.json().catch(() => ({}));
+                const msg = Array.isArray(err.detail) ? err.detail.map(d => d.msg || JSON.stringify(d)).join(', ') : (err.detail || 'Ошибка сервера');
+                throw new Error(msg);
             }
 
             const result = await response.json();

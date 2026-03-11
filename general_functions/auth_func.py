@@ -187,7 +187,7 @@ async def logout_func():
     return response
 
 
-async def checking_access_rights(token: str | None, roles: list | None):
+async def checking_access_rights(token: str | None, roles: list | None = None):
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

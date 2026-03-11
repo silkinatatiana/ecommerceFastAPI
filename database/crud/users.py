@@ -149,3 +149,13 @@ async def set_telegram_data(
         .values(tg_id=tg_id, tg_username=tg_username, is_verified=is_verified)
     )
     await db.commit()
+
+
+async def set_users_admin(db: AsyncSession, user_ids: list[int]) -> int:
+    if not user_ids:
+        return 0
+    result = await db.execute(
+        update(User).where(User.id.in_(user_ids)).values(is_admin=True)
+    )
+    await db.commit()
+    return result.rowcount

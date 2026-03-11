@@ -28,3 +28,6 @@ class User(Base):
     employee_chats = relationship(
         "Chats", foreign_keys="[Chats.employee_id]", back_populates="employee"
     )
+
+    def __str__(self):
+        return f'{self.first_name or ""} {self.last_name or ""}'

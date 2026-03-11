@@ -13,5 +13,8 @@ class Category(Base):
 
     products = relationship("Product", back_populates="category")
 
+    def __str__(self):
+        return self.name or ""
+
     class Config:
         json_schema_extra = {"example": {"id": 1, "name": "Электроника"}}

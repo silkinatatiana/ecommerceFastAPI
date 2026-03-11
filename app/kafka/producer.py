@@ -21,6 +21,16 @@ class KafkaEventPublisher:
             json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         )
 
+    async def send_product_event(self, event: str, product_id: int, data: dict | None = None) -> None:
+        """Отправка события товара (created/updated/deleted) в Kafka."""
+        payload = {"event": event, "id": product_id}
+        if data is not None:
+            payload["data"] = data
+        await self.producer.send_and_wait(
+            Config.GOODS_TO_BOT_TOPIC,
+            json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        )
+
     async def send_order(self, payload: dict) -> None:
         await self.producer.send_and_wait(
             Config.ORDERS_TOPIC,

@@ -12,7 +12,7 @@
         
         <div id="alert-container"></div>
         
-        <form id="product-form">
+        <form id="product-form" enctype="multipart/form-data">
             <div class="form-section">
                 
                 <div class="form-group">
@@ -53,6 +53,11 @@
                         {% endfor %}
                     </select>
                 </div>
+
+                <div class="form-group">
+                    <label for="file">Изображение товара *</label>
+                    <input type="file" id="file" name="file" class="form-control" accept="image/jpeg,image/png,image/webp,image/gif" required>
+                </div>
             </div>
             
             <div class="form-section" id="laptopFields" style="display: none;">
@@ -91,14 +96,6 @@
                         <input type="number" id="number_of_graphics_cores" name="number_of_graphics_cores" class="form-control">
                     </div>
                 </div>
-            </div>
-            
-            <div class="form-section">
-                <label>Изображения товара (максимум 5) *</label>
-                <div id="image-inputs">
-                    <input type="url" name="image_urls[]" class="form-control" placeholder="https://example.com/image1.jpg" required>
-                </div>
-                <button type="button" id="add-image-btn" class="secondary-btn">+ Добавить ещё изображение</button>
             </div>
             
             <input type="hidden" id="supplier_id" name="supplier_id" value="{{ current_user.id if current_user else '' }}">

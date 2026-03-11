@@ -1,8 +1,33 @@
-from fastapi import FastAPI
-from sqladmin import Admin, ModelView
-from starlette.responses import RedirectResponse
+import io
+import logging
 
-from database.db import engine
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException
+from openpyxl import Workbook
+from sqladmin import Admin, ModelView, action
+from sqladmin.authentication import AuthenticationBackend
+from sqladmin.helpers import secure_filename
+from starlette.middleware.sessions import SessionMiddleware
+from urllib.parse import parse_qsl, urlencode, urlparse
+
+from starlette.datastructures import MultiDict
+from starlette.requests import Request
+from starlette.responses import StreamingResponse
+from starlette.responses import RedirectResponse
+from wtforms import validators
+
+from app.kafka.producer import KafkaEventPublisher
+from database.crud.users import get_user, set_users_admin
+from database.db import engine, async_session_maker
+from config import Config
+from general_functions.auth_func import (
+    bcrypt_context,
+    checking_access_rights,
+    create_access_token,
+    get_current_user,
+)
 from models import (
     Cart,
     Category,
@@ -11,13 +36,127 @@ from models import (
     Messages,
     Product,
     User,
-    Views,
+    Views, Orders,
 )
 
 
-app = FastAPI(title="E-commerce Admin")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-admin = Admin(app=app, engine=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    kafka_producer = None
+
+    try:
+        if not Config.KAFKA_HOST or not Config.GOODS_TO_BOT_TOPIC:
+            logger.warning(
+                "[Admin] Kafka не настроена — задайте KAFKA_HOST и GOODS_TO_BOT_TOPIC. "
+                "Сейчас: KAFKA_HOST=%r, GOODS_TO_BOT_TOPIC=%r",
+                Config.KAFKA_HOST,
+                Config.GOODS_TO_BOT_TOPIC,
+            )
+            app.state.kafka_producer = None
+        else:
+            kafka_producer = KafkaEventPublisher()
+            await kafka_producer.start()
+            app.state.kafka_producer = kafka_producer
+    except Exception as e:
+        logger.warning("[Admin] Kafka недоступна, события товаров не отправляются: %s", e)
+        app.state.kafka_producer = None
+
+    yield
+
+    if kafka_producer:
+        try:
+            await kafka_producer.stop()
+        except Exception as e:
+            logger.warning("Ошибка остановки Kafka: %s", e)
+
+app = FastAPI(title="E-commerce Admin", lifespan=lifespan)
+app.add_middleware(SessionMiddleware, secret_key=Config.SECRET_KEY)
+
+
+class AdminAuthBackend(AuthenticationBackend):
+    async def authenticate(self, request: Request) -> bool:
+        token = request.cookies.get("token") or request.session.get("token")
+        if not token:
+            return False
+        try:
+            user_id = await checking_access_rights(token=token, roles=[])
+            if user_id:
+                user = await get_current_user(token)
+                request.state.user = user
+                return True
+            return False
+        except HTTPException:
+            return False
+
+    async def login(self, request: Request) -> bool:
+        form = await request.form()
+        username = form.get("username")
+        password = form.get("password")
+        if not username or not password:
+            return False
+        try:
+            async with async_session_maker() as db:
+                user = await get_user(db=db, username=username)
+                if not user or not bcrypt_context.verify(password, user.hashed_password):
+                    return False
+                if not user.is_admin:
+                    return False
+                token = create_access_token(
+                    username=user.username,
+                    user_id=user.id,
+                    role=user.role or "admin",
+                    is_admin=True,
+                )
+                request.session["token"] = token
+                return True
+        except Exception:
+            return False
+
+    async def logout(self, request: Request) -> bool:
+        request.session.clear()
+        return True
+
+
+class ExcelExportMixin:
+    """Добавляет выгрузку в Excel (xlsx) для ModelView."""
+
+    async def export_data(self, data, export_type: str = "csv"):
+        if export_type == "xlsx":
+            return await self._export_xlsx(data)
+        return await super().export_data(data, export_type=export_type)
+
+    async def _export_xlsx(self, data):
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Export"
+        headers = list(self._export_prop_names)
+        ws.append(headers)
+        for row in data:
+            vals = [
+                await self.get_prop_value(row, name)
+                for name in self._export_prop_names
+            ]
+            ws.append(vals)
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        filename = secure_filename(self.get_export_name(export_type="xlsx"))
+        return StreamingResponse(
+            iter([buffer.getvalue()]),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+
+
+admin = Admin(
+    app=app,
+    engine=engine,
+    authentication_backend=AdminAuthBackend(secret_key=Config.SECRET_KEY),
+)
 
 
 @app.get("/")
@@ -26,6 +165,9 @@ async def root():
 
 
 class ProductAdmin(ModelView, model=Product):
+    name = "Товар"
+    name_plural = "Товары"
+
     column_list = [
         Product.id,
         Product.name,
@@ -35,163 +177,112 @@ class ProductAdmin(ModelView, model=Product):
     ]
     column_formatters = {
         Product.price: lambda m, a: f"{m.price} руб",
-        Product.supplier: lambda m, a: m.supplier.email,
+        Product.supplier: lambda m, a: (m.supplier.email if m.supplier else ""),
     }
-
     column_formatters_detail = {
         Product.price: lambda m, a: f"{m.price:,} ₽".replace(",", " "),
         Product.supplier: lambda m, a: (
             f"{m.supplier.first_name} {m.supplier.last_name}"
+            if m.supplier
+            else ""
         ),
     }
-    form_excluded_columns = [Product.id, Product.verify]
-    # form_readonly_columns = [Product.description]
 
-
-# from wtforms import Form, StringField, validators
-# from sqladmin import ModelView
-#
-#
-# class ProductForm(Form):
-#     name = StringField("Название", [
-#         validators.DataRequired(),
-#         validators.Length(min=3, max=100)
-#     ])
-#     price = StringField("Цена", [
-#         validators.DataRequired(),
-#         validators.Regexp(r'^\d+(\.\d{1,2})?$')
-#     ])
-
-# TODO сделать кастомную валидацию на длину имени пользоваля
-# class ProductAdmin(ModelView, model=Product):
-#     form = ProductForm
-#
-#     # Асинхронная валидация
-#     async def on_model_change(self, data, model, is_created, request):
-#         if data["price"] < 0:
-#             raise ValueError("Цена не может быть отрицательной")
-#
-#         # Проверка уникальности
-#         existing = await self.get_object_by_field("slug", data["slug"])
-#         if existing and existing.id != model.id:
-#             raise ValueError("Товар с таким slug уже существует")
-#
-#     async def after_model_change(self, data, model, is_created, request):
-#         # Отправка события в Kafka после сохранения
-#         await request.app.state.kafka_producer.send_product_updated(model)
-#
-#     async def on_model_delete(self, model, request):
-#         # Проверка перед удалением
-#         if model.orders.count() > 0:
-#             raise ValueError("Нельзя удалить товар с заказами")
-
-
-class UserAdmin(ModelView, model=User):
-    name = "Пользователь"
-
-    name_plural = "Пользователи"
-    column_list = [
-        User.id,
-        User.first_name,
-        User.last_name,
-        User.username,
-        User.email,
-        User.tg_id,
-        User.tg_username,
-        User.is_verified,
-        User.is_admin,
-        User.role,
-    ]
-
-    column_searchable_list = [
-        User.id,
-        User.first_name,
-        User.last_name,
-        User.username,
-        User.email,
-        User.tg_id,
-        User.tg_username,
-        User.is_verified,
-        User.is_admin,
-        User.role,
-    ]
-
-    column_sortable_list = [
-        User.id,
-        User.first_name,
-        User.last_name,
-        User.username,
-        User.email,
-        User.tg_id,
-        User.tg_username,
-        User.role,
-    ]
-    column_default_sort = ("email", False)
-    page_size = 20
-
-    column_labels = {
-        User.first_name: "Имя",
-        User.last_name: "Фамилия",
-    }
     form_columns = [
-        User.id,
-        User.first_name,
-        User.last_name,
-        User.username,
-        User.email,
-        User.tg_id,
-        User.tg_username,
-        User.is_verified,
-        User.is_admin,
-        User.role,
+        Product.name,
+        Product.description,
+        Product.category,
+        Product.price,
+        Product.color,
+        Product.stock,
+        Product.category_id,
+        Product.supplier_id,
+        Product.RAM_capacity,
+        Product.built_in_memory_capacity,
+        Product.screen,
+        Product.cpu,
+        Product.number_of_processor_cores,
+        Product.number_of_graphics_cores,
     ]
+    form_args = {
+        "name": {
+            "label": "Название",
+            "validators": [validators.DataRequired(), validators.Length(min=3, max=10)],
+        },
+        "price": {
+            "label": "Цена",
+            "validators": [validators.DataRequired(), validators.NumberRange(min=0)],
+        },
+        "description": {
+            "label": "Описание",
+        },
+        "category": {
+            "label": "Категория",
+        },
+        "color": {
+            "label": "Цвет",
+        },
+        "stock": {
+            "label": "Количество",
+        },
+    }
+    form_readonly_columns = [Product.description]
 
-    # @action(
-    #     name="make_admin",
-    #     label="Сделать администратором",
-    #     confirmation_message="Назначить выбранных пользователей администраторами?"
-    # )
-    # async def make_admin_action(self, request: Request):
-    #     """Назначить администраторами выбранных пользователей"""
-    #     pks = request.query_params.getlist("pks")
-    #
-    #     if not pks:
-    #         # Если ничего не выбрано — редирект с ошибкой
-    #         request.session["flash_error"] = "Не выбраны пользователи"
-    #         return RedirectResponse(
-    #             request.url_for("admin:list", identity=self.identity),
-    #             status_code=302
-    #         )
-    #
-    #     async with self.session_maker() as session:
-    #         # Массовое обновление через SQLAlchemy 2.0
-    #         stmt = (
-    #             update(User)
-    #             .where(User.id.in_(pks))# разобраться с аргументом и вынести в общий CRUD
-    #             .values(is_admin=True)
-    #         )
-    #         result = await session.execute(stmt)
-    #         await session.commit()
-    #
-    #         updated_count = result.rowcount
-    #
-    #     # Редирект с сообщением об успехе
-    #     return RedirectResponse(
-    #         request.url_for("admin:list", identity=self.identity),
-    #         status_code=302
-    #     )
+    async def on_model_change(self, data, model, is_created, request):
+        if data.get("price", 0) < 0:
+            raise ValueError("Цена не может быть отрицательной")
+
+    async def after_model_change(self, data, model, is_created, request):
+        event = "product.created" if is_created else "product.updated"
+        await self._notify_product_change(request, model, event)
+
+    async def on_model_delete(self, model, request):
+        await self._notify_product_change(request, model, "product.deleted")
+
+    async def _notify_product_change(self, request, model, event: str) -> None:
+        main_app = getattr(self, "_admin_ref", None) and getattr(self._admin_ref, "app", None)
+        kafka = getattr(main_app.state, "kafka_producer", None) if main_app else None
+
+        if not kafka:
+            logger.warning(
+                "Kafka не подключена при старте админки — событие %s для товара %s не отправлено",
+                event,
+                model.id,
+            )
+            return
+        try:
+            if event == "product.deleted":
+                await kafka.send_product_event(event, model.id)
+            else:
+                await kafka.send_product_event(
+                    event,
+                    model.id,
+                    data={"name": model.name, "price": float(model.price or 0)},
+                )
+            logger.info("Событие %s для товара %s отправлено в %s", event, model.id, Config.GOODS_TO_BOT_TOPIC)
+        except Exception as e:
+            logger.warning("Не удалось отправить событие %s для товара %s: %s", event, model.id, e)
 
 
 class CategoryAdmin(ModelView, model=Category):
+    name = "Категория"
+    name_plural = "Категории"
+
     column_list = [Category.id, Category.name]
     column_searchable_list = [Category.name]
 
 
 class ViewsAdmin(ModelView, model=Views):
+    name = "Просмотры"
+    name_plural = "Просмотры"
+
     column_list = [Views.id, Views.user_id, Views.product_id, Views.count_views]
 
 
 class ChatsAdmin(ModelView, model=Chats):
+    name = "Чат"
+    name_plural = "Чаты"
+
     column_list = [
         Chats.id,
         Chats.user_id,
@@ -211,11 +302,17 @@ class ChatsAdmin(ModelView, model=Chats):
 
 
 class FavoritesAdmin(ModelView, model=Favorites):
+    name = "Избранное"
+    name_plural = "Избранное"
+
     column_list = [Favorites.id, Favorites.user_id, Favorites.product_id]
     column_searchable_list = [Favorites.id, Favorites.user_id, Favorites.product_id]
 
 
 class MessagesAdmin(ModelView, model=Messages):
+    name = "Сообщение"
+    name_plural = "Сообщения"
+
     column_list = [
         Messages.id,
         Messages.chat_id,
@@ -233,99 +330,105 @@ class MessagesAdmin(ModelView, model=Messages):
 
 
 class CartAdmin(ModelView, model=Cart):
+    name = "Корзина"
+    name_plural = "Корзина"
+
     column_list = [Cart.id, Cart.user_id, Cart.product_id, Cart.count]
     column_searchable_list = [Cart.id, Cart.user_id, Cart.product_id, Cart.count]
 
 
-# class SecureAdmin(Admin):
-#     async def authenticate(self, request: Request) -> bool:
-#         """Проверка доступа к админке"""
-#         token = request.cookies.get("admin_token")
-#         if not token:
-#             return False
-#
-#         user = await verify_admin_token(token)
-#         request.state.user = user
-#         return user is not None and user.is_superuser
-#
-#     async def get_current_user(self, request: Request):
-#         return getattr(request.state, "user", None)
-#
-#
-# # Или через middleware
-# admin = Admin(
-#     app,
-#     engine,
-#     authentication_backend=MyAuthBackend(),  # Кастомный бэкенд
-#     base_url="/secret-admin"  # Кастомный путь
-# )
+class UserAdmin(ExcelExportMixin, ModelView, model=User):
+    name = "Пользователь"
+    name_plural = "Пользователи"
+    column_list = [
+        User.id,
+        User.first_name,
+        User.last_name,
+        User.username,
+        User.email,
+        User.tg_id,
+        User.tg_username,
+        User.is_verified,
+        User.is_admin,
+        User.role,
+    ]
+    column_export_list = [
+        User.id,
+        User.first_name,
+        User.last_name,
+        User.username,
+        User.email,
+        User.tg_id,
+        User.tg_username,
+        User.is_verified,
+        User.is_admin,
+        User.role,
+    ]
+    can_create = True
+    can_edit = True
+    can_delete = False
+    can_view_details = True
+    can_export = True
+    export_types = ["csv", "json", "xlsx"]
 
-# TODO сделать авторизацию в админке
+    def is_accessible(self, request: Request) -> bool:
+        user = getattr(request.state, "user", None)
+        return bool(user and user.get("is_admin"))
 
-# class UserAdmin(ModelView, model=User):
-#     # Права доступа
-#     can_create = True
-#     can_edit = True
-#     can_delete = False  # Запрет удаления
-#     can_view_details = True
-#     can_export = True  # Экспорт в CSV/Excel
-#
-#     # Динамические права
-#     def is_accessible(self, request: Request) -> bool:
-#         user = request.state.user
-#         return user and user.has_perm("users.view_user")
-#
-#     def can_edit(self, request: Request) -> bool:
-#         user = request.state.user
-#         # Нельзя редактировать суперпользователей
-#         obj = self.get_object(request, request.path_params.get("pk"))
-#         return not obj.is_superuser
+    def can_edit(self, request: Request) -> bool:
+        pk = request.path_params.get("pk")
+        if not pk:
+            return True
+        return True
 
-# TODO добавить выгрузку в эксель
-
-# class OrderAdmin(ModelView, model=Order):
-#     # Экспорт в разные форматы
-#     can_export = True
-#     export_types = [ExportType.CSV, ExportType.EXCEL, ExportType.JSON]
-#
-#     # Кастомные колонки для экспорта
-#     column_export_list = [Order.id, Order.user_id, Order.total, Order.created_at]
-#
-#     # Форматирование для экспорта
-#     column_formatters_export = {
-#         Order.total: lambda m, a: float(m.total),
-#         Order.created_at: lambda m, a: m.created_at.isoformat()
-#     }
+    @action(
+        name="make_admin",
+        label="Сделать администратором",
+        confirmation_message="Назначить выбранных пользователей администраторами?",
+    )
+    async def make_admin_action(self, request: Request):
+        """Назначить администраторами выбранных пользователей."""
+        params = request.query_params.get("pks", "")
+        pks = [int(pk) for pk in params.split(",")] if params else []
+        if not pks and request.query_params.getlist("pks"):
+            pks = [int(pk) for pk in request.query_params.getlist("pks")]
+        if pks:
+            async with async_session_maker() as session:
+                await set_users_admin(db=session, user_ids=pks)
+        path = f"/admin/{self.identity}/list"
+        referer = request.headers.get("referer") or ""
+        try:
+            referer_params = MultiDict(parse_qsl(urlparse(referer).query))
+            if referer_params:
+                path = f"{path}?{urlencode(list(referer_params.items()))}"
+        except Exception:
+            pass
+        return RedirectResponse(url=path, status_code=302)
 
 
-# TODO сделать интеграцию с кафкой для создания товаров
+class OrderAdmin(ExcelExportMixin, ModelView, model=Orders):
+    name = "Заказ"
+    name_plural = "Заказы"
+    column_list = [
+        Orders.id,
+        Orders.user_id,
+        Orders.summa,
+        Orders.date,
+        Orders.status,
+        Orders.slug,
+    ]
+    column_sortable_list = [Orders.id, Orders.date, Orders.summa, Orders.status]
+    can_export = True
+    export_types = ["csv", "json", "xlsx"]
+    column_export_list = [
+        Orders.id,
+        Orders.user_id,
+        Orders.summa,
+        Orders.date,
+        Orders.status,
+        Orders.slug,
+    ]
 
-# class ProductAdmin(ModelView, model=Product):
-#     async def after_model_change(self, data, model, is_created, request):
-#         # Доступ к вашим сервисам из lifespan
-#         kafka = request.app.state.kafka_producer
-#         redis = request.app.state.redis
-#
-#         # Инвалидация кэша
-#         await redis.delete(f"product:{model.id}")
-#
-#         # Отправка события
-#         await kafka.send({
-#             "event": "product.updated" if not is_created else "product.created",
-#             "id": model.id,
-#             "data": {
-#                 "name": model.name,
-#                 "price": float(model.price)
-#             }
-#         })
-#
-#     async def on_model_delete(self, model, request):
-#         redis = request.app.state.redis
-#         await redis.delete(f"product:{model.id}")
-#         await request.app.state.kafka_producer.send({
-#             "event": "product.deleted",
-#             "id": model.id
-#         })
 
 admin.add_view(UserAdmin)
 admin.add_view(ProductAdmin)
@@ -335,3 +438,4 @@ admin.add_view(ChatsAdmin)
 admin.add_view(FavoritesAdmin)
 admin.add_view(MessagesAdmin)
 admin.add_view(CartAdmin)
+admin.add_view(OrderAdmin)

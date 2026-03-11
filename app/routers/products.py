@@ -1,3 +1,4 @@
+import io
 import json
 import logging
 import uuid
@@ -9,6 +10,8 @@ from fastapi import (
     APIRouter,
     Cookie,
     Depends,
+    File,
+    Form,
     HTTPException,
     Query,
     Request,
@@ -126,51 +129,134 @@ async def seller_products(
     )
 
 
+def _parse_optional_int(value: str | None) -> int | None:
+    if value is None or value.strip() == "":
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _parse_optional_float(value: str | None) -> float | None:
+    if value is None or value.strip() == "":
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
 @router.post("/create", response_model=ProductOut)
 async def create_product(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
-    product_data: CreateProduct,
-    file: UploadFile,
     token: str | None = Cookie(None, alias="token"),
+    name: str = Form(...),
+    description: str | None = Form(None),
+    price: int = Form(...),
+    stock: int = Form(...),
+    category_id: int = Form(...),
+    color: str | None = Form(None),
+    RAM_capacity: str | None = Form(None),
+    built_in_memory_capacity: str | None = Form(None),
+    screen: str | None = Form(None),
+    cpu: str | None = Form(None),
+    number_of_processor_cores: str | None = Form(None),
+    number_of_graphics_cores: str | None = Form(None),
+    file: UploadFile = File(...),
 ):
     try:
         supplier_id = await checking_access_rights(token=token, roles=["seller"])
-        category = await get_category(db=db, category_id=product_data.category_id)
+        category = await get_category(db=db, category_id=category_id)
         if not category:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="NOT FOUND"
             )
-        chat_ids = await get_chat_ids(db=db)
 
-        file_ext = file.filename.split(".")[-1]
+        if not file.filename or not file.content_type or not file.content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Требуется изображение (jpg, png, webp и т.д.)",
+            )
+
+        product_data = CreateProduct(
+            name=name.strip(),
+            description=description.strip() if description else None,
+            price=price,
+            stock=stock,
+            category_id=category_id,
+            color=color.strip() if color else None,
+            RAM_capacity=RAM_capacity.strip() if RAM_capacity else None,
+            built_in_memory_capacity=built_in_memory_capacity.strip() if built_in_memory_capacity else None,
+            screen=_parse_optional_float(screen),
+            cpu=cpu.strip() if cpu else None,
+            number_of_processor_cores=_parse_optional_int(number_of_processor_cores),
+            number_of_graphics_cores=_parse_optional_int(number_of_graphics_cores),
+        )
+
+        file_ext = (file.filename or "jpg").split(".")[-1].lower() or "jpg"
+        if file_ext not in ("jpg", "jpeg", "png", "webp", "gif"):
+            file_ext = "jpg"
         s3_key = f"users/{supplier_id}/{uuid.uuid4()}.{file_ext}"
-        _args = {"ContentType": file.content_type or "application/octet-stream"}
+        _args = {"ContentType": file.content_type or "image/jpeg"}
 
-        s3_client.upload_fileobj(fileobj=file.file, key=s3_key, extra_args=_args)
+        contents = await file.read()
+        file_size = len(contents)
+        file_url = s3_client.upload_fileobj(
+            fileobj=io.BytesIO(contents), key=s3_key, extra_args=_args
+        )
 
-        # TODO: created_file = File(original_filename=file.filename,
-        #                 s3_key=s3_key,
-        #                 file_url=file_url,
-        #                 file_size=file.size,
-        #                 content_type=file.content_type,
-        #                 product_id=pro
-        #
         product = await create_new_product(
             db=db, product_data=product_data, supplier_id=supplier_id, verify=False
         )
 
-        # TODO: создать запись File и привязать к product; добавить image_urls в payload для бота
-        payload = {
-            "product_id": product.id,
-            "supplier_id": supplier_id,
-            "product_data": product_data.model_dump(),
-            "chat_ids": chat_ids,
+        file_record = File(
+            original_filename=file.filename or "image",
+            s3_key=s3_key,
+            file_url=file_url,
+            file_size=file_size,
+            content_type=file.content_type or "image/jpeg",
+            product_id=product.id,
+        )
+        db.add(file_record)
+        await db.commit()
+        await db.refresh(product)
+        await db.refresh(file_record)
+
+        kafka_producer = getattr(request.app.state, "kafka_producer", None)
+        if kafka_producer:
+            try:
+                chat_ids = await get_chat_ids(db=db)
+                payload = {
+                    "product_id": product.id,
+                    "supplier_id": supplier_id,
+                    "product_data": product_data.model_dump(),
+                    "chat_ids": chat_ids,
+                    "image_urls": [file_url],
+                }
+                await kafka_producer.send_create_product(payload)
+            except Exception as e:
+                logger.warning("Не удалось отправить событие в Kafka: %s", e)
+
+        product_dict = {
+            "id": product.id,
+            "name": product.name,
+            "description": product.description,
+            "price": product.price,
+            "image_urls": [file_url],
+            "stock": product.stock,
+            "category_id": product.category_id,
+            "supplier_id": product.supplier_id,
+            "RAM_capacity": product.RAM_capacity,
+            "built_in_memory_capacity": product.built_in_memory_capacity,
+            "screen": product.screen,
+            "cpu": product.cpu,
+            "number_of_processor_cores": product.number_of_processor_cores,
+            "number_of_graphics_cores": product.number_of_graphics_cores,
+            "color": product.color,
         }
-
-        await request.app.state.kafka_producer.send_create_product(payload)
-
-        return product
+        return ProductOut(**product_dict)
 
     except HTTPException as e:
         if e.status_code == 401:

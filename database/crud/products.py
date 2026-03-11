@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from database.crud.decorators import handle_db_errors
-from models import Favorites, Product
+from models import File, Favorites, Product
 from schemas import CreateProduct
 
 

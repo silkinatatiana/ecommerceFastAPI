@@ -120,10 +120,14 @@ services:
       - SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://ecommerce:postgres@ecommerce-postgres:5432/fastapi_ecommerce
       - REDIS_HOST=ecommerce-redis
       - REDIS_PORT=6379
+      - KAFKA_HOST=kafka:9092
+      - GOODS_TO_BOT_TOPIC=goods-to-bot-topic
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     restart: unless-stopped
     volumes:

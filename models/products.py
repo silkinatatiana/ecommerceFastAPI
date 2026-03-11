@@ -36,6 +36,9 @@ class Product(Base):
         """Ссылки на изображения из таблицы files (для обратной совместимости)."""
         return [f.file_url for f in (self.files or [])]
 
+    def __str__(self) -> str:
+        return self.name or ""
+
     class Config:
         json_schema_extra = {
             "example": {
