@@ -3,8 +3,10 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from slugify import slugify
+from sqlalchemy import delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, RedirectResponse
@@ -12,9 +14,10 @@ from starlette.responses import HTMLResponse, RedirectResponse
 from app.routers.cart import get_cart_by_user
 from config import Config, Statuses
 from database.crud.decorators import handler_base_errors
-from database.crud.orders import get_orders, update_status
+from database.crud.orders import create_new_order, get_orders, update_status
 from database.crud.products import get_product
 from database.db_depends import get_db
+from models import Cart
 from general_functions.auth_func import checking_access_rights
 from general_functions.kafka_func import get_chat_ids
 from general_functions.orders_func import fetch_orders_for_user
@@ -63,7 +66,7 @@ async def get_order_by_slug(
     try:
         await checking_access_rights(token=token, roles=["customer"])
 
-        order = await get_orders(order_slug=slug, db=db)
+        order = await get_orders(slug=slug, db=db)
 
         if not order:
             return templates.TemplateResponse(
@@ -121,8 +124,25 @@ async def create_order(
 
         slug = slugify(f"order-{datetime.utcnow():%Y%m%d}-{str(uuid.uuid4())[:6]}")
 
-        chat_ids = await get_chat_ids(db=db)
+        # Создаём заказ в БД сразу, чтобы страница заказа открывалась без ожидания Kafka
+        for product_id_str, item in products_data.items():
+            await update_stock(
+                product_id=int(product_id_str),
+                count=item["count"],
+                db=db,
+                add=False,
+            )
+        await create_new_order(
+            db=db,
+            user_id=user_id,
+            products=products_data,
+            summa=total_sum,
+            slug=slug,
+        )
+        await db.execute(delete(Cart).where(Cart.user_id == user_id))
+        await db.commit()
 
+        chat_ids = await get_chat_ids(db=db)
         payload = {
             "user_id": user_id,
             "products": products_data,
@@ -134,8 +154,12 @@ async def create_order(
             "chat_ids": chat_ids,
             "status_text": Statuses.DESIGNED,
         }
-
         await request.app.state.kafka_producer.send_order(payload)
+
+        return JSONResponse(
+            status_code=201,
+            content={"slug": slug, "redirect": f"/orders/order/{slug}"},
+        )
 
     except HTTPException as e:
         if e.status_code == 401:
@@ -200,7 +224,9 @@ async def order_page(
 
         if user_id:
             is_authenticated = True
-        order = await get_orders(order_slug=order_slug, db=db)
+        logger.error("1")
+        order = await get_orders(slug=order_slug, db=db)
+        logger.error("2")
 
         if not order:
             return templates.TemplateResponse(
@@ -210,7 +236,10 @@ async def order_page(
         order_products = []
         total_amount = 0
 
-        for product_id, product_data in order.products.items():
+        for (
+            product_id,
+            product_data,
+        ) in order.products.items():  # TODO найти ошибку между 2 и 3
             product = await get_product(db=db, product_id=int(product_id))
             if product:
                 item_total = product_data["count"] * product_data["price"]
@@ -220,12 +249,12 @@ async def order_page(
                         "name": product.name,
                         "price": product_data["price"],
                         "count": product_data["count"],
-                        "image_url": (product.image_urls or [None])[0],
+                        "image_urls": product.image_urls or [],
                         "item_total": item_total,
                     }
                 )
                 total_amount += item_total
-
+        logger.error("3")
         order.created_at = order.date.strftime("%Y-%m-%d %H:%M")
         order.total_sum = order.summa
 
@@ -240,6 +269,7 @@ async def order_page(
             "shop_name": Config.shop_name,
             "descr": Config.descr,
         }
+        logger.error("4")
         return templates.TemplateResponse("orders/order_page.html", context)
 
     except HTTPException as e:

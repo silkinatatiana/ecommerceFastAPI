@@ -238,7 +238,7 @@ async function createOrder() {
             alert('Ошибка: не удалось получить идентификатор заказа');
             return;
         }
-        window.location.href = '/auth/account?section=orders_tab';
+        window.location.href = data.redirect || `/orders/order/${data.slug}`;
         return {
             success: true,
             message: data.message,

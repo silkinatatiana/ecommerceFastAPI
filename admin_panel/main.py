@@ -12,6 +12,7 @@ from sqladmin.helpers import secure_filename
 from starlette.middleware.sessions import SessionMiddleware
 from urllib.parse import parse_qsl, urlencode, urlparse
 
+from markupsafe import Markup
 from starlette.datastructures import MultiDict
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
@@ -32,11 +33,13 @@ from models import (
     Cart,
     Category,
     Chats,
+    File,
     Favorites,
     Messages,
     Product,
     User,
-    Views, Orders,
+    Views,
+    Orders,
 )
 
 
@@ -62,7 +65,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await kafka_producer.start()
             app.state.kafka_producer = kafka_producer
     except Exception as e:
-        logger.warning("[Admin] Kafka недоступна, события товаров не отправляются: %s", e)
+        logger.warning(
+            "[Admin] Kafka недоступна, события товаров не отправляются: %s", e
+        )
         app.state.kafka_producer = None
 
     yield
@@ -72,6 +77,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await kafka_producer.stop()
         except Exception as e:
             logger.warning("Ошибка остановки Kafka: %s", e)
+
 
 app = FastAPI(title="E-commerce Admin", lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key=Config.SECRET_KEY)
@@ -101,7 +107,9 @@ class AdminAuthBackend(AuthenticationBackend):
         try:
             async with async_session_maker() as db:
                 user = await get_user(db=db, username=username)
-                if not user or not bcrypt_context.verify(password, user.hashed_password):
+                if not user or not bcrypt_context.verify(
+                    password, user.hashed_password
+                ):
                     return False
                 if not user.is_admin:
                     return False
@@ -137,8 +145,7 @@ class ExcelExportMixin:
         ws.append(headers)
         for row in data:
             vals = [
-                await self.get_prop_value(row, name)
-                for name in self._export_prop_names
+                await self.get_prop_value(row, name) for name in self._export_prop_names
             ]
             ws.append(vals)
         buffer = io.BytesIO()
@@ -164,6 +171,37 @@ async def root():
     return RedirectResponse(url="/admin")
 
 
+def _format_product_files_list(model, attr):
+    """Форматирование списка связанных фото в реестре — полные названия."""
+    files = model.files or []
+    if not files:
+        return "—"
+    names = [f.original_filename or "файл" for f in files[:10]]
+    text = ", ".join(names)
+    if len(files) > 10:
+        text += f" (+{len(files) - 10})"
+    return text
+
+
+def _format_product_files_detail(model, attr):
+    """Форматирование связанных фото на странице просмотра/редактирования — полные названия."""
+    files = model.files or []
+    if not files:
+        return Markup("<span>—</span>")
+    items = []
+    for f in files:
+        name = f.original_filename or "файл"
+        items.append(
+            f'<div style="display:inline-block;margin:4px;text-align:center;">'
+            f'<a href="{f.file_url}" target="_blank" rel="noopener">'
+            f'<img src="{f.file_url}" alt="{name}" '
+            f'style="max-height:80px;max-width:80px;object-fit:contain;border:1px solid #ddd;border-radius:4px;" '
+            f"onerror=\"this.parentElement.innerHTML='<span>Ошибка загрузки</span>'\"></a><br>"
+            f"<small>{name}</small></div>"
+        )
+    return Markup("<br>".join(items))
+
+
 class ProductAdmin(ModelView, model=Product):
     name = "Товар"
     name_plural = "Товары"
@@ -174,18 +212,33 @@ class ProductAdmin(ModelView, model=Product):
         Product.price,
         Product.verify,
         Product.supplier,
+        Product.files,
+    ]
+    column_labels = {
+        Product.files: "Фото",
+    }
+    column_details_list = [
+        Product.id,
+        Product.name,
+        Product.description,
+        Product.price,
+        Product.stock,
+        Product.verify,
+        Product.category,
+        Product.supplier,
+        Product.files,
     ]
     column_formatters = {
         Product.price: lambda m, a: f"{m.price} руб",
-        Product.supplier: lambda m, a: (m.supplier.email if m.supplier else ""),
+        Product.supplier: lambda m, a: m.supplier.email if m.supplier else "",
+        Product.files: _format_product_files_list,
     }
     column_formatters_detail = {
         Product.price: lambda m, a: f"{m.price:,} ₽".replace(",", " "),
         Product.supplier: lambda m, a: (
-            f"{m.supplier.first_name} {m.supplier.last_name}"
-            if m.supplier
-            else ""
+            f"{m.supplier.first_name} {m.supplier.last_name}" if m.supplier else ""
         ),
+        Product.files: _format_product_files_detail,
     }
 
     form_columns = [
@@ -203,6 +256,7 @@ class ProductAdmin(ModelView, model=Product):
         Product.cpu,
         Product.number_of_processor_cores,
         Product.number_of_graphics_cores,
+        Product.files,
     ]
     form_args = {
         "name": {
@@ -225,8 +279,11 @@ class ProductAdmin(ModelView, model=Product):
         "stock": {
             "label": "Количество",
         },
+        "files": {
+            "label": "Связанные фото",
+        },
     }
-    form_readonly_columns = [Product.description]
+    form_readonly_columns = [Product.description, Product.files]
 
     async def on_model_change(self, data, model, is_created, request):
         if data.get("price", 0) < 0:
@@ -240,7 +297,9 @@ class ProductAdmin(ModelView, model=Product):
         await self._notify_product_change(request, model, "product.deleted")
 
     async def _notify_product_change(self, request, model, event: str) -> None:
-        main_app = getattr(self, "_admin_ref", None) and getattr(self._admin_ref, "app", None)
+        main_app = getattr(self, "_admin_ref", None) and getattr(
+            self._admin_ref, "app", None
+        )
         kafka = getattr(main_app.state, "kafka_producer", None) if main_app else None
 
         if not kafka:
@@ -259,9 +318,64 @@ class ProductAdmin(ModelView, model=Product):
                     model.id,
                     data={"name": model.name, "price": float(model.price or 0)},
                 )
-            logger.info("Событие %s для товара %s отправлено в %s", event, model.id, Config.GOODS_TO_BOT_TOPIC)
+            logger.info(
+                "Событие %s для товара %s отправлено в %s",
+                event,
+                model.id,
+                Config.GOODS_TO_BOT_TOPIC,
+            )
         except Exception as e:
-            logger.warning("Не удалось отправить событие %s для товара %s: %s", event, model.id, e)
+            logger.warning(
+                "Не удалось отправить событие %s для товара %s: %s", event, model.id, e
+            )
+
+
+class FileAdmin(ModelView, model=File):
+    name = "Файл"
+    name_plural = "Файлы"
+
+    column_list = [
+        File.id,
+        File.original_filename,
+        File.file_url,
+        File.file_size,
+        File.content_type,
+        File.product_id,
+        File.product,
+        File.uploaded_at,
+    ]
+    column_labels = {
+        File.id: "ID",
+        File.original_filename: "Имя файла",
+        File.file_url: "Ссылка",
+        File.file_size: "Размер",
+        File.content_type: "Тип",
+        File.product_id: "ID товара",
+        File.product: "Товар",
+        File.uploaded_at: "Загружен",
+    }
+    column_formatters = {
+        File.file_url: lambda m, a: (
+            m.file_url[:80] + "…"
+            if m.file_url and len(m.file_url) > 80
+            else (m.file_url or "")
+        ),
+    }
+    column_formatters_detail = {
+        File.file_url: lambda m, a: m.file_url,
+    }
+    column_searchable_list = [File.original_filename, File.s3_key]
+    column_sortable_list = [File.id, File.uploaded_at, File.product_id, File.file_size]
+    form_columns = [
+        File.original_filename,
+        File.s3_key,
+        File.file_url,
+        File.file_size,
+        File.content_type,
+        File.product_id,
+        File.product,
+    ]
+    form_readonly_columns = [File.s3_key, File.uploaded_at]
 
 
 class CategoryAdmin(ModelView, model=Category):
@@ -432,6 +546,7 @@ class OrderAdmin(ExcelExportMixin, ModelView, model=Orders):
 
 admin.add_view(UserAdmin)
 admin.add_view(ProductAdmin)
+admin.add_view(FileAdmin)
 admin.add_view(CategoryAdmin)
 admin.add_view(ViewsAdmin)
 admin.add_view(ChatsAdmin)

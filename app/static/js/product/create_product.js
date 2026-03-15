@@ -10,14 +10,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const price = parseFloat(document.getElementById('price').value);
             const stock = parseInt(document.getElementById('stock').value);
             const categoryId = document.getElementById('category_id').value;
-            const fileInput = document.getElementById('file');
+            const fileInput = document.getElementById('files');
 
             const errors = [];
             if (!name) errors.push('Укажите название товара');
             if (isNaN(price) || price <= 0) errors.push('Укажите корректную цену');
             if (isNaN(stock) || stock < 0) errors.push('Укажите корректное количество');
             if (!categoryId) errors.push('Выберите категорию');
-            if (!fileInput.files?.length) errors.push('Добавьте изображение товара');
+            if (!fileInput.files?.length) errors.push('Добавьте хотя бы одно изображение товара');
 
             if (errors.length > 0) {
                 showAlert(errors.join('<br>'), 'error');
@@ -31,7 +31,9 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('stock', stock);
             formData.append('category_id', categoryId);
             formData.append('color', document.getElementById('color').value.trim());
-            formData.append('file', fileInput.files[0]);
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('files', fileInput.files[i]);
+            }
 
             const laptopFields = document.getElementById('laptopFields');
             if (laptopFields && laptopFields.style.display === 'block') {
@@ -79,8 +81,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const laptopFields = document.getElementById('laptopFields');
             if (laptopFields) {
                 const selectedText = this.options[this.selectedIndex].text.toLowerCase();
-                laptopFields.style.display = (selectedText.includes('ноутбук') || selectedText.includes('laptop')) 
-                    ? 'block' 
+                laptopFields.style.display = (selectedText.includes('ноутбук') || selectedText.includes('laptop'))
+                    ? 'block'
                     : 'none';
             }
         });

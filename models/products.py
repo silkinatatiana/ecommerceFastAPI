@@ -36,6 +36,11 @@ class Product(Base):
         """Ссылки на изображения из таблицы files (для обратной совместимости)."""
         return [f.file_url for f in (self.files or [])]
 
+    @property
+    def file_ids(self) -> list[int]:
+        """ID привязанных записей из таблицы files (для получения изображений по id)."""
+        return [f.id for f in (self.files or [])]
+
     def __str__(self) -> str:
         return self.name or ""
 

@@ -166,6 +166,7 @@ class KafkaEventConsumer:
                 return
 
             product = event["product_data"]
+            image_urls = event["image_urls"]
             message = (
                 f"Добавлен новый товар: {product['name']}\n"
                 f"Описание: {product.get('description') or '—'}\n"
@@ -175,16 +176,20 @@ class KafkaEventConsumer:
 
             for chat_id in chat_ids:
                 await self._send_goods_verify_message(
-                    chat_id, product_id, product, message
+                    chat_id, product_id, product, image_urls, message
                 )
 
         except Exception as e:
             logger.error("Ошибка при обработке товара: %s", e)
 
     async def _send_goods_verify_message(
-        self, chat_id: int, product_id: int, product: dict, message: str
+        self,
+        chat_id: int,
+        product_id: int,
+        product: dict,
+        image_urls: list,
+        message: str,
     ) -> None:
-        image_urls = product.get("image_urls") or []
         media = [InputMediaPhoto(media=url) for url in image_urls]
 
         if media:

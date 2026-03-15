@@ -50,7 +50,11 @@ async def create_category_id(db: AsyncSession):
 
 def _make_create_form_data(product_data: dict):
     """Подготовка FormData для создания товара с изображением."""
-    data = {k: str(v) for k, v in product_data.items() if v is not None and k != "image_urls"}
+    data = {
+        k: str(v)
+        for k, v in product_data.items()
+        if v is not None and k != "image_urls"
+    }
     minimal_jpeg = (
         b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
         b"\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14"

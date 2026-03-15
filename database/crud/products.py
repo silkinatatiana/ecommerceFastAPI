@@ -44,35 +44,42 @@ async def get_product(
     )
 
     if func_count:
-        query = select(func.count()).select_from(Product)
+        count_query = (
+            select(func.count()).select_from(Product).where(Product.verify == verify)
+        )
+        if category_ids:
+            count_query = count_query.where(Product.category_id.in_(category_ids))
+        if user_id:
+            count_query = count_query.where(Product.supplier_id == user_id)
+        if colors:
+            count_query = count_query.where(Product.color.in_(colors))
+        if built_in_memory:
+            count_query = count_query.where(
+                Product.built_in_memory_capacity.in_(built_in_memory)
+            )
+
+        result = await db.scalar(count_query)
+        return result
 
     if product_id:
         query = query.where(Product.id == product_id)
-
     if product_ids:
         query = query.where(Product.id.in_(product_ids))
-
     if user_id:
         query = query.where(Product.supplier_id == user_id)
-
     if category_ids:
         query = query.where(Product.category_id.in_(category_ids))
-
     if colors:
         query = query.where(Product.color.in_(colors))
-
     if built_in_memory:
         query = query.where(Product.built_in_memory_capacity.in_(built_in_memory))
-
     if order_dy_:
         query = query.order_by(order_dy_)
 
-    if func_count or product_id:
-        result = await db.scalar(query)
-        return result
-
     result = await db.execute(query)
-    products = result.scalars().all()
+
+    products = result.unique().scalars().all()
+
     return products or []
 
 
@@ -87,7 +94,6 @@ async def get_products_with_filters(
     user_id: int | None = None,
     favorites: list[str] | None = None,
 ) -> tuple[list[Product], int]:
-
     base_query = (
         select(Product)
         .options(joinedload(Product.files))
@@ -132,6 +138,8 @@ async def get_products_with_filters(
 
     offset = (page - 1) * per_page
     paginated_query = base_query.offset(offset).limit(per_page)
-    products = (await db.scalars(paginated_query)).all()
+
+    result = await db.execute(paginated_query)
+    products = result.unique().scalars().all()
 
     return products, total_count

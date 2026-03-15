@@ -44,8 +44,8 @@ from general_functions.auth_func import checking_access_rights, get_current_user
 from general_functions.cart_func import get_in_cart_product_ids
 from general_functions.favorites_func import get_favorite_product_ids
 from general_functions.kafka_func import get_chat_ids
-from models import Product, Review
-from schemas import CreateProduct, ProductOut, RecommendOut
+from models import File as FileModel, Product, Review
+from schemas import CreateProduct, FileOut, ProductOut, RecommendOut
 
 
 router = APIRouter(prefix="/products", tags=["products"])
@@ -164,7 +164,7 @@ async def create_product(
     cpu: str | None = Form(None),
     number_of_processor_cores: str | None = Form(None),
     number_of_graphics_cores: str | None = Form(None),
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(default=[]),
 ):
     try:
         supplier_id = await checking_access_rights(token=token, roles=["seller"])
@@ -174,10 +174,47 @@ async def create_product(
                 status_code=status.HTTP_404_NOT_FOUND, detail="NOT FOUND"
             )
 
-        if not file.filename or not file.content_type or not file.content_type.startswith("image/"):
+        if not files or not any(
+            f.filename and f.content_type and f.content_type.startswith("image/")
+            for f in files
+        ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Требуется изображение (jpg, png, webp и т.д.)",
+                detail="Требуется хотя бы одно изображение (jpg, png, webp и т.д.)",
+            )
+
+        uploaded: list[dict] = []
+        for file in files:
+            if (
+                not file.filename
+                or not file.content_type
+                or not file.content_type.startswith("image/")
+            ):
+                continue
+            file_ext = (file.filename or "jpg").split(".")[-1].lower() or "jpg"
+            if file_ext not in ("jpg", "jpeg", "png", "webp", "gif"):
+                file_ext = "jpg"
+            s3_key = f"users/{supplier_id}/{uuid.uuid4()}.{file_ext}"
+            _args = {"ContentType": file.content_type or "image/jpeg"}
+            contents = await file.read()
+            file_size = len(contents)
+            file_url = s3_client.upload_fileobj(
+                fileobj=io.BytesIO(contents), key=s3_key, extra_args=_args
+            )
+            uploaded.append(
+                {
+                    "original_filename": file.filename or "image",
+                    "s3_key": s3_key,
+                    "file_url": file_url,
+                    "file_size": file_size,
+                    "content_type": file.content_type or "image/jpeg",
+                }
+            )
+
+        if not uploaded:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Не удалось загрузить ни одного изображения (jpg, png, webp, gif).",
             )
 
         product_data = CreateProduct(
@@ -188,44 +225,40 @@ async def create_product(
             category_id=category_id,
             color=color.strip() if color else None,
             RAM_capacity=RAM_capacity.strip() if RAM_capacity else None,
-            built_in_memory_capacity=built_in_memory_capacity.strip() if built_in_memory_capacity else None,
+            built_in_memory_capacity=built_in_memory_capacity.strip()
+            if built_in_memory_capacity
+            else None,
             screen=_parse_optional_float(screen),
             cpu=cpu.strip() if cpu else None,
             number_of_processor_cores=_parse_optional_int(number_of_processor_cores),
             number_of_graphics_cores=_parse_optional_int(number_of_graphics_cores),
         )
 
-        file_ext = (file.filename or "jpg").split(".")[-1].lower() or "jpg"
-        if file_ext not in ("jpg", "jpeg", "png", "webp", "gif"):
-            file_ext = "jpg"
-        s3_key = f"users/{supplier_id}/{uuid.uuid4()}.{file_ext}"
-        _args = {"ContentType": file.content_type or "image/jpeg"}
-
-        contents = await file.read()
-        file_size = len(contents)
-        file_url = s3_client.upload_fileobj(
-            fileobj=io.BytesIO(contents), key=s3_key, extra_args=_args
-        )
-
         product = await create_new_product(
             db=db, product_data=product_data, supplier_id=supplier_id, verify=False
         )
 
-        file_record = File(
-            original_filename=file.filename or "image",
-            s3_key=s3_key,
-            file_url=file_url,
-            file_size=file_size,
-            content_type=file.content_type or "image/jpeg",
-            product_id=product.id,
-        )
-        db.add(file_record)
+        file_records: list = []
+        for info in uploaded:
+            file_record = FileModel(
+                original_filename=info["original_filename"],
+                s3_key=info["s3_key"],
+                file_url=info["file_url"],
+                file_size=info["file_size"],
+                content_type=info["content_type"],
+                product_id=product.id,
+            )
+            db.add(file_record)
+            file_records.append(file_record)
+
         await db.commit()
-        await db.refresh(product)
-        await db.refresh(file_record)
+        for fr in file_records:
+            await db.refresh(fr)
+        image_urls = [info["file_url"] for info in uploaded]
+        file_ids = [fr.id for fr in file_records]
 
         kafka_producer = getattr(request.app.state, "kafka_producer", None)
-        if kafka_producer:
+        if kafka_producer and image_urls:
             try:
                 chat_ids = await get_chat_ids(db=db)
                 payload = {
@@ -233,7 +266,7 @@ async def create_product(
                     "supplier_id": supplier_id,
                     "product_data": product_data.model_dump(),
                     "chat_ids": chat_ids,
-                    "image_urls": [file_url],
+                    "image_urls": image_urls,
                 }
                 await kafka_producer.send_create_product(payload)
             except Exception as e:
@@ -244,7 +277,8 @@ async def create_product(
             "name": product.name,
             "description": product.description,
             "price": product.price,
-            "image_urls": [file_url],
+            "image_urls": image_urls,
+            "file_ids": file_ids,
             "stock": product.stock,
             "category_id": product.category_id,
             "supplier_id": product.supplier_id,
@@ -268,6 +302,22 @@ async def create_product(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         ) from e
+
+
+@router.get("/files/{file_id}", response_model=FileOut)
+async def get_file_by_id(
+    file_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Получить данные изображения по id (из product.file_ids)."""
+    result = await db.execute(select(FileModel).where(FileModel.id == file_id))
+    file_row = result.scalar_one_or_none()
+    if not file_row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Файл не найден",
+        )
+    return FileOut.model_validate(file_row)
 
 
 @router.get("/")
@@ -350,7 +400,34 @@ async def products_by_category(
         "has_prev": page > 1,
     }
 
-    return {"products": products, "pagination": pagination}
+    products_data = []
+    for p in products:
+        products_data.append(
+            {
+                "id": p.id,
+                "name": p.name or "",
+                "description": p.description,
+                "price": p.price if p.price is not None else 0,
+                "stock": p.stock if p.stock is not None else 0,
+                "category_id": p.category_id,
+                "supplier_id": getattr(p, "supplier_id", None),
+                "color": p.color,
+                "RAM_capacity": getattr(p, "RAM_capacity", None),
+                "built_in_memory_capacity": getattr(
+                    p, "built_in_memory_capacity", None
+                ),
+                "screen": p.screen,
+                "cpu": p.cpu,
+                "number_of_processor_cores": getattr(
+                    p, "number_of_processor_cores", None
+                ),
+                "number_of_graphics_cores": getattr(
+                    p, "number_of_graphics_cores", None
+                ),
+                "image_urls": list(p.image_urls) if getattr(p, "files", None) else [],
+            }
+        )
+    return {"products": products_data, "pagination": pagination}
 
 
 @router.get("/recommendations", response_model=RecommendOut)
@@ -437,13 +514,14 @@ async def product_detail_page(
         except Exception as e:
             logger.error(f"Ошибка при проверке авторизации: {e}")
 
-    product = await db.scalar(
+    product_result = await db.execute(
         select(Product)
         .options(joinedload(Product.category))
         .options(joinedload(Product.files))
         .options(joinedload(Product.reviews).joinedload(Review.user))
         .where(Product.id == product_id)
     )
+    product = product_result.unique().scalars().one_or_none()
 
     if not product:
         return templates.TemplateResponse(
@@ -483,6 +561,7 @@ async def product_detail_page(
     product.category_name = (
         product.category.name if product.category else "Без категории"
     )
+    image_urls = list(product.image_urls) if product.files else []
 
     return templates.TemplateResponse(
         "products/product.html",
@@ -492,6 +571,7 @@ async def product_detail_page(
             "user_id": user_id,
             "role": role,
             "product": product,
+            "image_urls": image_urls,
             "avg_rating": avg_rating,
             "reviews": formatted_reviews,
             "review_count": review_count,

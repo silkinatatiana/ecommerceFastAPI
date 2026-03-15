@@ -28,7 +28,7 @@ async def get_cart_by_user(
     try:
         user_id = await checking_access_rights(token=token, roles=["customer"])
 
-        query = await db.execute(
+        result = await db.execute(
             select(Cart, Product)
             .join(Product, Cart.product_id == Product.id)
             .where(Cart.user_id == user_id)
@@ -36,7 +36,7 @@ async def get_cart_by_user(
         )
 
         cart_items = []
-        for cart, product in query.all():
+        for cart, product in result.unique().all():
             cart_dict = {
                 k: v for k, v in cart.__dict__.items() if not k.startswith("_")
             }
@@ -46,6 +46,7 @@ async def get_cart_by_user(
                 if not k.startswith("_") and k != "files"
             }
             product_dict["image_urls"] = [f.file_url for f in (product.files or [])]
+            product_dict["file_ids"] = product.file_ids
             cart_dict["product"] = product_dict
             cart_items.append(cart_dict)
 

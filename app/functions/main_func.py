@@ -70,9 +70,11 @@ async def fetch_products_for_category(
     built_in_memory: str | None = None,
     is_favorite: bool = False,
     current_page: int = 1,
+    per_page: int = 3,
 ) -> dict[str, Any]:
     params = {
         "page": current_page,
+        "per_page": per_page,
         "user_id": user_id or 0,
     }
     if colors:
@@ -192,7 +194,6 @@ async def handle_partial_request(
 
     products_data = await fetch_products_for_category(
         category_id=target_cat_id,
-        db=db,
         user_id=user_data["user_id"],
         favorite_product_ids=user_data["favorite_product_ids"],
         colors=colors,

@@ -30,4 +30,4 @@ class User(Base):
     )
 
     def __str__(self):
-        return f'{self.first_name or ""} {self.last_name or ""}'
+        return f"{self.first_name or ''} {self.last_name or ''}"

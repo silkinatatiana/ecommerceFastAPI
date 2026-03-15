@@ -21,7 +21,9 @@ class KafkaEventPublisher:
             json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         )
 
-    async def send_product_event(self, event: str, product_id: int, data: dict | None = None) -> None:
+    async def send_product_event(
+        self, event: str, product_id: int, data: dict | None = None
+    ) -> None:
         """Отправка события товара (created/updated/deleted) в Kafka."""
         payload = {"event": event, "id": product_id}
         if data is not None:
