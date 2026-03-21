@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}| {{ shop_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/product/product.css') }}?v=1.0">
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/product/product_card.css') }}?v=1.0">
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/product/seller_products.css') }}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>📦 Мои товары</h1>
+
+    <div class="tabs-container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('active')" id="tab-active">
+                ✅ Активные <span class="count" id="count-active">{{ active_products|length }}</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('inactive')" id="tab-inactive">
+                ⏸️ Неактивные <span class="count" id="count-inactive">{{ inactive_products|length }}</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="content-active" class="tab-content active">
+        {% if active_products %}
+        <div class="products-grid">
+            {% for product in active_products %}
+            <div class="product-card" data-product-id="{{ product.id }}">
+                <a href="{{ url_for('product_detail_page', product_id=product.id) }}" class="product-card-link">
+                    <div class="card-image">
+                        <img
+                            src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}"
+                            alt="{{ product.name }}"
+                            loading="lazy"
+                            onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+                    </div>
+                    <div class="card-content">
+                        <h3>{{ product.name }}</h3>
+                        <p class="product-price">{{ "{:.0f}".format(product.price)|default("Цена не указана", true) }} ₽</p>
+                        <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
+                            {% if product.stock > 0 %}
+                                {{ product.stock }} шт. в наличии
+                            {% else %}
+                                Нет в наличии
+                            {% endif %}
+                        </p>
+                    </div>
+                </a>
+                <div class="card-actions">
+                    <a href="{{ url_for('edit_product_form', product_id=product.id) }}" class="btn btn-edit" title="Редактировать">✏️ Редактировать</a>
+                    <button type="button" class="btn btn-delete" title="Удалить">🗑️ Удалить</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="products-grid">
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <h3>Нет активных товаров</h3>
+                <p>Добавьте свой первый товар, чтобы начать продажи</p>
+                <a href="/products/create" class="btn btn-primary">Добавить товар</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="content-inactive" class="tab-content">
+        {% if inactive_products %}
+        <div class="products-grid">
+            {% for product in inactive_products %}
+            <div class="product-card inactive" data-product-id="{{ product.id }}">
+                <a href="{{ url_for('product_detail_page', product_id=product.id) }}" class="product-card-link">
+                    <div class="card-image">
+                        <img
+                            src="{{ product.image_urls[0] if product.image_urls else url_for('static', path='/images/default_image.png') }}"
+                            alt="{{ product.name }}"
+                            loading="lazy"
+                            onerror="this.onerror=null;this.src='{{ url_for('static', path='/images/default_image.png') }}'">
+                    </div>
+                    <div class="card-content">
+                        <h3>{{ product.name }}</h3>
+                        <p class="product-price">{{ "{:.0f}".format(product.price)|default("Цена не указана", true) }} ₽</p>
+                        <p class="product-stock {% if product.stock <= 0 %}out-of-stock{% endif %}">
+                            {% if product.stock > 0 %}
+                                {{ product.stock }} шт. в наличии
+                            {% else %}
+                                Нет в наличии
+                            {% endif %}
+                        </p>
+                    </div>
+                </a>
+                <div class="card-actions">
+                    <a href="{{ url_for('edit_product_form', product_id=product.id) }}" class="btn btn-edit" title="Редактировать">✏️ Редактировать</a>
+                    <button type="button" class="btn btn-delete" title="Удалить">🗑️ Удалить</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="products-grid">
+            <div class="empty-state">
+                <div class="empty-state-icon">📦</div>
+                <h3>Нет неактивных товаров</h3>
+                <p>Все ваши товары активны и доступны для покупки</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/product/seller_products.js') }}?v=1.0"></script>
+{% endblock %}

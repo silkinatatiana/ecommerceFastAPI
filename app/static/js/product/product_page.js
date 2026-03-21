@@ -8,7 +8,31 @@ document.addEventListener('DOMContentLoaded', function() {
     initGallery();
     initReviewForm();
     initReviewsSection();
+    initProductOwnerActions();
 });
+
+function initProductOwnerActions() {
+    const btnDelete = document.getElementById('btn-delete-product');
+    if (!btnDelete) return;
+    btnDelete.addEventListener('click', function() {
+        const productId = this.getAttribute('data-product-id');
+        if (!productId || !confirm('Вы уверены, что хотите удалить этот товар?')) return;
+        btnDelete.disabled = true;
+        btnDelete.textContent = 'Удаление...';
+        fetch('/products/' + productId, {
+            method: 'DELETE',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }
+        }).then(function(resp) {
+            if (!resp.ok) throw new Error('Ошибка при удалении');
+            window.location.href = '/products/seller_products';
+        }).catch(function(err) {
+            alert(err.message || 'Не удалось удалить товар');
+            btnDelete.disabled = false;
+            btnDelete.textContent = '🗑️ Удалить товар';
+        });
+    });
+}
 
 function initGallery() {
     const fullscreenGallery = document.getElementById('fullscreenGallery');

@@ -9,133 +9,131 @@
 
 {% block content %}
 <div class="main-content-wrapper">
-    <div class="filters-sidebar">
-        <div class="filter-block">
-            <h3>Категории</h3>
-            <div class="filter-options">
-                {% for category_name, category_data in categories_products.items() %}
-                <label class="filter-checkbox">
-                    <input type="checkbox"
-                           name="category"
-                           value="{{ category_data.id }}"
-                           {% if category_data.id in current_categories %}checked{% endif %}
-                           onchange="applyFilters()">
-                    <span>{{ category_name | title }}</span>
-                </label>
-                {% endfor %}
-            </div>
-        </div>
-
-        {% if is_authenticated and role in ['customer', 'seller'] %}
-        <div class="filter-block" id="favoritesFilter">
-            <h3>Избранное</h3>
-            <label class="filter-checkbox">
-                <input type="checkbox"
-                       id="favoritesOnlyCheckbox"
-                       name="is_favorite"
-                       {% if is_favorite %}checked{% endif %}
-                       onchange="applyFilters()">
-                <span>Избранное</span>
-            </label>
-            {% if is_favorite and not has_products %}
-            <div class="no-favorites-message" style="color: #666; margin-top: 10px; font-style: italic;">
-                В избранном пока нет товаров
-            </div>
-            {% endif %}
-        </div>
-        {% endif %}
-
-        <div class="filter-block">
-            <h3>Объем встроенной памяти</h3>
-            <div class="filter-options">
-                {% for memory in all_built_in_memory %}
-                <label class="filter-checkbox">
-                    <input type="checkbox"
-                            name="built_in_memory"
-                            value="{{ memory }}"
-                            {% if memory in selected_built_in_memory %}checked{% endif %}
-                            onchange="applyFilters()">
-                    <span>{{ memory }}</span>
-                </label>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div class="filter-block">
-            <h3>Цвета</h3>
-            <div class="filter-options">
-                {% for color in colors %}
-                <label class="filter-checkbox">
-                    <input type="checkbox"
-                           name="color"
-                           value="{{ color }}"
-                           {% if color in selected_colors %}checked{% endif %}
-                           onchange="applyFilters()">
-                    <span>{{ color | title }}</span>
-                </label>
-                {% endfor %}
-            </div>
-        </div>
-
-        <button class="reset-filters" onclick="resetFilters()">Сбросить фильтры</button>
-    </div>
-
-    <div class="content-area">
-        <h2>{% if current_categories %}Товары категории{% else %}Все товары{% endif %}</h2>
-        {% if is_favorite and not has_products %}
-            <div class="no-products-found">
-                <p>В избранном пока нет товаров</p>
-                <p>Добавьте товары в избранное, чтобы они отображались здесь</p>
-                <button class="reset-filters" onclick="resetFilters()">Сбросить фильтры</button>
-            </div>
-        {% elif categories_products and has_products %}
-            {% for category_name, category_data in categories_products.items() %}
-                <div class="category" data-category-id="{{ category_data.id }}"
-                     data-current-page="{{ category_data.current_page }}">
-
-                    {% if not current_categories or current_categories|length > 1 %}
-                        <h3>{{ category_name | title }}</h3>
-                    {% endif %}
-
-                    <div class="products-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
-                        {% for product in category_data.products %}
-                            {% include 'products/product_card.html' %}
-                        {% endfor %}
-                    </div>
-
-                    <div class="category-actions">
-                        {% set pagination = category_data.pagination %}
-                        {% set has_next = pagination.has_next %}
-                        {% set has_prev = pagination.has_prev %}
-                        {% set current_page = category_data.current_page %}
-
-                        {% if category_data.has_more %}
-                            <button
-                                  onclick="loadMoreProducts({{ category_data.id }}, this)"
-                                  class="view-all-btn collapse-btn"
-                                  data-category-id="{{ category_data.id }}"
-                                  data-current-page="{{ category_data.current_page }}"
-                                  {% if not category_data.has_more %}disabled{% endif %}>
-                                Показать еще
-                            </button>
-                            {% elif category_data.current_page > 1 %}
-                            <button
-                                onclick="collapseProducts('{{ category_data.id }}', this)"
-                                class="view-all-btn collapse-btn"
-                                data-category-id="{{ category_data.id }}">
-                                Свернуть
-                            </button>
-                            {% endif %}
-                    </div>
+    {% if is_authenticated and role == 'customer' and recommend_products %}
+    <div class="recommended-section">
+        <h2 class="recommended-title">Рекомендуем для вас</h2>
+        <div class="recommended-slider">
+            {% for product in recommend_products %}
+                <div class="recommended-item">
+                    {% include 'products/product_card.html' %}
                 </div>
             {% endfor %}
-        {% else %}
-            <div class="no-products-found">
-                <p>Товары не найдены</p>
-                <p>Попробуйте изменить параметры фильтрации</p>
-                <button class="reset-filters" onclick="resetFilters()">Сбросить фильтры</button>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="main-grid">
+        <div class="filters-sidebar">
+            <div class="filter-block">
+                <h3>Категории</h3>
+                <div class="filter-options">
+                    {% for category_name, category_data in categories_products.items() %}
+                    <label class="filter-checkbox">
+                        <input type="checkbox"
+                               name="category"
+                               value="{{ category_data.id }}"
+                               {% if category_data.id in current_categories %}checked{% endif %}
+                               onchange="applyFilters()">
+                        <span>{{ category_name | title }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
             </div>
-        {% endif %}
+
+            {% if is_authenticated and role in ['customer', 'seller'] %}
+            <div class="filter-block" id="favoritesFilter">
+                <h3>Избранное</h3>
+                <label class="filter-checkbox">
+                    <input type="checkbox"
+                           id="favoritesOnlyCheckbox"
+                           name="is_favorite"
+                           {% if is_favorite %}checked{% endif %}
+                           onchange="applyFilters()">
+                    <span>Избранное</span>
+                </label>
+                {% if is_favorite and not has_products %}
+                <div class="no-favorites-message">
+                    В избранном пока нет товаров
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="filter-block">
+                <h3>Объем встроенной памяти</h3>
+                <div class="filter-options">
+                    {% for memory in all_built_in_memory %}
+                    <label class="filter-checkbox">
+                        <input type="checkbox"
+                                name="built_in_memory"
+                                value="{{ memory }}"
+                                {% if memory in selected_built_in_memory %}checked{% endif %}
+                                onchange="applyFilters()">
+                        <span>{{ memory }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="filter-block">
+                <h3>Цвета</h3>
+                <div class="filter-options">
+                    {% for color in colors %}
+                    <label class="filter-checkbox">
+                        <input type="checkbox"
+                               name="color"
+                               value="{{ color }}"
+                               {% if color in selected_colors %}checked{% endif %}
+                               onchange="applyFilters()">
+                        <span>{{ color | title }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button class="reset-filters" onclick="resetFilters()">Сбросить фильтры</button>
+        </div>
+
+        <div class="content-area">
+            <h2>{% if current_categories %}Товары категории{% else %}Все товары{% endif %}</h2>
+            {% if is_favorite and not has_products %}
+                <div class="no-products-found">
+                    <p>В избранном пока нет товаров</p>
+                    <p>Добавьте товары в избранное, чтобы они отображались здесь</p>
+                    <button class="reset-filters" onclick="resetFilters()">Сбросить фильтры</button>
+                </div>
+            {% elif categories_products and has_products %}
+                {% for category_name, category_data in categories_products.items() %}
+                    <div class="category" data-category-id="{{ category_data.id }}" data-current-page="{{ category_data.current_page }}">
+                        {% if not current_categories or current_categories|length > 1 %}
+                            <h3>{{ category_name | title }}</h3>
+                        {% endif %}
+                        <div class="products-grid">
+                            {% for product in category_data.products %}
+                                {% include 'products/product_card.html' %}
+                            {% endfor %}
+                        </div>
+                        <div class="category-actions">
+                            {% if category_data.has_more %}
+                                <button onclick="loadMoreProducts({{ category_data.id }}, this)" class="view-all-btn collapse-btn" data-category-id="{{ category_data.id }}" data-current-page="{{ category_data.current_page }}" {% if not category_data.has_more %}disabled{% endif %}>
+                                    Показать еще
+                                </button>
+                            {% elif category_data.current_page > 1 %}
+                                <button onclick="collapseProducts('{{ category_data.id }}', this)" class="view-all-btn collapse-btn" data-category-id="{{ category_data.id }}">
+                                    Свернуть
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-products-found">
+                    <p>Товары не найдены</p>
+                    <p>Попробуйте изменить параметры фильтрации</p>
+                    <button class="reset-filters" onclick="resetFilters()">Сбросить фильтры</button>
+                </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

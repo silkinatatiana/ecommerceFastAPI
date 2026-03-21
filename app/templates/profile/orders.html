@@ -19,7 +19,7 @@
                     <p>Сумма: {{ order.summa }} руб.</p>
                     <p>Статус: {{ order.status }}</p>
                 </div>
-                <a href="/orders/order/{{ order.id }}" class="btn btn-primary">Подробнее о заказе</a>
+                <a href="/orders/order/{{ order.slug }}" class="btn btn-primary">Подробнее о заказе</a>
             </div>
             {% endfor %}
 

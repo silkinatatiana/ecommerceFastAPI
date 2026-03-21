@@ -10,6 +10,7 @@ logs/
 *.log
 
 .env
+bot/.env
 .env.local
 .env.development
 .env.production
@@ -37,3 +38,6 @@ Desktop.ini
 
 logsс
 *.logs
+
+celerybeat-schedule
+alembic/

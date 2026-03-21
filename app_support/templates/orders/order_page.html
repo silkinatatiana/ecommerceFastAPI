@@ -9,7 +9,7 @@
 {% block content %}
 <div class="container admin-order-page">
     <div class="order-header">
-        <h1>Заказ #{{ order.id }}</h1>
+        <h1>Заказ #{{ order.slug }}</h1>
         <div class="order-status-badge status-{{ order.status|lower|replace(' ', '_') }}">
             {{ order.status }}
         </div>

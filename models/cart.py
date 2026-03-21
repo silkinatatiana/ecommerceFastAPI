@@ -1,7 +1,7 @@
+from sqlalchemy import Column, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 
 from database.db import Base
-from sqlalchemy import Column, Integer, ForeignKey
 
 
 class Cart(Base):
@@ -9,8 +9,8 @@ class Cart(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    product_id = Column(Integer, ForeignKey("products.id"))
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"))
     count = Column(Integer)
 
-    product = relationship('Product', back_populates='carts')
-    user = relationship('User', back_populates='cart')
+    product = relationship("Product", back_populates="carts")
+    user = relationship("User", back_populates="cart")

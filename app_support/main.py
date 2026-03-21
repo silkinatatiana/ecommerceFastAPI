@@ -1,40 +1,72 @@
+import logging
 import time
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from math import ceil
-from typing import Optional, List, AsyncGenerator
 from datetime import datetime
 from functools import partial
+from math import ceil
 
-from fastapi import FastAPI, Request, Query, Depends, Cookie
+from fastapi import Cookie, Depends, FastAPI, Query, Request
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
-import logging
+from starlette.staticfiles import StaticFiles
 
-from app.log.log import LOGGER
+import app.log.log  # noqa: F401
 from app.routers.auth import auto_refresh_token
-from app_support.functions.main_func import get_sort_column, build_pagination_url, build_sort_url, to_date_str
-from database.db import engine, Base
-from models import Orders, User
-from general_functions.auth_func import checking_access_rights
-from app_support.routers import orders, auth, chats, messages
+from app_support.functions.main_func import (
+    build_pagination_url,
+    build_sort_url,
+    get_sort_column,
+    to_date_str,
+)
+from app_support.kafka.consumer import KafkaEventConsumer
+from app_support.kafka.producer import KafkaEventPublisher
+from app_support.routers import auth, chats, messages, orders
+from config import Config, Statuses, Topics
 from database.db_depends import get_db
-from config import Config, Statuses
+from general_functions.auth_func import checking_access_rights
+from models import Orders, User
+from redis_client import init_redis
 
 
-logger = LOGGER
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
+
+SUPPORT_KAFKA_TOPICS = Topics.SUPPORT_KAFKA_TOPICS
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    redis_client = await init_redis()
+    app.state.redis = redis_client
+
+    kafka_producer = KafkaEventPublisher()
+    await kafka_producer.start()
+    app.state.kafka_producer = kafka_producer
+
+    kafka_consumers = [
+        KafkaEventConsumer(topic, group_id, handler_method_name)
+        for topic, group_id, handler_method_name in SUPPORT_KAFKA_TOPICS
+    ]
+    for consumer in kafka_consumers:
+        await consumer.start()
+    app.state.kafka_consumers = kafka_consumers
+
     yield
+
+    for consumer in kafka_consumers:
+        try:
+            await consumer.stop()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to stop kafka consumer: %s", exc)
+    try:
+        await kafka_producer.stop()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to stop kafka producer: %s", exc)
+    await redis_client.aclose()
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -79,11 +111,7 @@ def custom_openapi():
         routes=app.routes,
     )
     openapi_schema["components"]["securitySchemes"] = {
-        "CookieAuth": {
-            "type": "apiKey",
-            "in": "cookie",
-            "name": "token"
-        }
+        "CookieAuth": {"type": "apiKey", "in": "cookie", "name": "token"}
     }
     for path in openapi_schema["paths"].values():
         for method in path.values():
@@ -94,13 +122,6 @@ def custom_openapi():
 
 
 app.openapi = custom_openapi
-
-
-@app.on_event("startup")
-async def startup():
-    logger.info("Приложение запущено")
-    for route in app.routes:
-        print(f"{route.path} -> {route.name}")
 
 
 @app.middleware("http")
@@ -131,40 +152,43 @@ async def log_requests(request: Request, call_next):
         raise
 
 
-@app.get('/', response_class=HTMLResponse)
-async def get_main_page(request: Request,
-                        db: AsyncSession = Depends(get_db),
-                        token: Optional[str] = Cookie(None, alias='token'),
-                        status: Optional[List[str]] = Query(None),
-                        user_id: Optional[List[int]] = Query(None),
-                        order_id: Optional[List[int]] = Query(None),
-                        date_start: Optional[str] = None,
-                        date_end: Optional[str] = None,
-                        sum_from: Optional[float] = None,
-                        sum_to: Optional[float] = None,
-                        sort_by: str = Query("date"),
-                        sort_order: str = Query("desc", regex="^(asc|desc)$"),
-                        page: int = Query(1, ge=1)
+@app.get("/", response_class=HTMLResponse)
+async def get_main_page(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    token: str | None = Cookie(None, alias="token"),
+    status: list[str] | None = Query(None),
+    user_id: list[int] | None = Query(None),
+    order_id: list[int] | None = Query(None),
+    date_start: str | None = None,
+    date_end: str | None = None,
+    sum_from: float | None = None,
+    sum_to: float | None = None,
+    sort_by: str = Query("date"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    page: int = Query(1, ge=1),
 ):
     try:
-        current_employee = await checking_access_rights(token=token, roles=['support'])
+        current_employee = await checking_access_rights(token=token, roles=["support"])
     except Exception:
-        return RedirectResponse(url='/auth/create')
+        return RedirectResponse(url="/auth/create")
 
     all_statuses = [
-        value for attr, value in vars(Statuses).items()
-        if attr.isupper() and not attr.startswith('__')
+        value
+        for attr, value in vars(Statuses).items()
+        if attr.isupper() and not attr.startswith("__")
     ]
 
     result = await db.execute(select(Orders.user_id).distinct())
     users_ids = result.scalars().all()
 
+    unique_users = []
+    user_dict = {}
+
     if users_ids:
         users_result = await db.execute(select(User).where(User.id.in_(users_ids)))
         unique_users = users_result.scalars().all()
         user_dict = {user.id: user for user in unique_users}
-    else:
-        user_dict = {}
 
     all_orders_ids_result = await db.execute(select(Orders.id))
     all_order_ids = [r[0] for r in all_orders_ids_result.fetchall()]
@@ -231,7 +255,7 @@ async def get_main_page(request: Request,
         sum_to=sum_to,
         sort_by=sort_by,
         sort_order=sort_order,
-        page=page
+        page=page,
     )
 
     sort_func = partial(
@@ -245,27 +269,30 @@ async def get_main_page(request: Request,
         sum_to=sum_to,
     )
 
-    return templates.TemplateResponse('orders/orders.html', {
-        "request": request,
-        "shop_name": Config.shop_name,
-        "descr": Config.descr,
-        "orders": orders,
-        "user_dict": user_dict,
-        "unique_users": unique_users,
-        "unique_statuses": all_statuses,
-        "all_order_ids": all_order_ids,
-        "order_ids": order_id or [],
-        "user_ids": user_id or [],
-        "status": status or [],
-        "date_start_date": date_start_date,
-        "date_end_date": date_end_date,
-        "sum_from": sum_from,
-        "sum_to": sum_to,
-        "current_sort_by": sort_by,
-        "current_sort_order": sort_order,
-        "page": page,
-        "total_pages": total_pages,
-        "is_authenticated": current_employee is not None,
-        "build_pagination_url": pagination_func,
-        "build_sort_url": sort_func
-    })
+    return templates.TemplateResponse(
+        "orders/orders.html",
+        {
+            "request": request,
+            "shop_name": Config.shop_name,
+            "descr": Config.descr,
+            "orders": orders,
+            "user_dict": user_dict,
+            "unique_users": unique_users,
+            "unique_statuses": all_statuses,
+            "all_order_ids": all_order_ids,
+            "order_ids": order_id or [],
+            "user_ids": user_id or [],
+            "status": status or [],
+            "date_start_date": date_start_date,
+            "date_end_date": date_end_date,
+            "sum_from": sum_from,
+            "sum_to": sum_to,
+            "current_sort_by": sort_by,
+            "current_sort_order": sort_order,
+            "page": page,
+            "total_pages": total_pages,
+            "is_authenticated": current_employee is not None,
+            "build_pagination_url": pagination_func,
+            "build_sort_url": sort_func,
+        },
+    )

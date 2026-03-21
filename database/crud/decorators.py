@@ -13,22 +13,21 @@ def handle_db_errors(func):
         except SQLAlchemyError as e:
             await db.rollback()
             raise HTTPException(
-                status_code=500,
-                detail=f"Ошибка базы данных: {e}"
-            )
+                status_code=500, detail=f"Ошибка базы данных: {e}"
+            ) from e
         except Exception as e:
             await db.rollback()
             raise HTTPException(
-                status_code=500,
-                detail=f"Не удалось выполнить запрос в БД: {e}"
-            )
+                status_code=500, detail=f"Не удалось выполнить запрос в БД: {e}"
+            ) from e
+
     return wrapper
 
 
 def handler_base_errors(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
-        db = kwargs.get('db')
+        db = kwargs.get("db")
         if not isinstance(db, AsyncSession):
             for arg in args:
                 if isinstance(arg, AsyncSession):
@@ -36,9 +35,11 @@ def handler_base_errors(func):
                     break
         try:
             return await func(*args, **kwargs)
-
+        except HTTPException:
+            raise
         except Exception as e:
             if db is not None:
                 await db.rollback()
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal server error") from e
+
     return wrapper

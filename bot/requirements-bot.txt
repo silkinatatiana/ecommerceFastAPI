@@ -1,0 +1,5 @@
+aiogram==3.13.1
+aiokafka==0.12.0
+python-dotenv==1.1.1
+pydantic==2.9.2
+pydantic_core==2.23.4

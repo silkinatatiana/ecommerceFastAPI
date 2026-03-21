@@ -94,7 +94,7 @@ function createOrderCard(order) {
             <p>Сумма: ${order.summa} руб.</p>
             <p>Статус: ${order.status}</p>
         </div>
-        <a href="/orders/order/${order.id}" class="btn btn-primary">Подробнее о заказе</a>
+        <a href="/orders/order/${encodeURIComponent(order.slug)}" class="btn btn-primary">Подробнее о заказе</a>
     `;
 
     return card;
@@ -147,3 +147,25 @@ document.getElementById('update-profile-form').addEventListener('submit', async 
         alert('Сетевая ошибка или сервер недоступен.');
     }
 });
+
+async function requestTelegramVerification() {
+    try {
+        const response = await fetch('/auth/telegram/verification', {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            alert(payload.detail || 'Не удалось отправить запрос на подтверждение.');
+            return;
+        }
+
+        alert(payload.detail || 'Запрос отправлен. Проверьте Telegram бота.');
+        window.open('https://t.me/SuperPuperCleverBot', '_blank');
+    } catch (error) {
+        console.error('Ошибка при запросе подтверждения Telegram:', error);
+        alert('Не удалось отправить запрос. Попробуйте позже.');
+    }
+}

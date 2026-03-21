@@ -7,15 +7,16 @@ from models import Chats
 
 
 @handle_db_errors
-async def get_chat(db: AsyncSession,
-                   chat_id: int = None,
-                   user_id: int = None,
-                   employee_id: int = None,
-                   active: bool = False,
-                   limit: int = None,
-                   offset: int = None,
-                   sort_asc: bool = False,
-                   sort_desc: bool = False
+async def get_chat(
+    db: AsyncSession,
+    chat_id: int = None,
+    user_id: int = None,
+    employee_id: int = None,
+    active: bool = False,
+    limit: int = None,
+    offset: int = None,
+    sort_asc: bool = False,
+    sort_desc: bool = False,
 ):
     query = select(Chats)
 
@@ -54,28 +55,22 @@ async def get_chat(db: AsyncSession,
 
 
 @handle_db_errors
-async def update_chat_status(db: AsyncSession,
-                             chat_id: int
-):
+async def update_chat_status(db: AsyncSession, chat_id: int):
     query = update(Chats).where(Chats.id == chat_id).values(active=False)
     result = await db.execute(query)
-
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Chat not found")
     await db.commit()
 
 
 @handle_db_errors
-async def create_chat(db: AsyncSession,
-                      user_id: int,
-                      employee_id: int,
-                      topic: str,
+async def create_chat(
+    db: AsyncSession,
+    user_id: int,
+    employee_id: int,
+    topic: str,
 ):
-    chat_item = Chats(
-        user_id=user_id,
-        employee_id=employee_id,
-        topic=topic
-    )
+    chat_item = Chats(user_id=user_id, employee_id=employee_id, topic=topic)
     db.add(chat_item)
     await db.commit()
-
+    return chat_item

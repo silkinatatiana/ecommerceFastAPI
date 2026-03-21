@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Редактировать {{ product.name }} | {{ shop_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', path='/styles/product/create_product.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Редактировать товар</h1>
+    <p><a href="{{ url_for('seller_products') }}">← Вернуться к моим товарам</a></p>
+
+    <div id="alert-container"></div>
+    {% if edit_error %}
+    <div class="alert alert-error" style="margin-bottom: 1rem;">{{ edit_error }}</div>
+    {% endif %}
+
+    <form id="edit-product-form" class="product-form" method="post" enctype="multipart/form-data" action="{{ url_for('submit_edit_product', product_id=product.id) }}">
+        <div class="form-section">
+            <div class="form-group">
+                <label for="name">Название товара *</label>
+                <input type="text" id="name" name="name" class="form-control" value="{{ product.name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Описание</label>
+                <textarea id="description" name="description" class="form-control" rows="4">{{ product.description or '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="color">Цвет</label>
+                <input type="text" id="color" name="color" class="form-control" value="{{ product.color or '' }}" placeholder="Например: Серебристый">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="price">Цена (₽) *</label>
+                    <input type="number" id="price" name="price" class="form-control" min="0" value="{{ product.price }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="stock">Количество *</label>
+                    <input type="number" id="stock" name="stock" class="form-control" min="0" value="{{ product.stock }}" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="category_id">Категория *</label>
+                <select id="category_id" name="category_id" class="form-control" required>
+                    <option value="">-- Выберите категорию --</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}" {% if product.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Изображения товара</label>
+                {% if product_files %}
+                <p class="form-hint"></p>
+                <div class="current-images" style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;">
+                    {% for file in product_files %}
+                    <label class="current-image-item" style="display: inline-flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <img src="{{ file.file_url }}" alt="Фото {{ loop.index }}" style="max-height: 80px; border-radius: 8px; display: block;">
+                        <input type="checkbox" name="delete_file_ids" value="{{ file.id }}"> Удалить
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <label for="files">Добавить новые изображения (jpg, png, webp, gif)</label>
+                <input type="file" id="files" name="files" class="form-control" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
+            </div>
+        </div>
+
+        <div class="form-section" id="laptopFields">
+            <h2 class="section-title">Технические характеристики</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="RAM_capacity">Оперативная память</label>
+                    <input type="text" id="RAM_capacity" name="RAM_capacity" class="form-control" value="{{ product.RAM_capacity or '' }}" placeholder="Например: 8 GB">
+                </div>
+                <div class="form-group">
+                    <label for="built_in_memory_capacity">Встроенная память</label>
+                    <input type="text" id="built_in_memory_capacity" name="built_in_memory_capacity" class="form-control" value="{{ product.built_in_memory_capacity or '' }}" placeholder="Например: 256 GB">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="screen">Диагональ экрана (дюймы)</label>
+                <input type="number" id="screen" name="screen" class="form-control" step="0.1" value="{{ product.screen or '' }}" placeholder="Например: 15.6">
+            </div>
+            <div class="form-group">
+                <label for="cpu">Процессор</label>
+                <input type="text" id="cpu" name="cpu" class="form-control" value="{{ product.cpu or '' }}" placeholder="Например: Intel Core i5">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="number_of_processor_cores">Ядер процессора</label>
+                    <input type="number" id="number_of_processor_cores" name="number_of_processor_cores" class="form-control" value="{{ product.number_of_processor_cores or '' }}">
+                </div>
+                <div class="form-group">
+                    <label for="number_of_graphics_cores">Графических ядер</label>
+                    <input type="number" id="number_of_graphics_cores" name="number_of_graphics_cores" class="form-control" value="{{ product.number_of_graphics_cores or '' }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="primary-btn" id="submit-edit-btn">Сохранить изменения</button>
+            <a href="{{ url_for('seller_products') }}" class="secondary-btn">Отмена</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('edit-product-form').onsubmit = function() {
+    var b = document.getElementById('submit-edit-btn');
+    if (b) { b.disabled = true; b.textContent = 'Сохранение...'; }
+};
+</script>
+{% endblock %}

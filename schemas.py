@@ -1,51 +1,73 @@
-from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CreateProduct(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     price: int
     stock: int
     category_id: int
-    image_urls: Optional[List[str]] = None
-    RAM_capacity: Optional[str] = None
-    built_in_memory_capacity: Optional[str] = None
-    screen: Optional[float] = None
-    cpu: Optional[str] = None
-    number_of_processor_cores: Optional[int] = None
-    number_of_graphics_cores: Optional[int] = None
-    color: Optional[str] = None
+    RAM_capacity: str | None = None
+    built_in_memory_capacity: str | None = None
+    screen: float | None = None
+    cpu: str | None = None
+    number_of_processor_cores: int | None = None
+    number_of_graphics_cores: int | None = None
+    color: str | None = None
+
+
+class UpdateProduct(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    price: int | None = None
+    stock: int | None = None
+    category_id: int | None = None
+    RAM_capacity: str | None = None
+    built_in_memory_capacity: str | None = None
+    screen: float | None = None
+    cpu: str | None = None
+    number_of_processor_cores: int | None = None
+    number_of_graphics_cores: int | None = None
+    color: str | None = None
+
+
+class FileOut(BaseModel):
+    id: int
+    original_filename: str
+    file_url: str
+    file_size: int
+    content_type: str
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProductOut(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     price: int
-    image_urls: List[str] = Field(default_factory=list)
+    image_urls: list[str] = Field(default_factory=list)  # из product.files
     stock: int
     category_id: int
-    supplier_id: Optional[int] = None
+    supplier_id: int | None = None
 
-    RAM_capacity: Optional[str] = None
-    built_in_memory_capacity: Optional[str] = None
-    screen: Optional[float] = None
-    cpu: Optional[str] = None
-    number_of_processor_cores: Optional[int] = None
-    number_of_graphics_cores: Optional[int] = None
-    color: Optional[str] = None
+    RAM_capacity: str | None = None
+    built_in_memory_capacity: str | None = None
+    screen: float | None = None
+    cpu: str | None = None
+    number_of_processor_cores: int | None = None
+    number_of_graphics_cores: int | None = None
+    color: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CreateCategory(BaseModel):
     name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CreateUser(BaseModel):
@@ -59,7 +81,7 @@ class CreateUser(BaseModel):
 class CreateReviews(BaseModel):
     grade: int = Field(..., ge=1, le=5)
     comment: str = None
-    photo_urls: Optional[List[str]] = None
+    photo_urls: list[str] | None = None
 
 
 class Favorites(BaseModel):
@@ -67,8 +89,7 @@ class Favorites(BaseModel):
     user_id: int
     product_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Cart(BaseModel):
@@ -77,8 +98,7 @@ class Cart(BaseModel):
     product_id: int
     count: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CartItem(BaseModel):
@@ -100,8 +120,7 @@ class OrderResponse(BaseModel):
     date: datetime
     status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderItem(BaseModel):
@@ -140,6 +159,7 @@ class RegisterData(BaseModel):
     last_name: str
     username: str
     email: str
+    telegram: str
     password: str
     confirm_password: str
     role: str
@@ -148,3 +168,7 @@ class RegisterData(BaseModel):
 class LoginData(BaseModel):
     username: str
     password: str
+
+
+class RecommendOut(BaseModel):
+    ids: list[int]

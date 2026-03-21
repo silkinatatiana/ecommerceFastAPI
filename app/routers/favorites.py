@@ -1,25 +1,27 @@
-from typing import Optional
-
-from fastapi import APIRouter, Depends, status, HTTPException, Cookie
+from fastapi import APIRouter, Body, Cookie, Depends, HTTPException, status
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import RedirectResponse
 
-from database.crud.favorites import get_favorite, create_favorite, delete_favorite
+from database.crud.favorites import create_favorite, delete_favorite, get_favorite
 from database.db_depends import get_db
 from general_functions.auth_func import checking_access_rights
+
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 templates = Jinja2Templates(directory="app/templates")
 
 
-@router.get('/')
-async def get_favorites(token: Optional[str] = Cookie(None, alias='token'),
-                        db: AsyncSession = Depends(get_db)
+@router.get("/")
+async def get_favorites(
+    token: str | None = Cookie(None, alias="token"),
+    db: AsyncSession = Depends(get_db),
 ):
     try:
-        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
+        user_id = await checking_access_rights(
+            token=token, roles=["customer", "seller"]
+        )
 
         favorites = await get_favorite(user_id=user_id, db=db)
         return favorites
@@ -30,17 +32,20 @@ async def get_favorites(token: Optional[str] = Cookie(None, alias='token'),
         raise
 
 
-@router.post('/', status_code=status.HTTP_201_CREATED)
-async def create_favorites(product_id: int,
-                           token: Optional[str] = Cookie(None, alias='token'),
-                           db: AsyncSession = Depends(get_db)
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_favorites(
+    product_id: int = Body(..., embed=True),
+    token: str | None = Cookie(None, alias="token"),
+    db: AsyncSession = Depends(get_db),
 ):
     try:
-        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
+        user_id = await checking_access_rights(
+            token=token, roles=["customer", "seller"]
+        )
 
-        new_favorite = await create_favorite(user_id=user_id,
-                                             product_id=product_id,
-                                             db=db)
+        new_favorite = await create_favorite(
+            user_id=user_id, product_id=product_id, db=db
+        )
         return new_favorite
 
     except IntegrityError as e:
@@ -48,28 +53,30 @@ async def create_favorites(product_id: int,
         if "unique constraint" in str(e).lower():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Этот товар уже в избранном"
-            )
+                detail="Этот товар уже в избранном",
+            ) from e
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Ошибка при добавлении в избранное: {str(e)}"
-        )
+            detail=f"Ошибка при добавлении в избранное: {str(e)}",
+        ) from e
     except HTTPException as e:
         if e.status_code == 401:
             return RedirectResponse(url="/auth/create", status_code=303)
         raise
 
 
-@router.delete('/', status_code=status.HTTP_204_NO_CONTENT)
-async def del_favorite_product(product_id: int,
-                               token: Optional[str] = Cookie(None, alias='token'),
-                               db: AsyncSession = Depends(get_db)):
+@router.delete("/", status_code=status.HTTP_204_NO_CONTENT)
+async def del_favorite_product(
+    product_id: int = Body(..., embed=True),
+    token: str | None = Cookie(None, alias="token"),
+    db: AsyncSession = Depends(get_db),
+):
     try:
-        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
+        user_id = await checking_access_rights(
+            token=token, roles=["customer", "seller"]
+        )
 
-        result = await delete_favorite(user_id=user_id,
-                                       product_id=product_id,
-                                       db=db)
+        result = await delete_favorite(user_id=user_id, product_id=product_id, db=db)
         return result
 
     except HTTPException as e:
@@ -81,19 +88,24 @@ async def del_favorite_product(product_id: int,
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'Ошибка при удалении из избранного: {str(e)}'
-        )
+            detail=f"Ошибка при удалении из избранного: {str(e)}",
+        ) from e
 
 
-@router.post('/toggle/{product_id}')
-async def toggle_favorite(product_id: int,
-                          token: Optional[str] = Cookie(None, alias='token'),
-                          db: AsyncSession = Depends(get_db)
+@router.post("/toggle/{product_id}")
+async def toggle_favorite(
+    product_id: int,
+    token: str | None = Cookie(None, alias="token"),
+    db: AsyncSession = Depends(get_db),
 ):
     try:
-        user_id = await checking_access_rights(token=token, roles=['customer', 'seller'])
+        user_id = await checking_access_rights(
+            token=token, roles=["customer", "seller"]
+        )
 
-        existing_favorite = await get_favorite(product_id=product_id, user_id=user_id, db=db)
+        existing_favorite = await get_favorite(
+            product_id=product_id, user_id=user_id, db=db
+        )
         if existing_favorite:
             await delete_favorite(product_id=product_id, user_id=user_id, db=db)
         else:
@@ -108,5 +120,5 @@ async def toggle_favorite(product_id: int,
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'Ошибка при переключении избранного: {str(e)}'
-        )
+            detail=f"Ошибка при переключении избранного: {str(e)}",
+        ) from e

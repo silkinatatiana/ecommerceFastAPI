@@ -233,11 +233,16 @@ async function createOrder() {
         }
 
         alert('Заказ успешно создан!');
-        window.location.href = `/orders/order/${data.order_id}`;
+
+        if (!data.slug || data.slug === 'undefined') {
+            alert('Ошибка: не удалось получить идентификатор заказа');
+            return;
+        }
+        window.location.href = data.redirect || `/orders/order/${data.slug}`;
         return {
             success: true,
             message: data.message,
-            orderId: data.order_id
+            slug: data.slug
         };
 
     } catch (error) {

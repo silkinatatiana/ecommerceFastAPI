@@ -7,6 +7,7 @@
 {% endblock %}
 
 {% block content %}
+    {% set default_img = url_for('static', path='/images/default_image.png') %}
     <div class="container">
         <div class="order-header">
             <h1>Заказ {{ order.id }}</h1>
@@ -31,13 +32,14 @@
 
         <div class="expandable-section">
             {% for product in products %}
-            <a href="http://127.0.0.1:8000/products/{{ product.id }}" class="product-item" target="_blank">
-                {% if product.image_url %}
-                    <img src="{{ product.image_url }}" alt="{{ product.name }}" class="product-image"
-                         onerror="this.src='/static/images/placeholder-product.jpg'">
-                {% else %}
-                    <img src="/static/images/placeholder-product.jpg" alt="Нет изображения" class="product-image">
-                {% endif %}
+            <a href="/products/{{ product.id }}" class="product-item" target="_blank">
+                <div class="product-image-wrap">
+                    <img src="{{ product.image_urls[0] if product.image_urls else default_img }}" alt="{{ product.name }}" class="product-image"
+                         onerror="this.src='{{ default_img }}'">
+                    {% if product.image_urls and product.image_urls|length > 1 %}
+                    <span class="product-image-count">+{{ product.image_urls|length - 1 }}</span>
+                    {% endif %}
+                </div>
 
                 <div class="product-info">
                     <div class="product-name">{{ product.name }}</div>

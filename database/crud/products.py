@@ -1,21 +1,20 @@
-from typing import Optional, List
-
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from database.crud.decorators import handle_db_errors
-from models import Product, Favorites
-from schemas import CreateProduct
+from models import Favorites, Product
+from schemas import CreateProduct, UpdateProduct
 
 
 @handle_db_errors
-async def create_new_product(db: AsyncSession,
-                             product_data: CreateProduct,
-                             supplier_id: int,
+async def create_new_product(
+    db: AsyncSession, product_data: CreateProduct, supplier_id: int, verify: bool
 ):
     product = Product(
-        **product_data.dict(exclude_unset=True),
-        supplier_id=supplier_id
+        **product_data.model_dump(exclude_unset=True),
+        supplier_id=supplier_id,
+        verify=verify,
     )
 
     db.add(product)
@@ -26,45 +25,119 @@ async def create_new_product(db: AsyncSession,
 
 
 @handle_db_errors
-async def get_product(db: AsyncSession,
-                      category_ids: list = None,
-                      product_id: int = None,
-                      product_ids: list = None,
-                      func_count: bool = False,
-                      colors: list = None,
-                      built_in_memory: list = None,
-                      order_dy_: int | str = None
+async def get_product(
+    db: AsyncSession,
+    category_ids: list = None,
+    product_id: int = None,
+    product_ids: list = None,
+    verify: bool = True,
+    user_id: int = None,
+    func_count: bool = False,
+    colors: list = None,
+    built_in_memory: list = None,
+    order_dy_: int | str = None,
 ):
-    query = select(Product)
+    query = (
+        select(Product)
+        .options(joinedload(Product.files))
+        .where(Product.verify == verify)
+    )
 
     if func_count:
-        query = select(func.count()).select_from(Product)
+        count_query = (
+            select(func.count()).select_from(Product).where(Product.verify == verify)
+        )
+        if category_ids:
+            count_query = count_query.where(Product.category_id.in_(category_ids))
+        if user_id:
+            count_query = count_query.where(Product.supplier_id == user_id)
+        if colors:
+            count_query = count_query.where(Product.color.in_(colors))
+        if built_in_memory:
+            count_query = count_query.where(
+                Product.built_in_memory_capacity.in_(built_in_memory)
+            )
+
+        result = await db.scalar(count_query)
+        return result
 
     if product_id:
         query = query.where(Product.id == product_id)
-
     if product_ids:
-        query = query.where(Product.id.in_product_ids)
-
+        query = query.where(Product.id.in_(product_ids))
+    if user_id:
+        query = query.where(Product.supplier_id == user_id)
     if category_ids:
         query = query.where(Product.category_id.in_(category_ids))
-
     if colors:
         query = query.where(Product.color.in_(colors))
-
     if built_in_memory:
         query = query.where(Product.built_in_memory_capacity.in_(built_in_memory))
-
     if order_dy_:
         query = query.order_by(order_dy_)
 
-    if func_count or product_id:
-        result = await db.scalar(query)
-        return result
-
     result = await db.execute(query)
-    products = result.scalars().all()
+
+    products = result.unique().scalars().all()
+
     return products or []
+
+
+@handle_db_errors
+async def get_product_by_id(db: AsyncSession, product_id: int) -> Product | None:
+    result = await db.execute(
+        select(Product)
+        .options(joinedload(Product.files))
+        .where(Product.id == product_id)
+    )
+    product = result.unique().scalar_one_or_none()
+    return product
+
+
+@handle_db_errors
+async def update_product(
+    db: AsyncSession, product_id: int, update_data: UpdateProduct
+) -> Product | None:
+    """Обновить товар по id. Возвращает обновлённый продукт или None."""
+    from app.main import logger
+
+    result = await db.execute(
+        select(Product)
+        .options(joinedload(Product.files))
+        .where(Product.id == product_id)
+    )
+    logger.error(2)
+    product = result.unique().scalar_one_or_none()
+    logger.error(3)
+    if not product:
+        return None
+    data = update_data.model_dump(exclude_unset=True)
+    logger.error(4)
+    for key, value in data.items():
+        setattr(product, key, value)
+    logger.error(5)
+    await db.commit()
+    logger.error(6)
+    await db.refresh(product)
+    logger.error(7)
+    return product
+
+
+@handle_db_errors
+async def delete_product(db: AsyncSession, product_id: int) -> bool:
+    """Удалить товар и связанные файлы. Возвращает True если товар был удалён."""
+    result = await db.execute(
+        select(Product)
+        .options(joinedload(Product.files))
+        .where(Product.id == product_id)
+    )
+    product = result.unique().scalar_one_or_none()
+    if not product:
+        return False
+
+    await db.delete(product)
+    await db.commit()
+    return True
 
 
 @handle_db_errors
@@ -73,14 +146,24 @@ async def get_products_with_filters(
     category_id: int,
     page: int = 1,
     per_page: int = 3,
-    colors: Optional[str] = None,
-    built_in_memory: Optional[str] = None,
-    user_id: Optional[int] = None,
-    favorites: Optional[List[str]] = None,
-) -> tuple[List[Product], int]:
-
-    base_query = select(Product).where(Product.category_id == category_id).order_by(Product.id)
-    count_query = select(func.count()).select_from(Product).where(Product.category_id == category_id)
+    colors: str | None = None,
+    built_in_memory: str | None = None,
+    user_id: int | None = None,
+    favorites: list[str] | None = None,
+) -> tuple[list[Product], int]:
+    base_query = (
+        select(Product)
+        .options(joinedload(Product.files))
+        .where(Product.category_id == category_id)
+        .where(Product.verify)
+        .order_by(Product.id)
+    )
+    count_query = (
+        select(func.count())
+        .select_from(Product)
+        .where(Product.category_id == category_id)
+        .where(Product.verify)
+    )
 
     if colors:
         colors_list = [c.strip() for c in colors.split(",") if c.strip()]
@@ -97,7 +180,9 @@ async def get_products_with_filters(
             count_query = count_query.where(memory_condition)
 
     if favorites is not None and user_id:
-        favorite_ids_query = select(Favorites.product_id).where(Favorites.user_id == user_id)
+        favorite_ids_query = select(Favorites.product_id).where(
+            Favorites.user_id == user_id
+        )
         favorite_ids = (await db.scalars(favorite_ids_query)).all()
         if favorite_ids:
             base_query = base_query.where(Product.id.in_(favorite_ids))
@@ -110,9 +195,8 @@ async def get_products_with_filters(
 
     offset = (page - 1) * per_page
     paginated_query = base_query.offset(offset).limit(per_page)
-    products = (await db.scalars(paginated_query)).all()
+
+    result = await db.execute(paginated_query)
+    products = result.unique().scalars().all()
 
     return products, total_count
-
-
-

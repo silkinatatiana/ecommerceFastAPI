@@ -1,7 +1,13 @@
+import logging
+
+from sqlalchemy import select
+
 from config import Config
 from general_functions.orders_func import fetch_orders_for_user
 from models import Chats, Messages
-from sqlalchemy import select
+
+
+logger = logging.getLogger(__name__)
 
 
 async def get_tab_by_section(section, templates, request, user, page, db, user_dict):
@@ -9,6 +15,7 @@ async def get_tab_by_section(section, templates, request, user, page, db, user_d
         "request": request,
         "user": user,
         "user_id": user.id,
+        "is_verified": bool(user.is_verified),
         "role": user.role,
         "config": Config.url,
         "is_authenticated": True,
@@ -17,17 +24,19 @@ async def get_tab_by_section(section, templates, request, user, page, db, user_d
     }
 
     dict_tab = {
-        'security_tab': 'profile/security.html',
-        'orders_tab': 'profile/orders.html',
-        'profile_tab': 'profile/profile.html',
-        'chats_tab': 'profile/chats_list.html'
+        "security_tab": "profile/security.html",
+        "orders_tab": "profile/orders.html",
+        "profile_tab": "profile/profile.html",
+        "chats_tab": "profile/chats_list.html",
     }
 
-    if section == 'orders_tab':
-        orders_data = await fetch_orders_for_user(user_id=user_dict['id'], page=page, per_page=5, db=db)
-        return_dict.update({'orders_data': orders_data})
+    if section == "orders_tab":
+        orders_data = await fetch_orders_for_user(
+            user_id=user_dict["id"], page=page, per_page=5, db=db
+        )
+        return_dict.update({"orders_data": orders_data})
 
-    elif section == 'chats_tab':
+    elif section == "chats_tab":
         try:
             limit = 10
             offset = (page - 1) * limit
@@ -54,20 +63,19 @@ async def get_tab_by_section(section, templates, request, user, page, db, user_d
                 )
                 chat.last_message = await db.scalar(last_msg_query)
 
-            return_dict.update({
-                'chats': chats,
-                'page': page,
-                'has_more': has_more,
-                'next_page': page + 1 if has_more else None
-            })
+            return_dict.update(
+                {
+                    "chats": chats,
+                    "page": page,
+                    "has_more": has_more,
+                    "next_page": page + 1 if has_more else None,
+                }
+            )
 
         except Exception as e:
-            print(f"Ошибка при загрузке чатов: {e}")
-            return_dict.update({
-                'chats': [],
-                'page': page,
-                'has_more': False,
-                'next_page': None
-            })
+            logger.error(f"Ошибка при загрузке чатов: {e}")
+            return_dict.update(
+                {"chats": [], "page": page, "has_more": False, "next_page": None}
+            )
 
     return templates.TemplateResponse(dict_tab[section], return_dict)
