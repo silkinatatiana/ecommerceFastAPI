@@ -17,11 +17,11 @@ from database.crud.decorators import handler_base_errors
 from database.crud.orders import create_new_order, get_orders, update_status
 from database.crud.products import get_product
 from database.db_depends import get_db
-from models import Cart
 from general_functions.auth_func import checking_access_rights
 from general_functions.kafka_func import get_chat_ids
 from general_functions.orders_func import fetch_orders_for_user
 from general_functions.product_func import update_stock
+from models import Cart
 from schemas import OrderResponse
 
 
@@ -224,9 +224,7 @@ async def order_page(
 
         if user_id:
             is_authenticated = True
-        logger.error("1")
         order = await get_orders(slug=order_slug, db=db)
-        logger.error("2")
 
         if not order:
             return templates.TemplateResponse(
@@ -239,8 +237,10 @@ async def order_page(
         for (
             product_id,
             product_data,
-        ) in order.products.items():  # TODO найти ошибку между 2 и 3
-            product = await get_product(db=db, product_id=int(product_id))
+        ) in order.products.items():
+            product_list = await get_product(db=db, product_id=int(product_id))
+            product = product_list[0] if product_list else None
+
             if product:
                 item_total = product_data["count"] * product_data["price"]
                 order_products.append(
@@ -254,7 +254,7 @@ async def order_page(
                     }
                 )
                 total_amount += item_total
-        logger.error("3")
+
         order.created_at = order.date.strftime("%Y-%m-%d %H:%M")
         order.total_sum = order.summa
 
@@ -269,7 +269,6 @@ async def order_page(
             "shop_name": Config.shop_name,
             "descr": Config.descr,
         }
-        logger.error("4")
         return templates.TemplateResponse("orders/order_page.html", context)
 
     except HTTPException as e:

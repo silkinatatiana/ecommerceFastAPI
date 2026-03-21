@@ -18,6 +18,21 @@ class CreateProduct(BaseModel):
     color: str | None = None
 
 
+class UpdateProduct(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    price: int | None = None
+    stock: int | None = None
+    category_id: int | None = None
+    RAM_capacity: str | None = None
+    built_in_memory_capacity: str | None = None
+    screen: float | None = None
+    cpu: str | None = None
+    number_of_processor_cores: int | None = None
+    number_of_graphics_cores: int | None = None
+    color: str | None = None
+
+
 class FileOut(BaseModel):
     id: int
     original_filename: str

@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from database.crud.decorators import handle_db_errors
-from models import File, Favorites, Product
-from schemas import CreateProduct
+from models import Favorites, Product
+from schemas import CreateProduct, UpdateProduct
 
 
 @handle_db_errors
@@ -81,6 +81,63 @@ async def get_product(
     products = result.unique().scalars().all()
 
     return products or []
+
+
+@handle_db_errors
+async def get_product_by_id(db: AsyncSession, product_id: int) -> Product | None:
+    result = await db.execute(
+        select(Product)
+        .options(joinedload(Product.files))
+        .where(Product.id == product_id)
+    )
+    product = result.unique().scalar_one_or_none()
+    return product
+
+
+@handle_db_errors
+async def update_product(
+    db: AsyncSession, product_id: int, update_data: UpdateProduct
+) -> Product | None:
+    """Обновить товар по id. Возвращает обновлённый продукт или None."""
+    from app.main import logger
+
+    result = await db.execute(
+        select(Product)
+        .options(joinedload(Product.files))
+        .where(Product.id == product_id)
+    )
+    logger.error(2)
+    product = result.unique().scalar_one_or_none()
+    logger.error(3)
+    if not product:
+        return None
+    data = update_data.model_dump(exclude_unset=True)
+    logger.error(4)
+    for key, value in data.items():
+        setattr(product, key, value)
+    logger.error(5)
+    await db.commit()
+    logger.error(6)
+    await db.refresh(product)
+    logger.error(7)
+    return product
+
+
+@handle_db_errors
+async def delete_product(db: AsyncSession, product_id: int) -> bool:
+    """Удалить товар и связанные файлы. Возвращает True если товар был удалён."""
+    result = await db.execute(
+        select(Product)
+        .options(joinedload(Product.files))
+        .where(Product.id == product_id)
+    )
+    product = result.unique().scalar_one_or_none()
+    if not product:
+        return False
+
+    await db.delete(product)
+    await db.commit()
+    return True
 
 
 @handle_db_errors

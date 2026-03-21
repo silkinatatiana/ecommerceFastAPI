@@ -1,6 +1,7 @@
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
 from database.crud.favorites import get_favorite
 from database.crud.orders import get_orders
@@ -77,3 +78,16 @@ async def get_user_order_product_ids(db: AsyncSession, user_id: int) -> list[int
 async def get_user_viewed_product_ids(db: AsyncSession, user_id: int) -> list[int]:
     all_views_by_user = await get_all_views_by_user(db=db, user_id=user_id)
     return [view.product_id for view in all_views_by_user]
+
+
+def check_rights_for_product(product: Product | None, seller_id: int):
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Товар не найден",
+        )
+
+    if seller_id != product.supplier_id:
+        raise HTTPException(
+            status_code=403, detail="Товар может удалить только продавец данного товара"
+        )

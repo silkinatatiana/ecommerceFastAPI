@@ -11,7 +11,7 @@ class Review(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    product_id = Column(Integer, ForeignKey("products.id"))
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"))
     comment = Column(String(1000), nullable=True)
     comment_date = Column(DateTime, default=datetime.now)
     grade = Column(Integer, nullable=False)

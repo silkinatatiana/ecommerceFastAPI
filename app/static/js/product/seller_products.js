@@ -58,36 +58,20 @@ function initProductCardInteractions() {
             this.style.zIndex = '1';
         });
 
-        // Клик по карточке - переход к редактированию
-        card.addEventListener('click', function(e) {
-            if (!e.target.closest('a, button')) {
-                const productId = this.dataset.productId;
-                if (productId) {
-                    window.location.href = `/product/${productId}/edit`;
-                }
-            }
-        });
-
-        // Инициализация кнопок действий
         initCardActions(card);
     });
 }
 
-/**
- * Инициализация кнопок действий в карточке
- */
 function initCardActions(card) {
-    // Кнопка редактирования
     const editBtn = card.querySelector('.btn-edit');
     if (editBtn) {
         editBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             const productId = card.dataset.productId;
-            window.location.href = `/product/${productId}/edit`;
+            if (productId) window.location.href = `/products/${productId}/edit`;
         });
     }
 
-    // Кнопка удаления
     const deleteBtn = card.querySelector('.btn-delete');
     if (deleteBtn) {
         deleteBtn.addEventListener('click', function(e) {
@@ -96,7 +80,6 @@ function initCardActions(card) {
         });
     }
 
-    // Кнопка избранного
     const favoriteBtn = card.querySelector('.btn-favorite');
     if (favoriteBtn) {
         favoriteBtn.addEventListener('click', function(e) {
@@ -106,9 +89,6 @@ function initCardActions(card) {
     }
 }
 
-/**
- * Обработка удаления товара
- */
 function handleDeleteProduct(card) {
     const productId = card.dataset.productId;
 
@@ -116,25 +96,25 @@ function handleDeleteProduct(card) {
         return;
     }
 
-    // Показываем индикатор загрузки
     showLoadingIndicator(card);
 
-    fetch(`/api/products/${productId}`, {
+    fetch(`/products/${productId}`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': getCSRFToken()
+            'Content-Type': 'application/json'
         }
     })
     .then(response => {
         if (!response.ok) {
             throw new Error('Ошибка при удалении товара');
         }
-        return response.json();
+        return response.status === 204 ? {} : response.json();
     })
-    .then(data => {
-        // Удаляем карточку с анимацией
+    .then(() => {
         removeProductCard(card);
+        updateCounts();
+        checkEmptyStates();
     })
     .catch(error => {
         hideLoadingIndicator(card);

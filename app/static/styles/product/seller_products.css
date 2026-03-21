@@ -293,9 +293,66 @@
         background: #218838;
     }
 
-.product-card,
-.product-card *,
-.product-card:hover,
-.product-card:hover * {
+.product-card {
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--border-radius, 12px);
+    overflow: hidden;
+    box-shadow: var(--box-shadow, 0 2px 8px rgba(0,0,0,0.08));
+    background: #fff;
+}
+
+.product-card-link {
+    display: block;
+    text-decoration: none !important;
+    color: inherit;
+    flex: 1;
+}
+
+.product-card-link:hover {
+    text-decoration: none !important;
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid #eee;
+    flex-shrink: 0;
+}
+
+.card-actions .btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    text-decoration: none;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.card-actions .btn-edit {
+    background: #6c757d;
+    color: white;
+}
+
+.card-actions .btn-edit:hover {
+    background: #5a6268;
+    color: white;
+}
+
+.card-actions .btn-delete {
+    background: #dc3545;
+    color: white;
+}
+
+.card-actions .btn-delete:hover {
+    background: #c82333;
+    color: white;
+}
+
+.product-card * {
     text-decoration: none !important;
 }

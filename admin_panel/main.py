@@ -1,28 +1,25 @@
 import io
 import logging
-
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from urllib.parse import parse_qsl, urlencode, urlparse
 
 from fastapi import FastAPI, HTTPException
+from markupsafe import Markup
 from openpyxl import Workbook
 from sqladmin import Admin, ModelView, action
 from sqladmin.authentication import AuthenticationBackend
 from sqladmin.helpers import secure_filename
-from starlette.middleware.sessions import SessionMiddleware
-from urllib.parse import parse_qsl, urlencode, urlparse
-
-from markupsafe import Markup
 from starlette.datastructures import MultiDict
+from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
-from starlette.responses import StreamingResponse
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, StreamingResponse
 from wtforms import validators
 
 from app.kafka.producer import KafkaEventPublisher
-from database.crud.users import get_user, set_users_admin
-from database.db import engine, async_session_maker
 from config import Config
+from database.crud.users import get_user, set_users_admin
+from database.db import async_session_maker, engine
 from general_functions.auth_func import (
     bcrypt_context,
     checking_access_rights,
@@ -33,13 +30,13 @@ from models import (
     Cart,
     Category,
     Chats,
-    File,
     Favorites,
+    File,
     Messages,
+    Orders,
     Product,
     User,
     Views,
-    Orders,
 )
 
 
@@ -488,12 +485,6 @@ class UserAdmin(ExcelExportMixin, ModelView, model=User):
     def is_accessible(self, request: Request) -> bool:
         user = getattr(request.state, "user", None)
         return bool(user and user.get("is_admin"))
-
-    def can_edit(self, request: Request) -> bool:
-        pk = request.path_params.get("pk")
-        if not pk:
-            return True
-        return True
 
     @action(
         name="make_admin",

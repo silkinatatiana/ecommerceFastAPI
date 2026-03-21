@@ -16,6 +16,6 @@ class File(Base):
     file_size = Column(Integer, nullable=False)
     content_type = Column(String, nullable=False)
     uploaded_at = Column(DateTime, default=datetime.now)
-    product_id = Column(Integer, ForeignKey("products.id"))
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"))
 
     product = relationship("Product", back_populates="files")

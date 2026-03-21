@@ -31,8 +31,11 @@ from config import Config
 from database.crud.category import get_category
 from database.crud.products import (
     create_new_product,
+    delete_product as crud_delete_product,
     get_product,
+    get_product_by_id,
     get_products_with_filters,
+    update_product as crud_update_product,
 )
 from database.crud.views import (
     create_views_product,
@@ -44,8 +47,13 @@ from general_functions.auth_func import checking_access_rights, get_current_user
 from general_functions.cart_func import get_in_cart_product_ids
 from general_functions.favorites_func import get_favorite_product_ids
 from general_functions.kafka_func import get_chat_ids
-from models import File as FileModel, Product, Review
-from schemas import CreateProduct, FileOut, ProductOut, RecommendOut
+from general_functions.product_func import check_rights_for_product
+from models import (
+    File as FileModel,
+    Product,
+    Review,
+)
+from schemas import CreateProduct, FileOut, ProductOut, RecommendOut, UpdateProduct
 
 
 router = APIRouter(prefix="/products", tags=["products"])
@@ -129,21 +137,12 @@ async def seller_products(
     )
 
 
-def _parse_optional_int(value: str | None) -> int | None:
-    if value is None or value.strip() == "":
+def _opt(val, cast):
+    if val is None or (isinstance(val, str) and not val.strip()):
         return None
     try:
-        return int(value)
-    except ValueError:
-        return None
-
-
-def _parse_optional_float(value: str | None) -> float | None:
-    if value is None or value.strip() == "":
-        return None
-    try:
-        return float(value)
-    except ValueError:
+        return cast(val)
+    except (ValueError, TypeError):
         return None
 
 
@@ -158,7 +157,7 @@ async def create_product(
     stock: int = Form(...),
     category_id: int = Form(...),
     color: str | None = Form(None),
-    RAM_capacity: str | None = Form(None),
+    ram_capacity: str | None = Form(None),
     built_in_memory_capacity: str | None = Form(None),
     screen: str | None = Form(None),
     cpu: str | None = Form(None),
@@ -224,14 +223,14 @@ async def create_product(
             stock=stock,
             category_id=category_id,
             color=color.strip() if color else None,
-            RAM_capacity=RAM_capacity.strip() if RAM_capacity else None,
+            RAM_capacity=ram_capacity.strip() if ram_capacity else None,
             built_in_memory_capacity=built_in_memory_capacity.strip()
             if built_in_memory_capacity
             else None,
-            screen=_parse_optional_float(screen),
+            screen=_opt(screen, float),
             cpu=cpu.strip() if cpu else None,
-            number_of_processor_cores=_parse_optional_int(number_of_processor_cores),
-            number_of_graphics_cores=_parse_optional_int(number_of_graphics_cores),
+            number_of_processor_cores=_opt(number_of_processor_cores, int),
+            number_of_graphics_cores=_opt(number_of_graphics_cores, int),
         )
 
         product = await create_new_product(
@@ -302,6 +301,165 @@ async def create_product(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         ) from e
+
+
+@router.patch("/{product_id}", response_model=ProductOut)
+async def update_product(
+    product_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    body: UpdateProduct,
+    token: str | None = Cookie(None, alias="token"),
+):
+    await checking_access_rights(token=token, roles=["seller"])
+
+    updated = await crud_update_product(
+        db=db,
+        product_id=product_id,
+        update_data=body,
+    )
+
+    if not updated:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+
+    return ProductOut.model_validate(updated)
+
+
+@router.delete("/{product_id}", status_code=204)
+async def delete_product(
+    product_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    token: str | None = Cookie(None, alias="token"),
+):
+    seller_id = await checking_access_rights(token=token, roles=["seller"])
+    product = await get_product_by_id(db=db, product_id=product_id)
+
+    check_rights_for_product(product, seller_id)
+
+    await crud_delete_product(db=db, product_id=product_id)
+
+
+@router.get("/{product_id}/edit", response_class=HTMLResponse)
+async def edit_product_form(
+    request: Request,
+    product_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    token: str | None = Cookie(None, alias="token"),
+):
+    await checking_access_rights(token=token, roles=["seller"])
+
+    product = await get_product_by_id(db=db, product_id=product_id)
+
+    categories = await get_category(db=db) or []
+    pf = product.files
+    return templates.TemplateResponse(
+        "products/edit_product.html",
+        {
+            "request": request,
+            "product": product,
+            "product_files": pf,
+            "image_urls": [f.file_url for f in pf],
+            "categories": categories,
+            "config": {"url": Config.url},
+            "shop_name": Config.shop_name,
+        },
+    )
+
+
+@router.post("/{product_id}/edit", response_class=HTMLResponse)
+async def submit_edit_product(
+    request: Request,
+    product_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    token: str | None = Cookie(None, alias="token"),
+):
+    seller_id = await checking_access_rights(token=token, roles=["seller"])
+
+    product = await get_product_by_id(db=db, product_id=product_id)
+    check_rights_for_product(product, seller_id)
+
+    form = await request.form()
+
+    raw_data = {}
+    for field_name in UpdateProduct.model_fields:
+        value = form.get(field_name)
+
+        if value is None:
+            continue
+
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                value = None
+
+        raw_data[field_name] = value
+
+    update_data = UpdateProduct(**raw_data).model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(product, key, value)
+
+    delete_file_ids_raw = form.getlist("delete_file_ids")
+    delete_file_ids = {
+        int(file_id) for file_id in delete_file_ids_raw if str(file_id).isdigit()
+    }
+
+    files_to_delete = [
+        file_row for file_row in product.files if file_row.id in delete_file_ids
+    ]
+    s3_keys_to_delete = [file_row.s3_key for file_row in files_to_delete]
+
+    for file_row in files_to_delete:
+        await db.delete(file_row)
+
+    uploaded_files = form.getlist("files")
+
+    for file in uploaded_files:
+        if not file:
+            continue
+        if not getattr(file, "filename", None):
+            continue
+        if not getattr(file, "content_type", None):
+            continue
+        if not file.content_type.startswith("image/"):
+            continue
+
+        contents = await file.read()
+        if not contents:
+            continue
+
+        file_ext = (file.filename or "jpg").split(".")[-1].lower() or "jpg"
+        if file_ext not in ("jpg", "jpeg", "png", "webp", "gif"):
+            file_ext = "jpg"
+
+        s3_key = f"users/{product.supplier_id}/{uuid.uuid4()}.{file_ext}"
+        extra_args = {"ContentType": file.content_type or "image/jpeg"}
+
+        file_url = s3_client.upload_fileobj(
+            fileobj=io.BytesIO(contents),
+            key=s3_key,
+            extra_args=extra_args,
+        )
+
+        db.add(
+            FileModel(
+                original_filename=file.filename or "image",
+                s3_key=s3_key,
+                file_url=file_url,
+                file_size=len(contents),
+                content_type=file.content_type or "image/jpeg",
+                product_id=product.id,
+            )
+        )
+
+    await db.commit()
+
+    for s3_key in s3_keys_to_delete:
+        try:
+            s3_client.delete_object(s3_key)
+        except Exception as e:
+            logger.warning("Не удалось удалить файл из S3 %s: %s", s3_key, e)
+
+    return RedirectResponse(url="/products/seller_products", status_code=303)
 
 
 @router.get("/files/{file_id}", response_model=FileOut)

@@ -77,6 +77,10 @@
         </div>
 
         <div class="product-actions">
+            {% if is_authenticated and role == 'seller' and product.supplier_id == user_id %}
+                <a href="{{ url_for('edit_product_form', product_id=product.id) }}" class="btn btn-secondary">✏️ Редактировать</a>
+                <button type="button" class="btn btn-danger" id="btn-delete-product" data-product-id="{{ product.id }}">🗑️ Удалить товар</button>
+            {% endif %}
             {% if is_authenticated and role == 'customer' %}
                 {% if product.in_cart %}
                     <button class="btn btn-primary" onclick="removeFromCart('{{ product.id }}')">Удалить из корзины</button>
