@@ -29,6 +29,7 @@ from starlette.responses import RedirectResponse
 from app.s3_client import s3_client
 from config import Config
 from database.crud.category import get_category
+from database.crud.files import get_file_by_id
 from database.crud.products import (
     create_new_product,
     delete_product as crud_delete_product,
@@ -43,11 +44,19 @@ from database.crud.views import (
     update_views_by_product_user,
 )
 from database.db_depends import get_db, get_redis
-from general_functions.auth_func import checking_access_rights, get_current_user
+from general_functions.auth_func import (
+    checking_access_rights,
+    get_current_user,
+    get_user_id_by_token,
+)
 from general_functions.cart_func import get_in_cart_product_ids
 from general_functions.favorites_func import get_favorite_product_ids
 from general_functions.kafka_func import get_chat_ids
-from general_functions.product_func import check_rights_for_product
+from general_functions.product_func import (
+    check_rights_for_product,
+    update_product_from_form,
+    upload_supplier_image_to_s3,
+)
 from models import (
     File as FileModel,
     Product,
@@ -97,7 +106,7 @@ async def seller_products_data(
     token: str | None = Cookie(None, alias="token"),
 ):
     try:
-        seller_id = await checking_access_rights(token=token, roles=["seller"])
+        seller_id = get_user_id_by_token(token=token)
         products = await get_product(db=db, user_id=seller_id, verify=verify)
 
         return products
@@ -372,110 +381,66 @@ async def submit_edit_product(
     db: Annotated[AsyncSession, Depends(get_db)],
     token: str | None = Cookie(None, alias="token"),
 ):
-    seller_id = await checking_access_rights(token=token, roles=["seller"])
-
-    product = await get_product_by_id(db=db, product_id=product_id)
-    check_rights_for_product(product, seller_id)
-
     form = await request.form()
 
-    raw_data = {}
-    for field_name in UpdateProduct.model_fields:
-        value = form.get(field_name)
+    seller_id = get_user_id_by_token(token=token)
+    product = await get_product_by_id(db=db, product_id=product_id)
 
-        if value is None:
+    check_rights_for_product(product, seller_id)
+
+    update_product_from_form(form=form, product=product)
+
+    delete_files: list[FileModel] = []
+    for file_id in form.getlist("delete_file_ids"):
+        if not str(file_id).isdigit():
             continue
+        file_row = await get_file_by_id(db=db, file_id=int(file_id))
+        if file_row:
+            delete_files.append(file_row)
 
-        if isinstance(value, str):
-            value = value.strip()
-            if value == "":
-                value = None
+    for file_row in delete_files:
+        try:
+            s3_client.delete_object(file_row.s3_key)
+        except Exception as e:
+            logger.warning("Не удалось удалить файл из S3 %s: %s", file_row.s3_key, e)
 
-        raw_data[field_name] = value
-
-    update_data = UpdateProduct(**raw_data).model_dump(exclude_unset=True)
-
-    for key, value in update_data.items():
-        setattr(product, key, value)
-
-    delete_file_ids_raw = form.getlist("delete_file_ids")
-    delete_file_ids = {
-        int(file_id) for file_id in delete_file_ids_raw if str(file_id).isdigit()
-    }
-
-    files_to_delete = [
-        file_row for file_row in product.files if file_row.id in delete_file_ids
-    ]
-    s3_keys_to_delete = [file_row.s3_key for file_row in files_to_delete]
-
-    for file_row in files_to_delete:
+    for file_row in delete_files:
         await db.delete(file_row)
 
     uploaded_files = form.getlist("files")
-
     for file in uploaded_files:
-        if not file:
+        info = await upload_supplier_image_to_s3(file, product.supplier_id, s3_client)
+        if not info:
             continue
-        if not getattr(file, "filename", None):
-            continue
-        if not getattr(file, "content_type", None):
-            continue
-        if not file.content_type.startswith("image/"):
-            continue
-
-        contents = await file.read()
-        if not contents:
-            continue
-
-        file_ext = (file.filename or "jpg").split(".")[-1].lower() or "jpg"
-        if file_ext not in ("jpg", "jpeg", "png", "webp", "gif"):
-            file_ext = "jpg"
-
-        s3_key = f"users/{product.supplier_id}/{uuid.uuid4()}.{file_ext}"
-        extra_args = {"ContentType": file.content_type or "image/jpeg"}
-
-        file_url = s3_client.upload_fileobj(
-            fileobj=io.BytesIO(contents),
-            key=s3_key,
-            extra_args=extra_args,
-        )
-
         db.add(
             FileModel(
-                original_filename=file.filename or "image",
-                s3_key=s3_key,
-                file_url=file_url,
-                file_size=len(contents),
-                content_type=file.content_type or "image/jpeg",
+                original_filename=info["original_filename"],
+                s3_key=info["s3_key"],
+                file_url=info["file_url"],
+                file_size=info["file_size"],
+                content_type=info["content_type"],
                 product_id=product.id,
             )
         )
 
     await db.commit()
 
-    for s3_key in s3_keys_to_delete:
-        try:
-            s3_client.delete_object(s3_key)
-        except Exception as e:
-            logger.warning("Не удалось удалить файл из S3 %s: %s", s3_key, e)
-
     return RedirectResponse(url="/products/seller_products", status_code=303)
 
 
 @router.get("/files/{file_id}", response_model=FileOut)
-async def get_file_by_id(
+async def get_file(
     file_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Получить данные изображения по id (из product.file_ids)."""
-    result = await db.execute(select(FileModel).where(FileModel.id == file_id))
-    file_row = result.scalar_one_or_none()
-    if not file_row:
+    file = get_file_by_id(db=db, file_id=file_id)
+
+    if not file:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Файл не найден",
         )
-    return FileOut.model_validate(file_row)
+    return FileOut.model_validate(file)
 
 
 @router.get("/")

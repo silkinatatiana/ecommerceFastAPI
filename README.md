@@ -48,8 +48,7 @@
    cd <папка-проекта>
 
 
-2. Создайте .env файлы в корне проекта, указав необходимые переменные окружения:
-URL, URL_SUPPORT, SECRET_KEY, ALGORITHM, API_PORT, API_PORT_SUPPORT, SHOP_NAME, DESCR, SQLALCHEMY_DATABASE_URL.
+2. Создайте .env файлы в корне проекта, указав необходимые переменные окружения из файла example.env
 
 3. Соберите и запустите контейнеры:
     ```bash

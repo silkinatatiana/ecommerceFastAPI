@@ -1,4 +1,8 @@
-from fastapi import Depends, HTTPException
+import io
+import uuid
+from typing import TypedDict
+
+from fastapi import Depends, Form, HTTPException, UploadFile
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
@@ -8,6 +12,7 @@ from database.crud.orders import get_orders
 from database.crud.views import get_all_views_by_user
 from database.db_depends import get_db
 from models import Product
+from schemas import UpdateProduct
 
 
 async def check_stock(product_id: int, db: AsyncSession = Depends(get_db)):
@@ -89,5 +94,69 @@ def check_rights_for_product(product: Product | None, seller_id: int):
 
     if seller_id != product.supplier_id:
         raise HTTPException(
-            status_code=403, detail="Товар может удалить только продавец данного товара"
+            status_code=403,
+            detail="Товар может изменить только продавец данного товара",
         )
+
+
+def update_product_from_form(form: Form, product: Product):
+    raw_data = {}
+    for field_name in UpdateProduct.model_fields:
+        value = form.get(field_name)
+
+        if value is None:
+            continue
+
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                value = None
+
+        raw_data[field_name] = value
+
+    update_data = UpdateProduct(**raw_data).model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(product, key, value)
+
+
+class UploadedSupplierImage(TypedDict):
+    original_filename: str
+    s3_key: str
+    file_url: str
+    file_size: int
+    content_type: str
+
+
+async def upload_supplier_image_to_s3(
+    file: UploadFile,
+    supplier_id: int,
+    s3_client,
+) -> UploadedSupplierImage | None:
+    if not file or not file.filename:
+        return None
+    if not getattr(file, "content_type", "") or not str(file.content_type).startswith(
+        "image/"
+    ):
+        return None
+    contents = await file.read()
+    if not contents:
+        return None
+    file_ext = (file.filename or "jpg").split(".")[-1].lower() or "jpg"
+    if file_ext not in ("jpg", "jpeg", "png", "webp", "gif"):
+        file_ext = "jpg"
+    s3_key = f"users/{supplier_id}/{uuid.uuid4()}.{file_ext}"
+    extra_args = {"ContentType": file.content_type or "image/jpeg"}
+    content_type = file.content_type or "image/jpeg"
+    file_url = s3_client.upload_fileobj(
+        fileobj=io.BytesIO(contents),
+        key=s3_key,
+        extra_args=extra_args,
+    )
+    return {
+        "original_filename": file.filename or "image",
+        "s3_key": s3_key,
+        "file_url": file_url,
+        "file_size": len(contents),
+        "content_type": content_type,
+    }
